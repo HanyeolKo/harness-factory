@@ -1,0 +1,3 @@
+{"ts":"2026-07-11T08:00:00Z","event":"session_start","unit":null,"detail":"하네스 생성 — harness-factory 구성자 프로토콜 Phase 3","verdict":null,"evidence":null}
+{"ts":"2026-07-11T08:05:00Z","event":"decision","unit":null,"detail":"D-001 초기 구성 결정 기록","verdict":null,"evidence":"ledger/DECISIONS.md"}
+{"ts":"2026-07-11T08:10:00Z","event":"checkpoint","unit":null,"detail":"생성 직후 초기 체크포인트 — next_action=U-001 착수","verdict":null,"evidence":"state/state.json"}
