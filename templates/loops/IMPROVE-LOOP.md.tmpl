@@ -10,19 +10,30 @@
 | 정기 회고 | 작업 단위 {{RETRO_INTERVAL}}개 완료마다 (기본 10, 무인 모드 5) |
 | 가독성 붕괴 | 콜드스타트 테스트 fail 즉시 |
 
+## 실행 방식 — 검사는 결정적으로, 회고는 별개 에이전트로 (기본값)
+
+- **트리거 검사**: 메인 루프가 매 태스크 경계(EXECUTION-LOOP RETRO-CHECK)에서 state.json 조회로 수행한다. 결정적 조회이므로 에이전트를 띄우지 않는다 — 매 태스크 에이전트 생성은 예산 낭비다 (원칙 2·3).
+- **회고 수행 (아래 1~4단계)**: 트리거 발동 시 메인 컨텍스트와 **별개의 에이전트**를 생성해 맡긴다. 입력은 journal.jsonl·state.json·하네스 문서 **(읽기 전용)**. 산출은 제안서 `ledger/retro-<N>.md` — 안건 1~2건, 근거 journal 라인, 겨냥 실패 키, 예상 효과. 메인 루프는 회고 중에도 차단 없이 다음 단위를 진행할 수 있다.
+- **개정 적용 (아래 5~7단계)**: **메인 루프만** 수행한다 — 다음 태스크 경계(RETRO-CHECK)에서 제안서를 읽고 적용. 하네스 문서와 state.json의 쓰기 주체는 항상 메인 1개다. 회고 에이전트는 제안서 외에 아무것도 쓰지 않는다 (동시 쓰기 충돌 방지).
+- **폴백**: 에이전트 생성이 불가한 환경에서는 같은 절차를 메인 루프가 인라인으로 수행한다 (다음 단위 착수 전).
+
 ## 회고 절차
 
 ```
+[1~4: 회고 에이전트 (또는 인라인 폴백)]
 1. AUDIT    직전 개정의 효과 확인: state.json `improve.last_retro_targets`의 실패 키가
-            직전 회고 이후 journal에 재발했는지 검사 (스크립트로 — 원칙 3).
+            직전 회고 이후 journal에 재발(리셋 후 재계상)했는지 검사 (스크립트로 — 원칙 3).
             재발했으면 그 개정은 효과 없음 — 같은 접근의 반복 금지, 다른 접근을 이번 안건 후보로.
-            결과(효과 있음/없음)를 DECISIONS.md 해당 결정에 한 줄 추기한다.
-2. EXTRACT  journal.jsonl에서 직전 회고 이후의 fail·recovery 항목 추출 (스크립트로).
+2. EXTRACT  journal.jsonl에서 직전 회고 이후의 fail·recovery·feedback 항목 추출 (스크립트로).
 3. CLASSIFY 패턴 분류: 반복 실패 키 / R→S 승격 빈발 지점 / 예산 초과 지점 / 오프로딩 후보 / 문서 결손.
-4. SELECT   개정 안건 1~2건만 선정. 각 안건에 예상 효과 한 줄 + 겨냥하는 실패 키.
-5. AMEND    하네스 문서 개정 → DECISIONS.md에 근거(어떤 journal 이벤트)와 함께 기록.
+4. SELECT   개정 안건 1~2건만 선정 → 제안서 ledger/retro-<N>.md 산출 (AUDIT 결과 포함).
+
+[5~7: 메인 루프 — 유일한 쓰기 주체]
+5. AMEND    제안서 검토 후 하네스 문서 개정 → DECISIONS.md에 근거와 AUDIT 결과(직전 개정 효과 유무)를 기록.
 6. VERIFY   콜드스타트 테스트 재통과 (principles/05 절차). fail이면 개정 미완.
-7. RESET    state.json의 improve 카운터·`last_retro_targets`(이번 안건이 겨냥한 키)·다음 회고 시점 갱신.
+7. RESET    state.json 갱신 — **이번 개정이 겨냥한 실패 키의 fail_counts만 0으로 리셋**(효과 확인을 위해
+            0부터 재계상 — AUDIT의 근거), 겨냥하지 않은 키는 유지. units_since_retro = 0,
+            coldstart_fail = false, last_retro_targets = 이번 겨냥 키.
 ```
 
 ## 규칙

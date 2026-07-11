@@ -17,6 +17,7 @@
   "improve": {
     "fail_counts": {"structural:any-남용": 2, "transient:npm-timeout": 1},
     "units_since_retro": 3,
+    "coldstart_fail": false,
     "last_retro_targets": []
   },
   "budget": {

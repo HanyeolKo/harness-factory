@@ -25,7 +25,7 @@
 - [ ] **평가**: 주 evaluator가 실제로 실행된다 (`ENVIRONMENT.md`의 검증 커맨드를 직접 1회 실행해 확인). 루브릭형이면 루브릭 표가 채워져 있다
 - [ ] **실행**: 작업 단위 정의가 구체적이고, state.json의 queue에 최소 1개 단위가 evaluator와 함께 들어 있다
 - [ ] **회복**: 실패 5분류 각각에 대응 등급(R/S)과 수치(재시도 횟수·백오프·승격 상한)가 적혀 있다. 등급 S = 중지·사용자 피드백 대기가 명시됐다. 게이트 목록이 확정됐다 (없으면 "없음" 명시)
-- [ ] **보완**: 트리거 3종의 수치가 확정됐고 state.json의 improve 카운터(`fail_counts` 키 규격 `분류:하위유형`, `last_retro_targets` 포함)가 초기화돼 있다
+- [ ] **보완**: 트리거 3종의 수치가 확정됐고 state.json의 improve 카운터(`fail_counts` 키 규격 `분류:하위유형`, `units_since_retro`, `coldstart_fail`, `last_retro_targets`)가 초기화돼 있다. EXECUTION-LOOP에 RETRO-CHECK(매 회전 트리거 검사)가 존재한다
 - [ ] **불변 조건**: 인터뷰에서 오버라이드가 있었다면 README §불변 조건 5개를 침범하지 않았다
 - [ ] **기록**: journal.jsonl에 최초 라인(`session_start` 또는 생성 기록)이 있다. DECISIONS.md에 D-001(초기 구성 결정 + 인터뷰 요약 + 적용 기본값)이 기록됐다
 - [ ] **코스트**: 예산 단위·단위당 예산·80%/100% 행동이 확정됐다

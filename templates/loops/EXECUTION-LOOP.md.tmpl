@@ -5,16 +5,21 @@
 ## 루프 (작업 단위 1개당 1회전)
 
 ```
-1. PICK     state.json 큐에서 다음 단위를 집는다. 큐가 비면 → IMPROVE-LOOP 트리거 확인 후 종료 프로토콜.
-2. GUARD    예산 확인 (budget/CONTEXT-BUDGET.md). 80% 이상이면 신규 착수 금지 → 체크포인트 → 종료 프로토콜.
+1. RETRO-CHECK  (매 회전, 신규 단위 착수 전) state.json `improve`를 결정적으로 조회한다 — 에이전트·추론 불필요:
+                (a) fail_counts에 {{FAIL_THRESHOLD}} 이상인 키 존재? (b) units_since_retro ≥ {{RETRO_INTERVAL}}?
+                (c) coldstart_fail = true?
+                하나라도 참이면 IMPROVE-LOOP §실행 방식대로 회고를 개시한다 (별개 에이전트 기본).
+                완료된 회고 제안서(ledger/retro-*.md)가 미적용 상태로 대기 중이면 적용(AMEND→VERIFY→RESET)부터 수행한다.
+2. PICK     state.json 큐에서 다음 단위를 집는다. 큐가 비면 → 대기 중 회고 제안서 적용 후 종료 프로토콜.
+3. GUARD    예산 확인 (budget/CONTEXT-BUDGET.md). 80% 이상이면 신규 착수 금지 → 체크포인트 → 종료 프로토콜.
             게이트 대상 단계면 인간 승인부터.
-3. DEFINE   이 단위의 evaluator를 확인한다. 미정의면 실행 금지 — 먼저 EVAL-LOOP 규격으로 정의한다 (원칙 1).
-4. EXECUTE  수행한다. 결정적 경계 준수: {{DETERMINISTIC_BOUNDARY}}
+4. DEFINE   이 단위의 evaluator를 확인한다. 미정의면 실행 금지 — 먼저 EVAL-LOOP 규격으로 정의한다 (원칙 1).
+5. EXECUTE  수행한다. 결정적 경계 준수: {{DETERMINISTIC_BOUNDARY}}
             (스크립트가 할 일을 LLM이 하지 않는다 — 원칙 3)
-5. EVALUATE EVAL-LOOP 실행. 판정과 근거를 journal.jsonl에 기록.
-6. BRANCH   pass → state.json에서 단위를 done으로 이동, 1로.
-            fail → RECOVERY-PLAYBOOK의 분류표로 넘긴다. 회복 후 5 재실행.
-7. RECORD   기록 수준({{JOURNAL_LEVEL}})에 따라 journal.jsonl 갱신은 각 단계에서 즉시 수행한다.
+6. EVALUATE EVAL-LOOP 실행. 판정과 근거를 journal.jsonl에 기록.
+7. BRANCH   pass → state.json에서 단위를 done으로 이동 + `improve.units_since_retro` +1, 1로.
+            fail → RECOVERY-PLAYBOOK의 분류표로 넘긴다. 회복 후 6 재실행.
+8. RECORD   기록 수준({{JOURNAL_LEVEL}})에 따라 journal.jsonl 갱신은 각 단계에서 즉시 수행한다.
 ```
 
 ## 규칙

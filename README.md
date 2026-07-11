@@ -103,7 +103,8 @@
 ├── ledger/
 │   ├── JOURNAL-FORMAT.md      # journal.jsonl 라인 스키마
 │   ├── journal.jsonl          # 실행 기록 (append-only)
-│   └── DECISIONS.md           # 설계 결정 기록 (ADR-lite)
+│   ├── DECISIONS.md           # 설계 결정 기록 (ADR-lite)
+│   └── retro-<N>.md           # (운영 중 생성) 회고 에이전트의 개정 제안서
 ├── budget/
 │   └── CONTEXT-BUDGET.md      # 예산 선언표 + 소진 장부 + 초과 시 행동
 └── state/

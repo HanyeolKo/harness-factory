@@ -115,6 +115,7 @@
 | JOURNAL_LEVEL | 작업 단위 시작/종료 + 판정 + 실패 + 결정 |
 | HARNESS_ROOT | `<대상>/harness/` |
 | RETRO_INTERVAL (회고 주기) | 작업 단위 10개마다, 무인 모드면 5개마다 |
+| 회고 실행 방식 | 트리거 검사는 매 태스크 경계 결정적 조회, 발동 시 별개 에이전트가 분석·제안, 개정 적용은 메인 루프 (에이전트 불가 환경은 인라인) |
 | FAIL_THRESHOLD | 같은 실패 키 3회 |
 | RETRY_POLICY | 3회, 백오프 2s/4s/8s |
 | DESIGN_ORIENTATION | 코스트 기반 자동검증·보완 (README §기본 설계 방향) |

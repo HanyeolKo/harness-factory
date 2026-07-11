@@ -28,7 +28,9 @@
 3. `budget/CONTEXT-BUDGET.md`의 잔여 예산 절
 4. 진행 중 작업 단위가 참조하는 파일 (state.json의 `current.refs`에 명시된 것만)
 
-읽기 완료 후 즉시 `loops/EXECUTION-LOOP.md`의 루프를 개시한다.
+읽기 완료 후 다음 3문항에 파일 근거로 답할 수 있는지 확인한다 — 목적과 현재 단계 / 즉시 수행할 다음 행동 / 그 행동의 완료 판정.
+**하나라도 답할 수 없으면 콜드스타트 fail이다**: state.json `improve.coldstart_fail = true` 기록 → IMPROVE-LOOP 트리거.
+답할 수 있으면 즉시 `loops/EXECUTION-LOOP.md`의 루프를 개시한다.
 
 ## 세션 종료 프로토콜
 

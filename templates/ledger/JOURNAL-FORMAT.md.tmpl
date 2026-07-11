@@ -15,7 +15,7 @@
 ```
 
 - `key` 규격은 `분류:하위유형` (예: `transient:npm-timeout`, `structural:any-남용`). 새 키 생성 전 기존 키 재사용을 먼저 검토한다 (RECOVERY-PLAYBOOK §계상 규칙).
-- `grade`: R(자동 회복 시도) / S(중지·사용자 피드백 대기). 승격 시 갱신된 등급으로 fail 라인을 추가한다 (append-only — 기존 라인 수정 금지).
+- `grade`: R(자동 회복 시도) / S(중지·사용자 피드백 대기). 승격 시 갱신된 등급으로 fail 라인을 추가한다 (append-only — 기존 라인 수정 금지). **승격으로 추가된 라인은 카운터에 재계상하지 않는다 — 계상은 사건당 최초 fail 기록 1회다.** 승격 라인에는 `"escalated":true`를 붙여 구분한다.
 
 ## 기록 대상 이벤트 (수준: {{JOURNAL_LEVEL}})
 
@@ -26,6 +26,7 @@
 | `eval` | 모든 평가 판정 | ts, unit, verdict, evidence |
 | `fail` | 실패 발생 (등급 승격 포함) | ts, unit, key, grade, evidence |
 | `recovery` / `recovery_exhausted` | 회복 시도·포기 | ts, unit, detail |
+| `feedback` | 등급 S 중지에 대한 사용자 피드백 수신 | ts, unit, detail(피드백 요지·재개 방향) |
 | `checkpoint` | 체크포인트 | ts, detail |
 | `decision` | DECISIONS.md 추가 시 포인터 | ts, detail(D-번호) |
 | `retro` | 보완 루프 회고 수행 | ts, detail(안건 요약) |
