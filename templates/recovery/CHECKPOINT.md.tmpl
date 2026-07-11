@@ -27,12 +27,13 @@
   "queue": [ {"id": "U-001", "desc": "...", "evaluator": "...", "status": "todo|in-progress|done|blocked"} ],
   "current": { "id": "U-00N", "step": "<EXECUTION-LOOP의 단계 번호>", "refs": ["<이 단위가 참조 중인 파일 경로>"] },
   "next_action": "<새 세션이 즉시 수행할 다음 행동 한 줄>",
-  "improve": { "fail_counts": {"<실패유형>": 0}, "units_since_retro": 0 },
+  "improve": { "fail_counts": {"<분류:하위유형>": 0}, "units_since_retro": 0, "last_retro_targets": ["<직전 회고 개정이 겨냥한 실패 키>"] },
   "budget": { "units_done": 0, "note": "<소진 요약>" }
 }
 ```
 
-`next_action`은 비워둘 수 없다. 콜드스타트 테스트의 2번 문항이 이 필드로 답해진다.
+`next_action`은 비워둘 수 없다 (불변 조건). 콜드스타트 테스트의 2번 문항이 이 필드로 답해진다.
+`fail_counts`의 키는 `분류:하위유형` 규격을 따르며, 새 키 생성 전 기존 키 재사용을 먼저 검토한다.
 
 ## 재개 절차 (새 세션 / 회복된 세션)
 

@@ -16,7 +16,7 @@
 2. JUDGE    pass 조건 대조. 루브릭형이면 아래 루브릭의 각 기준을 개별 판정한다.
 3. RECORD   journal.jsonl에 기록: {"event":"eval", "unit":..., "verdict":"pass|fail", "evidence":...}
             기록되지 않은 평가는 수행되지 않은 것이다.
-4. FEED     fail → RECOVERY-PLAYBOOK 입력. fail 누적 → IMPROVE-LOOP 트리거 카운트 갱신 (state.json).
+4. FEED     fail → RECOVERY-PLAYBOOK 입력 (분류·등급 판정, 실패 키 부여, 카운터 계상은 플레이북 책임).
 ```
 
 ## 루브릭 (루브릭-LLM 판정 사용 시에만 — 미사용이면 "미사용" 표기)

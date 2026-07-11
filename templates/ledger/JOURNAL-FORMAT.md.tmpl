@@ -8,6 +8,15 @@
 {"ts":"<ISO8601>", "event":"<유형>", "unit":"<U-00N|null>", "detail":"<한 줄>", "verdict":"<pass|fail|null>", "evidence":"<판정 근거: 커맨드 출력 요약, 파일 경로 등>", "cost":"<선택: 소진 메모>"}
 ```
 
+`fail` 이벤트는 두 필드를 추가로 갖는다:
+
+```json
+{"event":"fail", "key":"<분류:하위유형>", "grade":"<R|S>", ...}
+```
+
+- `key` 규격은 `분류:하위유형` (예: `transient:npm-timeout`, `structural:any-남용`). 새 키 생성 전 기존 키 재사용을 먼저 검토한다 (RECOVERY-PLAYBOOK §계상 규칙).
+- `grade`: R(자동 회복 시도) / S(중지·사용자 피드백 대기). 승격 시 갱신된 등급으로 fail 라인을 추가한다 (append-only — 기존 라인 수정 금지).
+
 ## 기록 대상 이벤트 (수준: {{JOURNAL_LEVEL}})
 
 | event | 시점 | 필수 필드 |
@@ -15,7 +24,7 @@
 | `session_start` / `session_end` | 세션 경계 | ts, detail |
 | `unit_start` / `unit_done` | 작업 단위 경계 | ts, unit |
 | `eval` | 모든 평가 판정 | ts, unit, verdict, evidence |
-| `fail` | 실패 발생 (분류 포함) | ts, unit, detail(분류), evidence |
+| `fail` | 실패 발생 (등급 승격 포함) | ts, unit, key, grade, evidence |
 | `recovery` / `recovery_exhausted` | 회복 시도·포기 | ts, unit, detail |
 | `checkpoint` | 체크포인트 | ts, detail |
 | `decision` | DECISIONS.md 추가 시 포인터 | ts, detail(D-번호) |

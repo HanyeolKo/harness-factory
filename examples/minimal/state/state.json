@@ -15,8 +15,9 @@
   },
   "next_action": "U-004 EXECUTE 재개: http-retry.js 타입 선언 완료 후 EVAL-LOOP 실행 (npm run typecheck && npm test -- http)",
   "improve": {
-    "fail_counts": {"structural:any-남용": 2},
-    "units_since_retro": 3
+    "fail_counts": {"structural:any-남용": 2, "transient:npm-timeout": 1},
+    "units_since_retro": 3,
+    "last_retro_targets": []
   },
   "budget": {
     "units_done": 3,

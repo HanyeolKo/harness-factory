@@ -9,7 +9,7 @@
 3. **"알아서 해줘" 처리**: 각 질문의 기본값 열을 적용하고, 인도 시 "다음 기본값을 적용했습니다" 목록으로 명시한다.
 4. **선택지 제시형으로**: 자유 서술 질문보다 선택지 + Other 형태가 빠르다. `AskUserQuestion` 같은 구조화 질의 수단이 있으면 사용한다.
 5. **답변 → 템플릿 매핑**: 각 질문의 "매핑" 행이 답을 어느 템플릿 필드에 꽂을지 지정한다. 매핑 결과는 Phase 2에서 `DECISIONS.md` D-001로 기록한다.
-6. **설계 방향 오버라이드**: 기본 설계 방향은 코스트 기반 자동검증·보완 하네스다 (README §기본 설계 방향). 사용자의 답변·요청이 이와 다른 방향(예: 인간 승인 중심, 기록 최소화, 검증 완화)을 가리키면 **사용자의 방향이 우선한다**. 오버라이드 사실과 근거를 D-001에 기록하고 HARNESS.md 설계 방향 절에 반영하라.
+6. **설계 방향 오버라이드**: 기본 설계 방향은 코스트 기반 자동검증·보완 하네스다 (README §기본 설계 방향). 사용자의 답변·요청이 이와 다른 방향(예: 인간 승인 중심, 기록 최소화, 검증 수단 교체)을 가리키면 **사용자의 방향이 우선한다**. 오버라이드 사실과 근거를 D-001에 기록하고 HARNESS.md 설계 방향 절에 반영하라. 단, **README §불변 조건 5개는 오버라이드 대상이 아니다** — 사용자 요청이 불변 조건을 침범하면 그 사실을 안내하고 침범하지 않는 대안을 제시하라.
 
 ---
 
@@ -21,7 +21,7 @@
 
 - **질의 방식**: Phase 0 수집 자료로 세운 목적 가설을 함께 제시하고 확인·수정받는다. 예: "수집한 자료로는 ~를 위한 하네스로 보입니다. 맞나요, 아니면 다른 목적인가요?" 가설 없이 백지 질문하지 않되, 가설을 답으로 단정하지도 않는다.
 - **기본값**: 대상은 현재 레포지토리 전체, 산출물은 Phase 0 조사로 추정. 단 **목적 자체는 기본값이 없다 — 사용자 확정 없이는 Phase 2로 넘어갈 수 없다.**
-- **매핑**: `{{TARGET}}`, `{{DELIVERABLE_TYPE}}`, `{{PURPOSE}}` → `HARNESS.md`의 목적 절, EVAL-LOOP의 evaluator 유형 후보 결정
+- **매핑**: `{{TARGET}}`, `{{PURPOSE}}` → `HARNESS.md`의 목적 절. 산출물 형태 답변은 치환 필드가 아니라 **EVAL-LOOP의 evaluator 유형 후보를 결정하는 재료**로 쓴다 (코드→결정적-자동, 문서→루브릭 등)
 
 ### Q2. 완료 판정 수단 (평가 — 가장 중요한 질문)
 
@@ -100,11 +100,31 @@
 |---|---|
 | TARGET | 현재 레포지토리 |
 | EVALUATOR_PRIMARY | 발견된 결정적 수단, 없으면 검증 스크립트 신설(백로그 1번) |
+| EVALUATOR_TYPE | EVALUATOR_PRIMARY에서 도출 (결정적-자동 / 결정적-수동정의 / 루브릭-LLM) |
+| PASS_CONDITION | evaluator 커맨드 exit 0 (루브릭형은 전 기준 pass) |
 | OPERATION_MODE | 상주 세션형 |
 | BUDGET_POLICY | 보통 (80% 경고 / 100% 체크포인트+교체) |
+| BUDGET_UNIT | 토큰 측정 가능 환경이면 토큰, 아니면 작업 단위 수 |
+| UNIT_BUDGET | 세션 컨텍스트의 1/4 |
 | WORK_UNIT | Phase 0 조사 기반 제안 |
+| PARALLELISM | 없음 (in-progress 1개) — 병렬은 사용자 요청 시에만 |
+| DETERMINISTIC_BOUNDARY | 검증·집계·형식변환·반복 조작은 스크립트, 무엇을 바꿀지의 판단은 LLM |
+| COMMIT_POLICY | 작업 단위 pass마다 1커밋 |
 | GATES | 파괴적 단계 전부 |
-| ESCALATION_RULES | 스코프 실패·재시도 상한·예산 소진 모두 |
+| ESCALATION_RULES | 등급 S 실패 전부 (RECOVERY-PLAYBOOK 등급표 기준) |
 | JOURNAL_LEVEL | 작업 단위 시작/종료 + 판정 + 실패 + 결정 |
 | HARNESS_ROOT | `<대상>/harness/` |
-| 회고 주기 | 작업 단위 10개마다, 무인 모드면 5개마다 |
+| RETRO_INTERVAL (회고 주기) | 작업 단위 10개마다, 무인 모드면 5개마다 |
+| FAIL_THRESHOLD | 같은 실패 키 3회 |
+| RETRY_POLICY | 3회, 백오프 2s/4s/8s |
+| DESIGN_ORIENTATION | 코스트 기반 자동검증·보완 (README §기본 설계 방향) |
+| SKILL_NAME | 대상 이름 기반 kebab-case (스킬 미설치면 해당 없음) |
+
+## 질문 없이 채우는 필드 (출처 명시 — 사용자에게 묻지 않는다)
+
+| 필드 | 출처 |
+|---|---|
+| BUILD_COMMAND / RUN_COMMAND / LINT_COMMAND | Phase 0 조사 (없으면 "없음" 기입 — 빈칸 금지) |
+| PROJECT_TREE / EXISTING_SCRIPTS / FORBIDDEN | Phase 0 조사 (FORBIDDEN은 기존 규칙 파일·CI 설정에서 수집, 없으면 게이트 목록만) |
+| CREATED_DATE | 하네스 생성 시점 |
+| INTERVIEW_SUMMARY / VERIFY_ROUND_1 | Phase 2 결정 요약 / Phase 4 검증 회전 결과 (구성자가 작성) |
