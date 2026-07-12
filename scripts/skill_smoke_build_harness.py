@@ -184,11 +184,24 @@ print("harness smoke target passes")
     (scripts / "check_harness.py").write_text(checker + "\n", encoding="utf-8")
 
 
+def validate_repo_build_harness_skills() -> None:
+    """Validate downloadable build-harness skill copies for supported runtimes."""
+    for runtime_dir in [".claude", ".codex"]:
+        skill = ROOT / runtime_dir / "skills" / "build-harness" / "SKILL.md"
+        if not skill.exists():
+            raise AssertionError(f"missing build-harness skill for {runtime_dir}")
+        text = skill.read_text(encoding="utf-8")
+        if not text.startswith("---\nname: build-harness"):
+            raise AssertionError(f"invalid build-harness frontmatter for {runtime_dir}")
+        for marker in ["Phase 0", "Phase 1", "Phase 2", "Phase 3", "Phase 4"]:
+            if marker not in text:
+                raise AssertionError(f"{runtime_dir} build-harness skill is missing {marker}")
+        if "AskUserQuestion`으로 질의" in text:
+            raise AssertionError(f"{runtime_dir} build-harness skill is Claude-specific")
+
+
 def validate(target: Path) -> None:
-    # Build-harness skill must be present because this smoke test follows it.
-    skill = ROOT / ".claude" / "skills" / "build-harness" / "SKILL.md"
-    if "Phase 4" not in skill.read_text(encoding="utf-8"):
-        raise AssertionError("build-harness skill does not describe Phase 4 validation")
+    validate_repo_build_harness_skills()
 
     harness = target / "harness"
     missing = [p for p in REQUIRED_HARNESS_FILES if not (harness / p).exists()]
