@@ -7,9 +7,9 @@
 
 | 질문 | 판정 | 근거 |
 |---|---|---|
-| 프로젝트 하네스 구성의 뼈대 역할을 벗어나지 않았는가 | Pass | 스킬은 README §3의 Phase 0~4를 실행하고, 산출물 계약 파일을 생성·검증하는 데 한정된다. 실행 산출물 자체를 대신 구현하지 않는다. |
-| 기본 설계 구조와 실행·검증·개선 회고 루프가 확실히 돌아가는가 | Pass | `EXECUTION-LOOP`의 RETRO-CHECK, `EVAL-LOOP`의 기록 의무, `IMPROVE-LOOP`의 트리거·개정·검증·리셋 절차가 연결되어 있다. 스모크 검증은 disposable 하네스에서 산출물 계약, 콜드스타트 핵심값, 스킬 렌더링을 확인한다. |
-| Claude와 GPT(Codex)에서 내려받아 스킬로 사용할 수 있는가 | Pass after improvement | 동일한 `build-harness` 스킬을 `.claude/skills/`와 `.codex/skills/`에 제공하고, 런타임별 질의 도구 표현을 중립화했다. 런타임 스킬 템플릿도 Codex/Claude 양쪽 설치 경로를 명시한다. |
+| 프로젝트 하네스 구성의 뼈대 역할을 벗어나지 않았는가 | 통과 | 스킬은 README §3의 Phase 0~4를 실행하고, 산출물 계약 파일을 생성·검증하는 데 한정된다. 실행 산출물 자체를 대신 구현하지 않는다. |
+| 기본 설계 구조와 실행·검증·개선 회고 루프가 확실히 돌아가는가 | 통과 | `EXECUTION-LOOP`의 RETRO-CHECK, `EVAL-LOOP`의 기록 의무, `IMPROVE-LOOP`의 트리거·개정·검증·리셋 절차가 연결되어 있다. 스모크 검증은 disposable 하네스에서 산출물 계약, 콜드스타트 핵심값, 스킬 렌더링을 확인한다. |
+| Claude와 GPT(Codex)에서 내려받아 스킬로 사용할 수 있는가 | 개선 후 통과 | 동일한 `build-harness` 스킬을 `.claude/skills/`와 `.codex/skills/`에 제공하고, 런타임별 질의 도구 표현을 중립화했다. 런타임 스킬 템플릿도 Codex/Claude 양쪽 설치 경로를 명시한다. |
 
 ## 확인한 불변 조건
 
@@ -23,7 +23,7 @@
 
 - Codex용 실제 스킬 배포 경로 `.codex/skills/build-harness/SKILL.md`를 추가했다.
 - Claude용 스킬의 사용자 질의 문구를 Claude 전용 `AskUserQuestion` 강제에서 런타임 중립 표현으로 바꿨다.
-- 스모크 검증에 레포 내 Claude/Codex 스킬 존재, frontmatter, Phase 0~4, 런타임 중립 질의 문구 검사를 추가했다.
+- 스모크 검증에 레포 내 Claude/Codex 스킬 존재, 프런트매터, Phase 0~4, 런타임 중립 질의 문구 검사를 추가했다.
 - README 디렉토리 맵에 `.codex/skills/build-harness/`를 명시했다.
 
 ## 남은 운영 권고
