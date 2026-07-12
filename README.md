@@ -122,6 +122,8 @@ harness-factory/
 ├── principles/                # 핵심 원칙 7편 — Phase 0 필독
 ├── interview/
 │   └── QUESTION-BANK.md       # Phase 1 질의 프로토콜: 질문 은행·기본값·매핑 규칙
+├── scripts/
+│   └── skill_smoke_build_harness.py # build-harness 스킬 경로로 disposable 하네스 생성·검증
 ├── templates/                 # Phase 3 인스턴스화 대상 (.tmpl)
 │   ├── HARNESS.md.tmpl
 │   ├── ENVIRONMENT.md.tmpl
@@ -129,10 +131,10 @@ harness-factory/
 │   ├── recovery/
 │   ├── ledger/
 │   ├── budget/
-│   └── skills/SKILL-TEMPLATE.md   # 하네스 루프를 스킬로 노출할 때 사용
+│   └── skills/SKILL-TEMPLATE.md   # Codex/Claude 등에서 하네스 루프를 스킬로 노출할 때 사용
 ├── examples/
 │   └── minimal/               # 치환 완료된 최소 예시 — 톤과 밀도의 기준
-└── .claude/skills/build-harness/  # Claude Code에서 /build-harness 로 이 프로토콜 실행
+└── .claude/skills/build-harness/  # 이 레포 자체를 하네스 구성 스킬로 실행하는 Claude Code용 예시
 ```
 
 ## 6. 구성자가 지켜야 할 톤
@@ -141,3 +143,14 @@ harness-factory/
 - 짧고 결정적으로. "가급적", "적절히" 같은 판단 유보 표현은 기본값이나 수치로 바꾼다.
 - 문서 규율(원칙 7)을 적용한다: 개별 문서 100줄 내외, 초과는 인덱스+분할 또는 예외 표기.
 - 예시가 필요하면 `examples/minimal/`의 밀도를 기준으로 삼는다.
+
+## 7. 스킬 경로 스모크 검증
+
+스킬 템플릿 또는 `build-harness` 스킬 프로토콜을 바꾸면 아래 검증을 실행한다.
+
+```bash
+python3 scripts/skill_smoke_build_harness.py
+```
+
+이 검증은 disposable 대상 프로젝트를 만들고, `build-harness` 스킬의 Phase 0~4 흐름에 맞춰 템플릿을 치환한 뒤,
+Codex/Claude용 실행·회고 스킬을 설치하고 산출물 계약·콜드스타트 필수값·미치환 플레이스홀더를 확인한다.
