@@ -1,0 +1,21 @@
+{
+  "updated": "2026-07-11T08:10:00Z",
+  "phase": "생성 완료 — 운영 개시 전, evaluator 신설(U-001) 대기",
+  "queue": [
+    {"id": "U-001", "desc": "scripts/verify.sh 신설 — 플레이스홀더 잔존·문서 규율·산출물 계약 구조·상호참조 검사를 묶은 결정적 evaluator 확보", "evaluator": "verify.sh가 현 레포에서 exit 0, 의도적 위반(미치환 필드를 담은 더미 파일) 삽입 시 exit 1 (자가 테스트)", "status": "todo"},
+    {"id": "U-002", "desc": "템플릿 치환 스크립트 신설 — templates/ 복사 + 필드 치환 자동화 (원칙 3: 구성 2회째부터 수동 치환 금지)", "evaluator": "스크립트 산출물에 grep '{{' 0건 + 산출물 계약 13개 파일 존재", "status": "todo"},
+    {"id": "U-003", "desc": "QUESTION-BANK에 자율 실행 모드(사용자 부재) 시 Q1 목적 확정 경로 규정 추가", "evaluator": "임시 루브릭 4기준 pass (EVAL-LOOP)", "status": "todo"}
+  ],
+  "current": null,
+  "next_action": "U-001 착수: scripts/verify.sh 작성 — CHECKLIST.md의 인라인 검사 커맨드(플레이스홀더 grep, 문서 규율 awk)를 묶고 자가 테스트로 검증",
+  "improve": {
+    "fail_counts": {},
+    "units_since_retro": 0,
+    "coldstart_fail": false,
+    "last_retro_targets": []
+  },
+  "budget": {
+    "units_done": 0,
+    "note": "생성 세션 — 운영 소진 없음"
+  }
+}

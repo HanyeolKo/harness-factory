@@ -1,0 +1,27 @@
+{
+  "updated": "2026-07-11T06:00:00Z",
+  "phase": "마이그레이션 진행 중 — 42개 중 3개 완료",
+  "queue": [
+    {"id": "U-001", "desc": "src/legacy-utils/date.js → ts", "evaluator": "npm run typecheck && npm test -- date", "status": "done"},
+    {"id": "U-002", "desc": "src/legacy-utils/string.js → ts", "evaluator": "npm run typecheck && npm test -- string", "status": "done"},
+    {"id": "U-003", "desc": "src/legacy-utils/currency.js → ts", "evaluator": "npm run typecheck && npm test -- currency", "status": "done"},
+    {"id": "U-004", "desc": "src/legacy-utils/http.js + http-retry.js → ts (의존 묶음)", "evaluator": "npm run typecheck && npm test -- http", "status": "in-progress"},
+    {"id": "U-005", "desc": "src/legacy-utils/cache.js → ts", "evaluator": "npm run typecheck && npm test -- cache", "status": "todo"}
+  ],
+  "current": {
+    "id": "U-004",
+    "step": "4",
+    "refs": ["src/legacy-utils/http.js", "src/legacy-utils/http-retry.js", "src/legacy-utils/types.d.ts"]
+  },
+  "next_action": "U-004 EXECUTE 재개: http-retry.js 타입 선언 완료 후 EVAL-LOOP 실행 (npm run typecheck && npm test -- http)",
+  "improve": {
+    "fail_counts": {"structural:any-남용": 2, "transient:npm-timeout": 1},
+    "units_since_retro": 3,
+    "coldstart_fail": false,
+    "last_retro_targets": []
+  },
+  "budget": {
+    "units_done": 3,
+    "note": "세션당 단위 3~4개 소화. U-004는 묶음이라 단독 세션 배정"
+  }
+}
