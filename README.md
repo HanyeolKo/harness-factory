@@ -4,56 +4,112 @@
 사용자는 이 레포를 Claude Code 또는 GPT/Codex Skills에 `build-harness` 스킬로 연결하고,
 대상 프로젝트에서 “하네스 구성해줘”라고 요청해 실행 팀 + 평가 레인 기반 하네스 구조를 생성합니다.
 
-## 빠른 시작 — 스킬로 내려받아 사용하기
+## 1분 사용법
 
-### 1. 레포지토리 내려받기
+### 1. `build-harness` 스킬만 설치
 
-```bash
-git clone <harness-factory-repo-url> harness-factory
-cd harness-factory
-```
-
-레포 전체 설치는 오프라인·고정 버전 운용에 가장 단순합니다. 스킬 폴더만 설치한 경우에도 동봉된 resolver가 로컬 팩토리, `HARNESS_FACTORY_HOME`, 캐시를 순서대로 찾고, 없으면 공식 GitHub 저장소에서 템플릿을 가져옵니다.
-
-GitHub 폴백 기본값은 `https://github.com/HanyeolKo/harness-factory.git`의 `main`입니다. 재현 가능한 설치는 `HARNESS_FACTORY_REF`에 태그나 커밋을 지정합니다. resolver는 내려받은 경로의 필수 템플릿 계약을 검증하고, 실제 commit은 생성 하네스의 D-001에 기록됩니다. 오프라인 요청에서는 네트워크 폴백을 사용하지 않습니다.
-
-### 2. Codex/GPT Skills에 설치
+전체 레포를 유지할 필요는 없습니다. Bash 또는 Git Bash에서 필요한 스킬 폴더만 내려받습니다.
 
 ```bash
-mkdir -p "$CODEX_HOME/skills"
-cp -R .codex/skills/build-harness "$CODEX_HOME/skills/build-harness"
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/HanyeolKo/harness-factory.git harness-factory-bootstrap
+git -C harness-factory-bootstrap sparse-checkout set \
+  .codex/skills/build-harness .claude/skills/build-harness
 ```
 
-Codex 세션에서 대상 프로젝트를 열고 다음처럼 요청합니다.
+Codex 전역 스킬로 설치:
+
+```bash
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+mkdir -p "$CODEX_HOME/skills/build-harness"
+cp -R harness-factory-bootstrap/.codex/skills/build-harness/. \
+  "$CODEX_HOME/skills/build-harness/"
+```
+
+Claude Code 프로젝트 스킬로 설치:
+
+```bash
+TARGET_PROJECT=/path/to/target-project
+mkdir -p "$TARGET_PROJECT/.claude/skills/build-harness"
+cp -R harness-factory-bootstrap/.claude/skills/build-harness/. \
+  "$TARGET_PROJECT/.claude/skills/build-harness/"
+```
+
+스킬을 복사한 뒤 `harness-factory-bootstrap` 디렉토리는 선택 사항입니다. 삭제하거나 이동해도 첫 호출 시 스킬에 동봉된 resolver가 필요한 템플릿을 다시 찾습니다.
+
+### 2. 대상 프로젝트에서 한 문장으로 호출
+
+Codex 또는 Claude Code로 대상 프로젝트를 연 뒤 요청합니다.
 
 ```text
 build-harness 스킬로 이 프로젝트 하네스 구성해줘.
 ```
 
-### 3. Claude Code Skills에 설치
-
-프로젝트 단위로 사용할 때:
-
-```bash
-mkdir -p <target-project>/.claude/skills
-cp -R .claude/skills/build-harness <target-project>/.claude/skills/build-harness
-```
-
-Claude Code에서 대상 프로젝트를 열고 다음처럼 요청합니다.
+작업 범위를 바로 줄 수도 있습니다.
 
 ```text
-build-harness 스킬로 이 프로젝트 하네스 구성해줘.
+build-harness로 결제 모듈 마이그레이션의 실행 팀과 평가 구조를 만들어줘.
 ```
 
-### 4. 생성 후 시작 방법
+스킬은 프로젝트 자료를 먼저 읽고, 코드에서 확인할 수 없는 결정만 최대 2회 배치로 질문합니다. 이후 실행 팀, 평가 레인, 상태·기록·회복·보완 루프와 호출형 스킬을 생성합니다.
 
-스킬이 대상 프로젝트에 `<HARNESS_ROOT>/HARNESS.md`를 만들면, 새 세션은 항상 그 파일부터 읽습니다.
-이후 `team/TEAM-ARCHITECTURE.md`의 실행 팀과 평가 레인을 따라 실행·평가·회고 루프를 진행합니다.
+### 3. 생성된 호출형 스킬 사용
 
-- 실행 팀: `request-router` → `impact-analyst` → `task-coordinator` → `task-worker`
-- 평가 레인: `verification-runner` → `evaluation-lead` → `defect-counter` → `improvement-coordinator`
+인도 보고에 실제 `<skill-name>`이 표시됩니다. 예를 들어 이름이 `payment-migration-harness`라면 다음처럼 사용합니다.
 
-Claude에서는 같은 역할이 `<target-project>/.claude/agents/<skill-name>-<role>.md`에 실제 서브에이전트로 설치됩니다. 실행·평가·회고 스킬은 이 에이전트를 이름으로 위임 호출합니다. 다른 런타임은 지원되는 서브에이전트 기능을 사용하고, 기능이 없을 때만 사유를 기록한 인라인 폴백을 사용합니다.
+| 호출 | 용도 |
+|---|---|
+| `payment-migration-harness` | 요청 라우팅, 영향 분석, 작업 위임, 실행 재개 |
+| `payment-migration-harness-eval` | evaluator 실행, 원본 증거 수집, pass/fail 판정 |
+| `payment-migration-harness-retro` | 반복 실패·평가 공백 분석과 하네스 보강 |
+
+```text
+payment-migration-harness로 다음 작업 진행해줘.
+payment-migration-harness-eval로 U-003 완료 판정해줘.
+payment-migration-harness-retro로 반복 실패 원인을 보강해줘.
+```
+
+일반 운영에서는 실행 스킬만 호출해도 됩니다. 작업 후 평가는 자동 인계되고, 반복 실패·평가 공백·콜드스타트 실패가 발생하면 회고와 보강도 자동 개시됩니다.
+
+### 4. 자동으로 연결되는 흐름
+
+```text
+사용자 요청
+  → request-router → impact-analyst → task-coordinator → task-worker
+  → verification-runner → evaluation-lead → defect-counter
+  → 반복 실패 시 improvement-coordinator → 보강 적용 → 재검증
+```
+
+Claude에서는 8개 역할을 `<target-project>/.claude/agents/`에 실제 서브에이전트로 설치하고 이름으로 위임합니다. 다른 런타임은 지원되는 서브에이전트 기능을 사용하며, 기능이 없을 때만 `team_mode:inline` 사유를 기록하고 인라인으로 수행합니다.
+
+## 최초 실행과 템플릿 해석
+
+resolver는 다음 순서로 호환 가능한 harness-factory를 찾습니다.
+
+| 순서 | 위치 | 용도 |
+|---|---|---|
+| 1 | 명시한 팩토리 경로 | 현재 작업에서 직접 지정한 로컬 레포 |
+| 2 | `HARNESS_FACTORY_HOME` | 조직·개인 공용 로컬 설치 |
+| 3 | 검증된 로컬 캐시 | 이전에 내려받은 동일 ref 재사용 |
+| 4 | 공식 GitHub 저장소 | 로컬 템플릿이 없을 때만 사용하는 폴백 |
+
+GitHub 폴백은 `https://github.com/HanyeolKo/harness-factory.git`의 `main`을 기본으로 사용합니다. 최초 네트워크 접근은 런타임의 권한 확인을 따르며, 내려받은 경로가 필수 템플릿 계약을 통과하지 못하면 생성을 중단합니다. 사용한 URL, ref, 실제 commit은 생성 하네스의 `ledger/DECISIONS.md` D-001에 기록됩니다.
+
+버전을 고정하거나 오프라인으로 운영하려면 환경변수를 사용합니다.
+
+```bash
+export HARNESS_FACTORY_REF=<tag-or-commit>
+export HARNESS_FACTORY_HOME=/path/to/local/harness-factory
+```
+
+PowerShell에서는 `$env:HARNESS_FACTORY_REF`와 `$env:HARNESS_FACTORY_HOME`을 사용합니다. 사용자가 오프라인 실행을 요청하면 resolver는 GitHub 폴백을 시도하지 않고, 호환 가능한 로컬 경로가 없을 때 명확히 실패합니다.
+
+레포 자체를 개발하거나 완전한 오프라인 사본이 필요할 때만 전체 clone을 사용합니다.
+
+```bash
+git clone https://github.com/HanyeolKo/harness-factory.git
+export HARNESS_FACTORY_HOME="$PWD/harness-factory"
+```
 
 ## 하네스가 생성하는 표준 구조
 
