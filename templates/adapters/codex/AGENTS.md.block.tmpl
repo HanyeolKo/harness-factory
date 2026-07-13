@@ -1,0 +1,12 @@
+<!-- harness-factory:start {{SKILL_NAME}} -->
+## {{SKILL_NAME}} harness
+
+- Canonical contract: `{{HARNESS_ROOT}}/harness-spec.json`
+- Entry skill: `${{SKILL_NAME}}`
+- Evaluation skill: `${{SKILL_NAME}}-eval`
+- Improvement skill: `${{SKILL_NAME}}-retro`
+- Project skills: `.agents/skills/{{SKILL_NAME}}*/SKILL.md`
+- Custom agents: `.codex/agents/{{SKILL_NAME}}-*.toml`
+
+Do not edit adapter semantics independently. Update the canonical contract and regenerate both selected runtime adapters.
+<!-- harness-factory:end {{SKILL_NAME}} -->

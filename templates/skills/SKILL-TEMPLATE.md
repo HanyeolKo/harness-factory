@@ -1,12 +1,15 @@
 # SKILL 템플릿 — 호출형 하네스 노출
 
+> 레거시 호환 참고 자료다. 신규 생성은 고정 역할을 포함한 이 파일을 사용하지 않고
+> `templates/adapters/shared/SKILL-TEMPLATE.md`와 `harness/harness-spec.json`의 동적 역할을 사용한다.
+
 하네스를 Codex Skills, Claude Code 등 스킬/슬래시 커맨드 형태로 호출하고 싶을 때 사용한다. 설치했다면 아래 스킬 본문도 하네스의 실행 규율로 취급한다.
 
 ## 설치 위치
 
 | 런타임 | 권장 위치 |
 |---|---|
-| Codex | `$CODEX_HOME/skills/{{SKILL_NAME}}/SKILL.md` 또는 프로젝트가 정한 skills 디렉토리 |
+| Codex | `.agents/skills/{{SKILL_NAME}}/SKILL.md` |
 | Claude Code | `.claude/skills/{{SKILL_NAME}}/SKILL.md` |
 
 설치 후 `{{HARNESS_ROOT}}/HARNESS.md`의 파일 맵 또는 대상 프로젝트의 규칙 파일에 스킬 위치를 한 줄로 등재한다.

@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "harness": {
+    "id": "{{SKILL_NAME}}",
+    "purpose": {{PURPOSE_JSON}},
+    "root": "{{HARNESS_ROOT}}"
+  },
+  "runtime_targets": {{RUNTIME_TARGETS_JSON}},
+  "limits": {
+    "max_parallelism": {{MAX_PARALLELISM}},
+    "max_delegation_depth": {{MAX_DELEGATION_DEPTH}}
+  },
+  "domains": {{DOMAINS_JSON}},
+  "agents": {{AGENTS_JSON}},
+  "skills": {{SKILLS_JSON}},
+  "orchestration": {
+    "entry_skill": "{{SKILL_NAME}}",
+    "handoffs": {{HANDOFFS_JSON}}
+  },
+  "evaluators": {{EVALUATORS_JSON}},
+  "approval_gates": {{APPROVAL_GATES_JSON}},
+  "loops": {
+    "execution": "{{HARNESS_ROOT}}/loops/EXECUTION-LOOP.md",
+    "evaluation": "{{HARNESS_ROOT}}/loops/EVAL-LOOP.md",
+    "improvement": "{{HARNESS_ROOT}}/loops/IMPROVE-LOOP.md",
+    "improvement_owner": "{{IMPROVEMENT_OWNER}}",
+    "fail_threshold": {{FAIL_THRESHOLD}},
+    "retro_interval": {{RETRO_INTERVAL_COUNT}}
+  }
+}

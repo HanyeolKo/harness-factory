@@ -1,0 +1,35 @@
+{
+  "name": "harness-factory",
+  "version": "0.1.0",
+  "description": "Build a project-specific, runtime-neutral agent-team harness and render native Claude and Codex adapters.",
+  "author": {
+    "name": "HanyeolKo",
+    "url": "https://github.com/HanyeolKo"
+  },
+  "homepage": "https://github.com/HanyeolKo/harness-factory",
+  "repository": "https://github.com/HanyeolKo/harness-factory",
+  "keywords": [
+    "agent-team",
+    "claude-code",
+    "codex",
+    "evaluation",
+    "harness"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Harness Factory",
+    "shortDescription": "Build Claude and Codex agent-team harnesses",
+    "longDescription": "Analyze a project, define a runtime-neutral orchestration and evaluation contract, then render equivalent Claude and Codex skills and agents.",
+    "developerName": "HanyeolKo",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/HanyeolKo/harness-factory",
+    "defaultPrompt": [
+      "Build a Claude and Codex harness for this project.",
+      "Generate an agent team and evaluation loop for this repository."
+    ]
+  }
+}
