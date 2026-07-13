@@ -1,6 +1,6 @@
 # harness-factory
 
-Claude Code의 `/harness:harness`처럼 한 번 호출해 프로젝트별 에이전트 팀과 스킬을 구성하되, 결과를 Claude에 종속시키지 않고 Codex에서도 같은 의미로 실행할 수 있게 만드는 하네스 팩토리입니다.
+한 번 호출해 프로젝트별 에이전트 팀과 스킬을 구성하되, 결과를 Claude에 종속시키지 않고 Codex에서도 같은 의미로 실행할 수 있게 만드는 하네스 팩토리입니다.
 
 대상 프로젝트를 분석해 공통 `harness/` 명세를 먼저 만들고, 그 명세에서 Claude와 Codex의 네이티브 skills·agents·root 규칙을 각각 생성합니다. 역할 수와 이름은 고정하지 않으며 프로젝트의 서비스·모듈·데이터 경계와 실제 evaluator에서 도출합니다.
 
