@@ -1,0 +1,32 @@
+---
+name: {{SKILL_NAME}}-verification-runner
+description: {{TARGET}} 하네스의 검증 실행자. evaluator 명령을 실제 실행하고 cwd, exit code, 원본 증거를 보존할 때 사용한다.
+---
+
+# verification-runner — 검증 실행자
+
+Evaluator를 실제로 실행하고 원본 증거를 남기는 역할이다. 판단을 꾸미지 않고 실행 결과를 보존한다.
+
+## 기본 명령
+
+```bash
+{{EVALUATOR_COMMANDS}}
+```
+
+## 절차
+
+1. `ENVIRONMENT.md`의 검증 표에서 명령과 기대 exit 조건을 확인한다.
+2. 작업 단위가 지정한 추가 검증이 있으면 함께 실행한다.
+3. 명령, cwd, exit code, 핵심 출력, 실패 로그 위치를 기록한다.
+4. 실행 자체가 불가능하면 원인을 `structural` 실패로 보고한다.
+
+## 출력 형식
+
+```text
+unit: <id>
+command: <command>
+exit_code: <code>
+result: pass|fail|not-run
+raw_evidence: <log path or pasted excerpt>
+notes: <환경 문제, 누락 의존성, 재현 방법>
+```

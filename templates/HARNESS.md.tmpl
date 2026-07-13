@@ -24,9 +24,10 @@
 ## 세션 시작 프로토콜 (읽기 예산: 아래 목록 외 선행 읽기 금지)
 
 1. 이 파일 (HARNESS.md)
-2. `state/state.json` — 현재 상태·작업 큐·다음 행동
-3. `budget/CONTEXT-BUDGET.md`의 잔여 예산 절
-4. 진행 중 작업 단위가 참조하는 파일 (state.json의 `current.refs`에 명시된 것만)
+2. `team/TEAM-ARCHITECTURE.md` — 실행 팀·평가 레인·자동 보강 규칙
+3. `state/state.json` — 현재 상태·작업 큐·다음 행동
+4. `budget/CONTEXT-BUDGET.md`의 잔여 예산 절
+5. 진행 중 작업 단위가 참조하는 파일 (state.json의 `current.refs`에 명시된 것만)
 
 읽기 완료 후 다음 3문항에 파일 근거로 답할 수 있는지 확인한다 — 목적과 현재 단계 / 즉시 수행할 다음 행동 / 그 행동의 완료 판정.
 **하나라도 답할 수 없으면 콜드스타트 fail이다**: state.json `improve.coldstart_fail = true` 기록 → IMPROVE-LOOP 트리거.
@@ -55,6 +56,11 @@
 ## 운영 방식
 
 - 모드: {{OPERATION_MODE}}
+- 팀 아키텍처: `team/TEAM-ARCHITECTURE.md` — 요청 라우팅 → 영향 분석 → 실행 위임 → 평가 레인 → 보강 환류
+- 실행 책임: request-router·impact-analyst·task-coordinator가 작업 구조를 잡고, task-worker가 단위를 수행한다
+- 평가 책임: evaluation-lead가 완료 판정 권한을 갖고, verification-runner가 증거를 생성한다
+- 팀 실행: 런타임 지원 시 실제 서브에이전트 위임, 미지원 시 `team_mode:inline` 사유 기록
+- 자동 보강: 작업 후 평가 자동 인계, 반복 실패 시 회고 개시, 보강 적용 후 콜드스타트·원 evaluator 재검증
 - 에스컬레이션 기준: `recovery/RECOVERY-PLAYBOOK.md` §에스컬레이션
 - 인간 승인 게이트: {{GATES}}
 
@@ -64,6 +70,7 @@
 {{HARNESS_ROOT}}
 ├── HARNESS.md            # (이 파일) 진입점
 ├── ENVIRONMENT.md        # 실행·검증 커맨드, 디렉토리 맵, 금지사항
+├── team/                 # 에이전트 팀 역할, 실행 위임, 평가 레인, 핸드오프 규약
 ├── loops/                # 실행·평가·보완 루프
 ├── recovery/             # 실패 대응·체크포인트
 ├── ledger/               # journal.jsonl, DECISIONS.md

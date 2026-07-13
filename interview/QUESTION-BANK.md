@@ -92,6 +92,14 @@
 - **기본값**: (b)
 - **매핑**: `{{JOURNAL_LEVEL}}` → JOURNAL-FORMAT의 기록 대상 이벤트 목록
 
+
+### Q11. [복합 프로젝트·장기 작업일 때] 에이전트 팀과 평가 레인
+
+> 작업을 라우팅/영향분석/위임/평가/보강으로 나눌 때 별도 담당 역할이 필요한가요? 특히 완료 판정은 누가 소유해야 하나요?
+
+- **기본값**: `harness:harness`의 장점을 일반화한다. 실행 팀은 `request-router` → `impact-analyst` → `task-coordinator` → `task-worker`, 평가 레인은 `verification-runner` → `evaluation-lead` → `defect-counter` → `improvement-coordinator`로 둔다. Claude에서는 실제 `.claude/agents/`로 설치하고, 다른 런타임은 지원되는 서브에이전트 기능을 사용한다.
+- **매핑**: `team/TEAM-ARCHITECTURE.md`, `team/agents/*`, `EVAL-LOOP.md`의 평가 팀 레인, 실행 스킬 `{{SKILL_NAME}}`
+- **주의**: 단일 에이전트 운영이라도 역할과 증거는 분리한다. 서브에이전트 미지원 시에만 인라인 폴백과 사유를 기록한다. 실행자가 자기 작업을 무증거 pass 처리하는 구조는 허용하지 않는다.
 ---
 
 ## 기본값 일괄표 ("전부 알아서" 시나리오)
@@ -119,6 +127,7 @@
 | FAIL_THRESHOLD | 같은 실패 키 3회 |
 | RETRY_POLICY | 3회, 백오프 2s/4s/8s |
 | DESIGN_ORIENTATION | 코스트 기반 자동검증·보완 (README §기본 설계 방향) |
+| TEAM_ARCHITECTURE | 실행 팀(request-router / impact-analyst / task-coordinator / task-worker) + 평가 레인(verification-runner / evaluation-lead / defect-counter / improvement-coordinator) |
 | SKILL_NAME | 대상 이름 기반 kebab-case (스킬 미설치면 해당 없음) |
 
 ## 질문 없이 채우는 필드 (출처 명시 — 사용자에게 묻지 않는다)
