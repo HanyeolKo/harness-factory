@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +22,15 @@ ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_HARNESS_FILES = [
     "HARNESS.md",
     "ENVIRONMENT.md",
+    "team/TEAM-ARCHITECTURE.md",
+    "team/agents/01-request-router.md",
+    "team/agents/02-impact-analyst.md",
+    "team/agents/03-task-coordinator.md",
+    "team/agents/04-task-worker.md",
+    "team/agents/05-evaluation-lead.md",
+    "team/agents/06-verification-runner.md",
+    "team/agents/07-defect-counter.md",
+    "team/agents/08-improvement-coordinator.md",
     "loops/EXECUTION-LOOP.md",
     "loops/EVAL-LOOP.md",
     "loops/IMPROVE-LOOP.md",
@@ -31,7 +42,16 @@ REQUIRED_HARNESS_FILES = [
     "budget/CONTEXT-BUDGET.md",
     "state/state.json",
 ]
-
+TEAM_AGENT_FILES = {
+    "01-request-router.md": "request-router",
+    "02-impact-analyst.md": "impact-analyst",
+    "03-task-coordinator.md": "task-coordinator",
+    "04-task-worker.md": "task-worker",
+    "05-evaluation-lead.md": "evaluation-lead",
+    "06-verification-runner.md": "verification-runner",
+    "07-defect-counter.md": "defect-counter",
+    "08-improvement-coordinator.md": "improvement-coordinator",
+}
 FIELDS = {
     "TARGET": "skill-smoke-target",
     "PURPOSE": "스킬 경유 하네스 생성 경로를 검증하는 최소 문서 작업 하네스.",
@@ -66,6 +86,7 @@ FIELDS = {
     "INTERVIEW_SUMMARY": "스모크 검증 목적의 기본값 적용. 대상은 disposable target, 산출물은 문서.",
     "VERIFY_ROUND_1": "스모크 검증 스크립트 전 항목 pass",
     "SKILL_NAME": "skill-smoke-harness",
+    "TEAM_ARCHITECTURE": "실행 팀 + 평가 레인 기본형",
 }
 
 
@@ -81,7 +102,7 @@ def copy_templates(target: Path) -> Path:
         rel = template.relative_to(ROOT / "templates")
         out = harness / rel.with_suffix("")
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render(template.read_text()), encoding="utf-8")
+        out.write_text(render(template.read_text(encoding="utf-8")), encoding="utf-8")
 
     (harness / "ledger" / "journal.jsonl").write_text(
         json.dumps(
@@ -129,7 +150,7 @@ def copy_templates(target: Path) -> Path:
 
 
 def extract_skill_blocks() -> list[str]:
-    rendered = render((ROOT / "templates" / "skills" / "SKILL-TEMPLATE.md").read_text())
+    rendered = render((ROOT / "templates" / "skills" / "SKILL-TEMPLATE.md").read_text(encoding="utf-8"))
     return re.findall(r"```markdown\n(.*?)\n```", rendered, flags=re.S)
 
 
@@ -142,14 +163,28 @@ def skill_name(block: str) -> str:
 
 def install_skills(target: Path) -> None:
     blocks = extract_skill_blocks()
-    if len(blocks) != 2:
-        raise AssertionError(f"expected 2 skill blocks, found {len(blocks)}")
+    if len(blocks) != 3:
+        raise AssertionError(f"expected 3 skill blocks, found {len(blocks)}")
     for block in blocks:
         name = skill_name(block)
         for base in [target / ".codex" / "skills", target / ".claude" / "skills"]:
             skill_dir = base / name
             skill_dir.mkdir(parents=True, exist_ok=True)
             (skill_dir / "SKILL.md").write_text(block + "\n", encoding="utf-8")
+
+
+def install_runtime_agents(target: Path) -> None:
+    """Install canonical team definitions as discoverable Claude subagents."""
+    destination = target / ".claude" / "agents"
+    destination.mkdir(parents=True, exist_ok=True)
+    for source_name, role in TEAM_AGENT_FILES.items():
+        text = (target / "harness" / "team" / "agents" / source_name).read_text(
+            encoding="utf-8"
+        )
+        expected_name = f"{FIELDS['SKILL_NAME']}-{role}"
+        if not text.startswith(f"---\nname: {expected_name}\n"):
+            raise AssertionError(f"invalid agent frontmatter: {source_name}")
+        (destination / f"{expected_name}.md").write_text(text, encoding="utf-8")
 
 
 def write_target_checker(target: Path) -> None:
@@ -159,8 +194,12 @@ def write_target_checker(target: Path) -> None:
 from pathlib import Path
 import json
 required = [
-    "HARNESS.md", "ENVIRONMENT.md", "loops/EXECUTION-LOOP.md",
-    "loops/EVAL-LOOP.md", "loops/IMPROVE-LOOP.md",
+    "HARNESS.md", "ENVIRONMENT.md", "team/TEAM-ARCHITECTURE.md",
+    "team/agents/01-request-router.md", "team/agents/02-impact-analyst.md",
+    "team/agents/03-task-coordinator.md", "team/agents/04-task-worker.md",
+    "team/agents/05-evaluation-lead.md", "team/agents/06-verification-runner.md",
+    "team/agents/07-defect-counter.md", "team/agents/08-improvement-coordinator.md",
+    "loops/EXECUTION-LOOP.md", "loops/EVAL-LOOP.md", "loops/IMPROVE-LOOP.md",
     "recovery/RECOVERY-PLAYBOOK.md", "recovery/CHECKPOINT.md",
     "ledger/JOURNAL-FORMAT.md", "ledger/DECISIONS.md",
     "ledger/journal.jsonl", "budget/CONTEXT-BUDGET.md", "state/state.json",
@@ -186,8 +225,10 @@ print("harness smoke target passes")
 
 def validate_repo_build_harness_skills() -> None:
     """Validate downloadable build-harness skill copies for supported runtimes."""
+    resolver_copies = []
     for runtime_dir in [".claude", ".codex"]:
-        skill = ROOT / runtime_dir / "skills" / "build-harness" / "SKILL.md"
+        skill_dir = ROOT / runtime_dir / "skills" / "build-harness"
+        skill = skill_dir / "SKILL.md"
         if not skill.exists():
             raise AssertionError(f"missing build-harness skill for {runtime_dir}")
         text = skill.read_text(encoding="utf-8")
@@ -196,8 +237,54 @@ def validate_repo_build_harness_skills() -> None:
         for marker in ["Phase 0", "Phase 1", "Phase 2", "Phase 3", "Phase 4"]:
             if marker not in text:
                 raise AssertionError(f"{runtime_dir} build-harness skill is missing {marker}")
+        for marker in ["resolve_factory.py", ".claude/agents/", "실제 위임"]:
+            if marker not in text:
+                raise AssertionError(
+                    f"{runtime_dir} build-harness skill is missing runtime marker: {marker}"
+                )
         if "AskUserQuestion`으로 질의" in text:
             raise AssertionError(f"{runtime_dir} build-harness skill is Claude-specific")
+        resolver = skill_dir / "scripts" / "resolve_factory.py"
+        if not resolver.exists():
+            raise AssertionError(f"missing resolver for {runtime_dir}")
+        resolver_copies.append(resolver.read_bytes())
+        result = subprocess.run(
+            [sys.executable, str(resolver), "--factory-root", str(ROOT), "--offline"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        )
+        if Path(result.stdout.strip()).resolve() != ROOT.resolve():
+            raise AssertionError(f"{runtime_dir} resolver returned the wrong local root")
+    if resolver_copies[0] != resolver_copies[1]:
+        raise AssertionError("Claude and Codex resolver copies differ")
+    with tempfile.TemporaryDirectory(prefix="harness-factory-resolver-offline-") as tmp:
+        isolated = Path(tmp)
+        resolver = isolated / "skill" / "scripts" / "resolve_factory.py"
+        resolver.parent.mkdir(parents=True)
+        resolver.write_bytes(resolver_copies[0])
+        cwd = isolated / "target"
+        cwd.mkdir()
+        env = os.environ.copy()
+        env.pop("HARNESS_FACTORY_HOME", None)
+        env.pop("HARNESS_FACTORY_REPO", None)
+        env.pop("HARNESS_FACTORY_REF", None)
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(resolver),
+                "--offline",
+                "--cache-dir",
+                str(isolated / "empty-cache"),
+            ],
+            cwd=cwd,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode != 2 or "offline" not in result.stderr:
+            raise AssertionError("standalone resolver did not fail closed while offline")
 
 
 def validate(target: Path) -> None:
@@ -219,11 +306,55 @@ def validate(target: Path) -> None:
     assert state["next_action"], "next_action is empty"
     assert state["queue"][0]["evaluator"], "first queued unit is missing evaluator"
     assert (harness / "ledger" / "journal.jsonl").read_text(encoding="utf-8").strip()
-    for name in [FIELDS["SKILL_NAME"], FIELDS["SKILL_NAME"] + "-retro"]:
+    team_text = (harness / "team/TEAM-ARCHITECTURE.md").read_text(encoding="utf-8")
+    for marker in [
+        "request-router",
+        "impact-analyst",
+        "task-coordinator",
+        "task-worker",
+        "verification-runner",
+        "evaluation-lead",
+        "defect-counter",
+        "improvement-coordinator",
+    ]:
+        assert marker in team_text, f"missing team marker: {marker}"
+    eval_loop = (harness / "loops/EVAL-LOOP.md").read_text(encoding="utf-8")
+    assert "평가 팀 레인" in eval_loop, "EVAL-LOOP does not expose the evaluation team lane"
+    improve_loop = (harness / "loops/IMPROVE-LOOP.md").read_text(encoding="utf-8")
+    assert "자동 적용" in improve_loop, "IMPROVE-LOOP does not define automatic amendment"
+    for role in TEAM_AGENT_FILES.values():
+        agent_name = f"{FIELDS['SKILL_NAME']}-{role}"
+        agent = target / ".claude" / "agents" / f"{agent_name}.md"
+        text = agent.read_text(encoding="utf-8")
+        assert text.startswith(f"---\nname: {agent_name}\n"), (
+            f"invalid installed Claude agent: {agent_name}"
+        )
+        assert "{{" not in text, f"unrendered Claude agent placeholder: {agent_name}"
+    skill_markers = {
+        FIELDS["SKILL_NAME"]: [
+            FIELDS["SKILL_NAME"] + "-request-router",
+            FIELDS["SKILL_NAME"] + "-task-worker",
+            FIELDS["SKILL_NAME"] + "-eval",
+            "자동 실행",
+        ],
+        FIELDS["SKILL_NAME"] + "-eval": [
+            FIELDS["SKILL_NAME"] + "-verification-runner",
+            FIELDS["SKILL_NAME"] + "-evaluation-lead",
+            FIELDS["SKILL_NAME"] + "-retro",
+        ],
+        FIELDS["SKILL_NAME"] + "-retro": [
+            FIELDS["SKILL_NAME"] + "-improvement-coordinator",
+            "자동 적용",
+            "최대 3회",
+        ],
+    }
+    for name, markers in skill_markers.items():
         for base in [target / ".codex" / "skills", target / ".claude" / "skills"]:
             text = (base / name / "SKILL.md").read_text(encoding="utf-8")
             assert text.startswith("---\nname: "), f"invalid skill frontmatter: {name}"
             assert "{{" not in text, f"unrendered skill placeholder: {name}"
+            for marker in markers:
+                assert marker in text, f"missing {marker!r} in generated skill: {name}"
 
 
 def main() -> int:
@@ -238,8 +369,9 @@ def main() -> int:
         target.mkdir()
         copy_templates(target)
         write_target_checker(target)
+        install_runtime_agents(target)
         install_skills(target)
-        subprocess.run(["python3", "scripts/check_harness.py"], cwd=target, check=True)
+        subprocess.run([sys.executable, "scripts/check_harness.py"], cwd=target, check=True)
         validate(target)
         print(f"skill smoke harness created and validated: {target}")
         if args.keep:

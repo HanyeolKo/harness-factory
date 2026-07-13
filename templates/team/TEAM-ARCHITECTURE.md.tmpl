@@ -1,0 +1,101 @@
+# TEAM ARCHITECTURE — {{TARGET}}
+
+이 문서는 하네스의 에이전트 팀 구조다. `HARNESS.md`는 진입점이고, 이 파일은 요청을 어떻게 라우팅·분석·위임·평가·보강할지 정의한다.
+
+## 목표
+
+{{PURPOSE}}
+
+## 전체 흐름
+
+`harness:harness`의 관제탑 패턴을 일반화한다. 단순 작업은 축약 실행하고, 복합 작업은 실행 팀과 평가 레인을 분리한다.
+
+```
+user request
+  -> {{SKILL_NAME}}-request-router: 담당 영역·작업 단위 식별
+  -> {{SKILL_NAME}}-impact-analyst: 의존성·경계면·리스크 브리프 작성
+  -> {{SKILL_NAME}}-task-coordinator: 내부 하네스/작업자에게 위임
+  -> {{SKILL_NAME}}-task-worker: 변경 수행
+  -> {{SKILL_NAME}}-verification-runner: evaluator 실행 증거 생성
+  -> {{SKILL_NAME}}-evaluation-lead: pass/fail 최종 판정
+  -> {{SKILL_NAME}}-defect-counter: 실패·검출 집계
+  -> {{SKILL_NAME}}-improvement-coordinator: 하네스 보강 후보 환류
+```
+
+## 런타임 실행 방식
+
+- 이 파일과 `team/agents/`는 런타임 중립의 정본이다. 실행·평가·회고 스킬이 오케스트레이터다.
+- Claude에서는 8개 정의를 `.claude/agents/{{SKILL_NAME}}-<role>.md`에 설치하고 이름으로 실제 위임한다.
+- Codex 등에서는 지원되는 서브에이전트 도구에 같은 역할 정의와 최소 입력만 전달한다.
+- 서브에이전트 기능이 없을 때만 오케스트레이터가 역할을 인라인 수행하고 `team_mode:inline`과 사유를 journal에 기록한다.
+
+## 실행 팀
+
+| 역할 | 책임 | 산출물 |
+|---|---|---|
+| orchestrator | 전체 흐름의 리더. 라우팅, 위임, 평가 요청, 최종 보고를 소유한다 | state.json queue, 최종 보고 |
+| request-router | 사용자 요청을 담당 영역과 작업 단위로 나눈다. 코드를 고치지 않는다 | routing brief |
+| impact-analyst | 변경 전파, 경계면, 게이트, 다운스트림 위험을 식별한다 | risk brief |
+| task-coordinator | 대상 영역의 기존 규칙·내부 하네스·작업자에게 위임한다 | delegation plan, 작업 산출물 요약 |
+| task-worker | 실제 구현·문서화·정리 작업을 수행한다 | 변경 파일, 실행 로그 |
+
+## 평가·보강 레인
+
+기존 builder-harness의 평가 역할은 독립 레인으로 승격한다. 실행자가 만든 결과는 이 레인을 통과해야 pass가 된다.
+
+| 역할 | 책임 | 산출물 |
+|---|---|---|
+| evaluation-lead | evaluator 존재 확인, pass 조건 대조, 최종 verdict 소유 | eval verdict, 보강 신호 |
+| verification-runner | evaluator를 실제 실행하고 원본 증거를 남긴다 | 명령 출력, 루브릭 체크 결과 |
+| defect-counter | 실패 키·반복 실패·오류검출 유형을 집계한다 | defect summary, fail key |
+| improvement-coordinator | 반복 실패나 평가 공백을 IMPROVE-LOOP 보강 후보로 번역한다 | retro proposal 또는 D-001 보강 기록 |
+
+## 축약 규칙
+
+- 단일 파일·단일 명령 수준이면 `request-router`와 `impact-analyst`를 orchestrator가 인라인 수행할 수 있다.
+- 교차 영향, 다중 모듈, 외부 시스템, 공통 모듈, 데이터 계약, 배포/삭제 게이트가 있으면 실행 팀을 분리한다.
+- 평가 레인은 축약하지 않는다. 역할을 같은 세션이 수행하더라도 `verification-runner` 증거와 `evaluation-lead` 판정은 분리해 기록한다.
+
+## 자동 보강 규칙
+
+1. 모든 작업 단위는 실행 후 평가 스킬로 자동 인계한다.
+2. fail은 defect-counter가 실패 키를 확정하고 RECOVERY가 사건당 한 번 `improve.fail_counts`를 올린다.
+3. 반복 실패, evaluator 공백, 콜드스타트 fail이면 사용자 재호출을 기다리지 않고 회고 스킬을 개시한다.
+4. improvement-coordinator는 읽기 전용 제안서를 만들고, orchestrator가 다음 태스크 경계에서 적용한다.
+5. 적용 후 콜드스타트와 원 evaluator를 재실행한다. 실패하면 최대 3회 보완하고 잔여 fail을 공개한다.
+
+## 핸드오프 규약
+
+| From | To | 전달 내용 |
+|---|---|---|
+| orchestrator | request-router | 원문 요청, 대상 경로, 알려진 제약 |
+| request-router | impact-analyst | primary 영역, secondary 영향 후보, 불확실점 |
+| impact-analyst | task-coordinator | 리스크 브리프, 경계면, 게이트, 함께 확인할 파일 |
+| task-coordinator | task-worker | unit id, 작업 범위, 금지사항, evaluator |
+| task-worker | verification-runner | 변경 요약, 실행할 검증 명령, 관련 파일 |
+| verification-runner | evaluation-lead | 명령, cwd, exit code, 원본 출력, 루브릭 체크표 |
+| evaluation-lead | defect-counter | verdict, 실패 키, 근거 |
+| defect-counter | improvement-coordinator | 반복 횟수, 검출 유형, 보강 후보 |
+| improvement-coordinator | orchestrator | 적용/보류할 보강안, 필요한 DECISIONS.md 기록 |
+
+## 모델·비용 배정 기본값
+
+| 역할 | 권장 비용 | 이유 |
+|---|---|---|
+| orchestrator | 중간~상 | 전체 범위·게이트·최종 보고 책임 |
+| request-router | 하 | 분류·근거 확인 중심 |
+| impact-analyst | 중간~상 | 경계면 누락 비용이 큼 |
+| task-coordinator | 중간~상 | 기존 규칙과 실제 작업 연결 책임 |
+| task-worker | 작업 난도에 맞춤 | 구현·작성 난도 중심 |
+| evaluation-lead | 상 | pass/fail 오판 비용이 큼 |
+| verification-runner | 하 | 결정적 명령 실행 중심 |
+| defect-counter | 하 | 집계·분류 중심 |
+| improvement-coordinator | 중간 | 원인 후보와 보강안 선택 |
+
+## 불변 규칙
+
+1. 실행 팀은 작업을 만들고, 평가 레인은 작업을 통과시킬지 판정한다.
+2. evaluator 없는 작업 단위는 task-worker에게 위임하지 않는다.
+3. 평가 증거가 없으면 상태는 `needs-eval` 또는 `fail(structural)`이지 `pass`가 아니다.
+4. evaluator 변경은 `ledger/DECISIONS.md`에 근거와 영향 범위를 기록한다.
+5. 반복 실패가 `{{FAIL_THRESHOLD}}`회 누적되면 RECOVERY가 아니라 IMPROVE-LOOP 안건이다.
