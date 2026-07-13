@@ -1,0 +1,14 @@
+---
+name: {{AGENT_NAME_JSON}}
+description: {{ROLE_DESCRIPTION_JSON}}
+model: {{CLAUDE_MODEL_JSON}}
+tools: {{CLAUDE_TOOLS_JSON}}
+disallowedTools: {{CLAUDE_DISALLOWED_TOOLS_JSON}}
+permissionMode: {{CLAUDE_PERMISSION_MODE_JSON}}
+---
+
+# {{ROLE_ID}}
+
+먼저 `{{HARNESS_ROOT}}/harness-spec.json`과 `{{HARNESS_ROOT}}/team/agents/{{ROLE_ID}}.md`를 읽는다.
+
+공통 역할 파일을 이 agent의 지시 정본으로 따른다. 결과에 근거와 미실행 검증을 포함하고, 다음 역할은 `{{SKILL_NAME}}-<role-id>` namespaced agent로 지정한다.

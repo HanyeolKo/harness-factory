@@ -1,0 +1,18 @@
+{
+  "name": "harness-factory-marketplace",
+  "owner": {
+    "name": "HanyeolKo"
+  },
+  "metadata": {
+    "description": "Runtime-neutral agent harness tooling for Claude and Codex",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "harness-factory",
+      "source": "./",
+      "description": "Build project-specific agent teams, skills, orchestration, evaluation, and improvement loops.",
+      "version": "0.1.0"
+    }
+  ]
+}

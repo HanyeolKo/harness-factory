@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Smoke-build a harness by following the repository build-harness skill.
+"""Compatibility entry point for the runtime-neutral harness contract tests.
 
-This is intentionally lightweight: it creates a disposable target project,
-instantiates the harness templates with deterministic defaults, installs the
-rendered runtime skills, and verifies the minimum cold-start contract.
+The historical helper functions below remain temporarily for older callers;
+main delegates to the dynamic Claude/Codex fixture and parity test suite.
 """
 from __future__ import annotations
 
@@ -360,27 +359,20 @@ def validate(target: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--keep", action="store_true", help="keep the disposable target and print its path"
+        "--keep",
+        action="store_true",
+        help="retained for CLI compatibility; runtime-neutral fixtures are always disposable",
     )
-    args = parser.parse_args()
+    parser.parse_args()
 
-    with tempfile.TemporaryDirectory(prefix="harness-factory-skill-smoke-") as tmp:
-        target = Path(tmp) / "skill-smoke-target"
-        target.mkdir()
-        copy_templates(target)
-        write_target_checker(target)
-        install_runtime_agents(target)
-        install_skills(target)
-        subprocess.run([sys.executable, "scripts/check_harness.py"], cwd=target, check=True)
-        validate(target)
-        print(f"skill smoke harness created and validated: {target}")
-        if args.keep:
-            kept = ROOT / ".tmp-skill-smoke-target"
-            if kept.exists():
-                shutil.rmtree(kept)
-            shutil.copytree(target, kept)
-            print(f"kept copy: {kept}")
-    return 0
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/test_runtime_neutral_contract.py")],
+        cwd=ROOT,
+        check=False,
+    )
+    if result.returncode == 0:
+        print("runtime-neutral build-harness smoke validation passed")
+    return result.returncode
 
 
 if __name__ == "__main__":

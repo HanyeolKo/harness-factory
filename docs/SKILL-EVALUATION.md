@@ -8,11 +8,11 @@
 | 질문 | 판정 | 근거 |
 |---|---|---|
 | 호출 한 번으로 전체 하네스 구조를 설계하는가 | 통과 | Phase 0~4가 템플릿 해석, 인터뷰, 팀 토폴로지 확정, 생성, 검증·보완을 한 진입점으로 연결한다. |
-| 실행 팀이 실제 위임 가능한가 | 통과 | 8개 역할이 이름이 격리된 agent frontmatter를 가지며 Claude에서는 `.claude/agents/`에 설치된다. 실행 스킬은 라우터→영향분석가→코디네이터→작업자를 이름으로 위임한다. |
-| 평가 역할이 독립 팀 레인인가 | 통과 | verification-runner가 원본 증거를 만들고 evaluation-lead가 verdict를 소유한다. defect-counter와 improvement-coordinator는 집계와 보강 제안만 담당한다. |
-| 평가에서 자동 보완까지 연결되는가 | 통과 | 작업 후 평가 자동 인계, fail 사건당 1회 카운트, 트리거 시 회고 자동 개시, 제안 자동 적용, 콜드스타트·원 evaluator 재검증이 계약에 포함된다. |
-| 스킬 폴더만 설치해도 템플릿을 찾는가 | 통과 | 동봉 resolver가 로컬·환경변수·캐시를 우선하고, 없으면 공식 GitHub ref를 가져와 필수 템플릿 계약을 검증한다. |
-| Claude와 Codex에서 사용할 수 있는가 | 통과 | 동일한 `build-harness` 스킬과 실행·평가·회고 스킬을 양쪽 경로에 제공한다. 실제 서브에이전트 API가 없는 런타임만 기록 가능한 인라인 폴백을 사용한다. |
+| 실행 팀이 실제 위임 가능한가 | 통과 | 프로젝트 분석에서 도출한 동적 agent ID를 공통 spec에 기록하고 Claude frontmatter와 self-contained Codex agent TOML로 각각 투영한다. |
+| 평가 역할이 독립 팀 레인인가 | 통과 | evaluator runner가 원본 증거를 만들고 owner가 verdict를 소유하며 defect-counting과 improvement capability가 후속 집계·보강을 담당한다. |
+| 평가에서 자동 보완까지 연결되는가 | 통과 | 작업 후 평가, 사건당 1회 계상, spec 선변경, 전체 adapter 재생성, parity·콜드스타트·원 evaluator 재검증이 계약에 포함된다. |
+| 스킬 폴더만 설치해도 템플릿을 찾는가 | 통과 | 동봉 resolver가 로컬·환경변수·source-isolated cache를 우선하고, 없으면 지정 repository/ref를 가져와 새 필수 계약을 검증한다. |
+| Claude와 Codex에서 사용할 수 있는가 | 통과 | dual plugin manifest와 공유 `skills/build-harness`가 namespaced 호출을 제공하고, 생성물은 Claude와 Codex의 공식 native 경로를 각각 사용한다. |
 
 ## 확인한 불변 조건
 
@@ -21,15 +21,17 @@
 3. 인간 승인 게이트 무단 통과 금지.
 4. `state.json.next_action` 필수, `journal.jsonl` append-only.
 5. fail과 인라인 폴백 비은폐.
+6. adapter 의미 변경 전 공통 spec 선변경.
+7. 선택 runtime 간 agent/skill/evaluator/gate parity.
 
 ## 검증 범위
 
-- `skill-creator` frontmatter 검증: Claude/Codex `build-harness` 양쪽.
-- resolver 로컬·오프라인 해석과 양쪽 사본 동일성.
-- disposable 대상의 템플릿 렌더링과 미치환 플레이스홀더 0건.
-- 실행·평가·회고 스킬 3종 설치.
-- Claude 에이전트 8종 설치와 namespaced frontmatter.
-- 팀 흐름, 평가 레인, 자동 보완 규칙, state/journal 콜드스타트 계약.
+- dual plugin manifest와 공유 `build-harness` frontmatter.
+- resolver 로컬·오프라인 해석, repository+raw ref cache key, 세 사본 동일성.
+- 고정 8역할과 다른 동적 fixture의 공통 agent 생성.
+- Claude agent access별 tools/disallowedTools/permissionMode와 Codex agent TOML/global limits/root block.
+- 필수 3종과 임의 domain skill의 공통 canonical SKILL.md 및 Claude/Codex byte-identical 투영.
+- spec 중첩 key·참조·DAG·evaluator·approval_gates, 양 adapter parity, 미치환 placeholder, state/journal 콜드스타트 계약.
 
 ## 남은 운영 권고
 

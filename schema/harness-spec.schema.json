@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/HanyeolKo/harness-factory/schema/harness-spec.schema.json",
+  "title": "Harness Factory Runtime-neutral Specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "harness",
+    "runtime_targets",
+    "limits",
+    "domains",
+    "agents",
+    "skills",
+    "orchestration",
+    "evaluators",
+    "approval_gates",
+    "loops"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "purpose", "root"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "purpose": {"type": "string", "minLength": 1},
+        "root": {"$ref": "#/$defs/relativePath"}
+      }
+    },
+    "runtime_targets": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["claude", "codex"]}
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_parallelism", "max_delegation_depth"],
+      "properties": {
+        "max_parallelism": {"type": "integer", "minimum": 1},
+        "max_delegation_depth": {"type": "integer", "minimum": 1}
+      }
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "paths", "coordinator"],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/relativePath"}
+          },
+          "coordinator": {"$ref": "#/$defs/id"}
+        }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "description",
+          "lane",
+          "capabilities",
+          "domains",
+          "model_tier",
+          "access"
+        ],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "description": {"type": "string", "minLength": 1},
+          "lane": {
+            "enum": ["control", "execution", "evaluation", "improvement"]
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"$ref": "#/$defs/id"}
+          },
+          "domains": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"$ref": "#/$defs/id"}
+          },
+          "model_tier": {"enum": ["fast", "balanced", "deep"]},
+          "access": {"enum": ["read-only", "workspace-write"]}
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "entry_agent", "domains", "instructions"],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "kind": {"enum": ["entry", "evaluation", "improvement", "domain"]},
+          "entry_agent": {"$ref": "#/$defs/id"},
+          "domains": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {"$ref": "#/$defs/id"}
+          },
+          "instructions": {"$ref": "#/$defs/relativePath"}
+        }
+      }
+    },
+    "orchestration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_skill", "handoffs"],
+      "properties": {
+        "entry_skill": {"$ref": "#/$defs/id"},
+        "handoffs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "when", "artifacts"],
+            "properties": {
+              "from": {"$ref": "#/$defs/id"},
+              "to": {"$ref": "#/$defs/id"},
+              "when": {"type": "string", "minLength": 1},
+              "artifacts": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/relativePath"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "evaluators": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "owner",
+          "runner",
+          "type",
+          "command",
+          "pass_condition"
+        ],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "owner": {"$ref": "#/$defs/id"},
+          "runner": {"$ref": "#/$defs/id"},
+          "type": {
+            "enum": ["deterministic", "manual-deterministic", "rubric"]
+          },
+          "command": {"type": "string", "minLength": 1},
+          "pass_condition": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "approval_gates": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "trigger", "owner", "required_action"],
+        "properties": {
+          "id": {"$ref": "#/$defs/id"},
+          "trigger": {"type": "string", "minLength": 1},
+          "owner": {"$ref": "#/$defs/id"},
+          "required_action": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "loops": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution",
+        "evaluation",
+        "improvement",
+        "improvement_owner",
+        "fail_threshold",
+        "retro_interval"
+      ],
+      "properties": {
+        "execution": {"$ref": "#/$defs/relativePath"},
+        "evaluation": {"$ref": "#/$defs/relativePath"},
+        "improvement": {"$ref": "#/$defs/relativePath"},
+        "improvement_owner": {"$ref": "#/$defs/id"},
+        "fail_threshold": {"type": "integer", "minimum": 1},
+        "retro_interval": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+    }
+  }
+}

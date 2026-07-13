@@ -1,0 +1,16 @@
+---
+name: {{SKILL_ID_JSON}}
+description: {{SKILL_DESCRIPTION_JSON}}
+---
+
+# {{SKILL_ID}}
+
+먼저 `{{HARNESS_ROOT}}/harness-spec.json`을 읽고 `skills`에서 `{{SKILL_ID}}`의 kind, entry_agent, domains, instructions를 확인한다.
+
+- kind: `{{SKILL_KIND}}`
+- entry agent: `{{ENTRY_AGENT}}`
+- domains: {{SKILL_DOMAINS}}
+
+{{SKILL_BODY}}
+
+위임은 공통 spec과 `{{HARNESS_ROOT}}/team/agents/<role-id>.md`를 따르고, evaluator·승인 게이트·원본 증거를 우회하지 않는다. 런타임 adapter가 이 정본과 다르면 parity fail로 중지한다.

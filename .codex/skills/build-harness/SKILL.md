@@ -1,29 +1,45 @@
 ---
 name: build-harness
-description: harness-factory 프로토콜로 대상 프로젝트/작업의 호출형 하네스를 설계·생성한다. 사용자가 "하네스 구성해줘", "이 레포 참고해서 하네스 만들어줘", "builder-harness로 팀 구조 잡아줘"라고 요청할 때 사용. 실행 팀과 평가·자동보완 레인을 구성하며, 로컬 템플릿이 없으면 공식 GitHub 저장소에서 호환 템플릿을 해석한다.
+description: 대상 프로젝트를 분석해 런타임 중립 에이전트 팀·스킬·오케스트레이션·평가·자기개선 하네스를 설계하고 Claude와 Codex 네이티브 어댑터로 생성한다. 사용자가 하네스 구성, 에이전트 팀 생성, /harness:harness 같은 호출형 구성, Claude와 Codex 공용 오케스트레이션을 요청할 때 사용한다.
 ---
 
 # build-harness
 
-harness-factory의 구성자 수행 프로토콜(`docs/CONSTRUCTOR-PROTOCOL.md`)을 실행한다. 목표는 문서 묶음만 만드는 것이 아니라, 대상 프로젝트에서 호출 가능한 하네스 스킬이 라우팅·영향분석·위임·평가·보강을 유기적으로 수행하게 하는 것이다.
+대상 프로젝트에 호출 가능한 실행 하네스를 만든다. 고정 역할 묶음을 복사하지 말고, 프로젝트의 실제 경계·기존 규칙·검증 수단을 분석해 공통 명세를 먼저 확정한 뒤 Claude와 Codex 어댑터를 같은 의미로 렌더링한다.
 
-## 템플릿 루트 확인
+## 팩토리 확인
 
-1. 이 `SKILL.md`와 같은 스킬 폴더의 `scripts/resolve_factory.py`를 실행한다. 이미 알고 있는 팩토리 루트가 있으면 `--factory-root <경로>`를 함께 준다.
-2. resolver는 로컬 팩토리, `HARNESS_FACTORY_HOME`, 검증된 캐시 순으로 찾는다. 없으면 사용자에게 네트워크 접근을 알린 뒤 공식 저장소 `https://github.com/HanyeolKo/harness-factory.git`의 `HARNESS_FACTORY_REF`(기본 `main`)를 캐시에 가져온다.
-3. stdout의 절대 경로를 `FACTORY_ROOT`로 사용한다. resolver가 필수 템플릿 계약을 통과시키지 못하면 임의 템플릿을 만들지 말고 중지한다.
-4. 사용한 로컬 경로 또는 GitHub URL·ref·commit을 생성 하네스의 D-001에 기록한다. 오프라인 요청이면 `--offline`을 사용하고 네트워크 폴백을 시도하지 않는다.
+1. 이 스킬 폴더의 `scripts/resolve_factory.py`를 실행한다. 이미 팩토리 경로를 알면 `--factory-root <path>`를, 오프라인 요청이면 `--offline`을 사용한다.
+2. stdout의 절대 경로를 `FACTORY_ROOT`로 사용한다. 계약 검증이 실패하면 임의 템플릿으로 대체하지 않는다.
+3. `FACTORY_ROOT/docs/CONSTRUCTOR-PROTOCOL.md`, `skills/build-harness/references/RUNTIME-CONTRACT.md`, `principles/`, `interview/QUESTION-BANK.md`, `CHECKLIST.md`를 읽는다.
+4. 사용한 로컬 경로 또는 자격증명을 제거한 저장소 URL·ref·commit을 생성 하네스의 D-001에 기록한다.
 
-## 절차
+## 입력 해석
 
-1. **Phase 0 — 원칙 로드·자료 수집**: `FACTORY_ROOT`의 `README.md`, `docs/CONSTRUCTOR-PROTOCOL.md`, `principles/` 전체(01~07), `interview/QUESTION-BANK.md`, `CHECKLIST.md`를 읽는다. 대상 자료를 수집해 (a) 결정적 evaluator 후보, (b) 질문 소거 재료, (c) 하네스 목적 가설, (d) 실행 팀 경계와 평가 레인 후보를 만든다.
-2. **Phase 1 — 인터뷰**: `interview/QUESTION-BANK.md`의 1차 배치 4문항을 질의한다. Q1에서는 Phase 0의 목적 가설을 제시하고 사용자 입력으로 확정받는다. 복합 프로젝트·장기 작업·경계면 위험이 있으면 Q11로 팀 구조와 평가 책임을 확인한다. 사용자가 "알아서"라고 하면 기본값 일괄표와 기본 팀 구조를 적용한다.
-3. **Phase 2 — 결정 확정**: 답변을 템플릿 치환 필드에 매핑하고 D-001 초안을 정리한다. `harness:harness`의 장점인 라우팅 → 영향분석 → 코디네이터 위임 구조를 일반화하되, 대상이 단순하면 축약 실행으로 기록한다. 기존 builder-harness의 평가 역할은 `evaluation-lead`·`verification-runner`·`defect-counter`·`improvement-coordinator` 평가 레인으로 승격한다.
-4. **Phase 3 — 인스턴스화**: `FACTORY_ROOT/templates/` 이하를 대상 위치(기본 `<대상>/harness/`)로 복사하며 `{{...}}`를 전부 치환한다. 실행·평가·회고 스킬 3종을 런타임 스킬 경로에 설치한다. Claude에서는 렌더링된 팀 정의 8종을 `<대상>/.claude/agents/{{SKILL_NAME}}-<role>.md`에도 설치해 실제 위임 가능하게 한다. 다른 런타임은 지원되는 서브에이전트 도구에 같은 역할 정의를 전달하고, 미지원일 때만 인라인 폴백과 사유를 기록한다.
-5. **Phase 4 — 검증·보완 루프(최대 3회)·인도**: `FACTORY_ROOT/CHECKLIST.md` 전 항목을 수행한다. 미치환 플레이스홀더 0건, 콜드스타트, 팀 위임 구조, 평가 책임, fail 카운터와 자동 보강 환류를 확인한다. Claude 대상이면 `.claude/agents/` 8종의 frontmatter와 실행 스킬의 실제 위임 지시도 검증한다. fail이 있으면 보완 후 재검증하고 D-001에 누적한다.
+- 첫 경로 인자는 대상 프로젝트다. 없으면 현재 작업 디렉터리를 사용한다.
+- 나머지 문장은 하네스 목적, 범위, 보존할 기존 구성으로 선반영한다.
+- 런타임을 명시하지 않으면 `claude`와 `codex` 어댑터를 모두 만든다.
+- 기존 `harness/`가 있으면 `state/`와 append-only `ledger/`를 보존한 채 마이그레이션한다.
 
-## 인자 해석
+## 생성 절차
 
-- 경로가 주어지면: 해당 경로를 대상 프로젝트로 삼는다.
-- 작업 설명이 주어지면: Q1(대상·산출물)의 답으로 선반영하고 인터뷰에서 재확인만 한다.
-- 인자가 없으면: 현재 작업 디렉토리를 대상으로 Q1부터 질의한다.
+1. **DISCOVER** — 대상의 규칙 파일, README/docs, 모듈 경계, 빌드·테스트·CI, 기존 skills/agents/hooks를 읽는다. 코드로 알 수 없는 목적·승인 게이트·완료 기준만 최대 2회 배치로 질문한다.
+2. **DESIGN** — 프로젝트에 필요한 역할과 스킬을 도출한다. 역할 ID는 프로젝트 의미를 드러내는 lower-kebab-case로 정하고, 각 역할에 lane, 책임, 입력/출력, 권한, `fast|balanced|deep` 모델 티어, handoff를 부여한다. 라우팅·실행·증거수집·판정·실패계상·개선 역량은 빠뜨리지 않되 별도 역할 수는 프로젝트 복잡도에 맞춘다.
+3. **SPECIFY** — `templates/harness-spec.json.tmpl`과 `schema/harness-spec.schema.json`을 사용해 `<target>/harness/harness-spec.json`을 정본으로 만든다. 각 skill은 `instructions` 공통 경로를, 승인 조건은 `approval_gates`를 갖는다. orchestration은 참조가 유효한 DAG로, 재시도·보강 환류는 DAG 밖 improvement 계약으로 기록한다.
+4. **BUILD COMMON** — 공통 `harness/` 문서·상태·ledger·동적 `team/agents/<role-id>.md`와 `harness/skills/<skill-id>/SKILL.md`를 렌더링한다. 모든 실행 단위에는 evaluator와 pass 조건을 연결한다.
+5. **ADAPT CLAUDE** — 선택된 경우 `CLAUDE.md` 관리 블록, 공통 skill과 byte-identical한 `.claude/skills/<skill-id>/SKILL.md`, `.claude/agents/<namespace>-<role-id>.md`를 만든다. agent access를 tools·disallowedTools·permissionMode로 제한하고, 기존 파일은 관리 블록 밖을 보존하며 실제 namespaced agent 이름으로 위임한다.
+6. **ADAPT CODEX** — 선택된 경우 `AGENTS.md` 관리 블록, 공통 skill과 byte-identical한 `.agents/skills/<skill-id>/SKILL.md`, name·description·developer_instructions를 가진 `.codex/agents/<namespace>-<role-id>.toml`, 전역 limits를 담은 `.codex/config.toml`을 만든다. 기존 TOML 설정은 구조적으로 병합한다.
+7. **VALIDATE** — `python <FACTORY_ROOT>/scripts/validate_runtime_neutral.py <target>`와 `CHECKLIST.md`를 실행한다. 중첩 spec 키, 공통 참조, DAG, evaluator, 승인 게이트, access, 양쪽 역할·스킬 byte parity, TOML/frontmatter, 미치환 placeholder, 콜드스타트를 확인한다.
+8. **REPAIR** — fail을 최대 3회 보완한다. 공통 의미 변경은 `harness-spec.json`과 참조된 공통 skill에 먼저 반영하고 모든 선택 어댑터를 재생성한다. 원 evaluator와 parity 검증을 다시 실행하며 잔여 fail은 숨기지 않는다.
+
+## 인도
+
+생성 트리, 공통 역할/스킬 표, Claude와 Codex 호출명, 모델 티어 매핑, 적용한 기본값, 검증 결과, 보존한 기존 상태, 잔여 위험을 보고한다. 생성된 기본 호출명은 `<namespace>`, `<namespace>-eval`, `<namespace>-retro`다.
+
+## 불변 조건
+
+- 런타임 어댑터가 공통 명세와 다른 역할·스킬·평가 의미를 갖게 하지 않는다.
+- evaluator와 원본 증거 및 journal 기록 없는 pass는 허용하지 않는다.
+- 인간 승인 게이트를 우회하지 않는다.
+- 어댑터를 정본으로 삼지 않는다. 의미 변경은 공통 명세에 먼저 반영한다.
+- 인라인 폴백, 미실행 evaluator, 잔여 fail을 보고에서 숨기지 않는다.
