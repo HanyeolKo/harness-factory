@@ -13,4 +13,4 @@ description: {{SKILL_DESCRIPTION_JSON}}
 
 {{SKILL_BODY}}
 
-위임은 공통 spec과 `{{HARNESS_ROOT}}/team/agents/<role-id>.md`를 따르고, evaluator·승인 게이트·원본 증거를 우회하지 않는다. 런타임 adapter가 이 정본과 다르면 parity fail로 중지한다.
+위임은 공통 spec과 `{{HARNESS_ROOT}}/team/agents/<role-id>.md`를 따르고, 지속 메모리는 spec의 `memory.index`에서 필요한 항목만 선택한다. evaluator·승인 게이트·원본 증거를 우회하지 않으며 런타임 adapter가 이 정본과 다르면 parity fail로 중지한다.

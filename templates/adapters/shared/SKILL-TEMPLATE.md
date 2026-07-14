@@ -12,7 +12,7 @@ description: {{SKILL_DESCRIPTION_JSON}}
 
 # {{SKILL_NAME}}
 
-1. `{{HARNESS_ROOT}}/HARNESS.md`, `{{HARNESS_ROOT}}/harness-spec.json`, `{{HARNESS_ROOT}}/state/state.json`을 읽는다.
+1. `{{HARNESS_ROOT}}/HARNESS.md`, `{{HARNESS_ROOT}}/harness-spec.json`, `{{HARNESS_ROOT}}/state/state.json`, spec의 `memory.index`를 읽고 현재 작업에 필요한 지속 메모리만 선택한다.
 2. 인자가 있으면 새 요청 또는 큐 필터로, 없으면 `state.next_action`으로 해석한다.
 3. spec의 `orchestration.entry_skill`과 같은 skill의 `entry_agent`부터 시작한다.
 4. Claude는 `.claude/agents/{{SKILL_NAME}}-<role-id>.md`, Codex는 같은 name을 선언한 `.codex/agents/{{SKILL_NAME}}-<role-id>.toml`의 native agent를 호출한다.
@@ -58,11 +58,11 @@ description: {{SKILL_DESCRIPTION_JSON}}
 1. `{{HARNESS_ROOT}}/harness-spec.json`, `{{HARNESS_ROOT}}/loops/IMPROVE-LOOP.md`, improve 카운터와 관련 journal 범위만 읽는다.
 2. `loops.improvement_owner` 역할에 읽기 전용 입력을 주어 근거가 있는 개선안 1~2개를 받는다.
 3. 인간 승인 게이트 대상만 적용 전 승인을 기다린다.
-4. 의미 변경을 `harness-spec.json`에 먼저 반영하고 공통 문서를 갱신한다.
+4. 기존 하네스는 기준선과 보존 manifest를 확인하고 delta plan의 관리 파일만 갱신한다. 의미 변경을 `harness-spec.json`에 먼저 반영한다.
 5. 선택된 모든 런타임의 skills, agents, root guidance, config를 spec에서 다시 생성한다.
 6. parity validator, 콜드스타트, 원 evaluator를 다시 실행한다.
 7. fail이면 최대 3회 보완하고 잔여 fail을 공개한다. pass하면 겨냥한 실패 키만 리셋한다.
-8. DECISIONS.md와 journal에 근거, 재생성, 검증 결과를 기록한다.
+8. 지속 메모리가 생성·이동·대체·보관되면 `memory/INDEX.md`를 같은 변경 단위에서 갱신한다. DECISIONS.md와 journal에 근거, 재생성, 검증 결과를 기록한다.
 
-evaluator 완화, 게이트 우회, fail 은폐, 한쪽 adapter만의 의미 변경은 금지한다.
+전면 덮어쓰기, 승인 없는 기존 메모리 삭제, evaluator 완화, 게이트 우회, fail 은폐, 한쪽 adapter만의 의미 변경은 금지한다.
 ```

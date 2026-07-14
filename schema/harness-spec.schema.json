@@ -19,7 +19,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0"
+      "enum": ["1.0", "1.1"]
     },
     "harness": {
       "type": "object",
@@ -188,6 +188,16 @@
         }
       }
     },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "policy", "max_document_lines"],
+      "properties": {
+        "index": {"$ref": "#/$defs/relativePath"},
+        "policy": {"const": "preserve-and-reconcile"},
+        "max_document_lines": {"type": "integer", "minimum": 1}
+      }
+    },
     "loops": {
       "type": "object",
       "additionalProperties": false,
@@ -209,6 +219,15 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"schema_version": {"const": "1.1"}},
+        "required": ["schema_version"]
+      },
+      "then": {"required": ["memory"]}
+    }
+  ],
   "$defs": {
     "id": {
       "type": "string",

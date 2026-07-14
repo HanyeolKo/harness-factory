@@ -27,6 +27,8 @@ $harness-factory:build-harness "D:\workspace\step_fps"
 
 런타임을 따로 지정하지 않으면 Claude와 Codex 어댑터를 모두 생성합니다. 코드와 문서로 확인할 수 없는 목적·승인 게이트·완료 기준만 최대 두 번의 질문 묶음으로 확인합니다.
 
+기존 하네스에서 다시 호출하면 전체를 덮어쓰지 않습니다. 유효한 공통 spec은 `improve`, 부분·레거시 구성은 `reconcile` 모드로 열고, 기준선 검증과 보존 manifest를 만든 뒤 필요한 delta만 적용합니다. 기존 state, append-only ledger, evaluator, gate, 사용자 규칙과 메모리는 보존 우선이며 삭제·이름 변경·의미 교체는 명시적 승인 없이는 수행하지 않습니다.
+
 ## 설치 요약
 
 ### Claude Code
@@ -63,11 +65,12 @@ codex plugin marketplace list
 ```text
 <target>/
 ├── harness/                         # 런타임 중립 정본
-│   ├── harness-spec.json            # domains, agents, skills, DAG, evaluators, gates, loops
+│   ├── harness-spec.json            # domains, agents, skills, DAG, evaluators, gates, memory, loops
 │   ├── HARNESS.md
 │   ├── team/agents/<role-id>.md
 │   ├── skills/<skill-id>/SKILL.md   # 모든 runtime skill의 공통 정본
 │   ├── loops/
+│   ├── memory/INDEX.md              # 지속 메모리 경로·요약·출처·상태 인덱스
 │   ├── state/
 │   └── ledger/
 ├── CLAUDE.md                        # 기존 내용 + harness-factory 관리 블록
@@ -102,6 +105,8 @@ codex plugin marketplace list
 - 실행자와 증거 수집자·완료 판정자를 계약상 분리합니다.
 - evaluator, 원본 증거, journal 기록이 없으면 pass로 처리하지 않습니다.
 - state와 append-only ledger로 새 세션에서도 다음 행동을 복원합니다.
+- 기존 하네스 호출은 `improve|reconcile`로 분류해 전체 재생성 대신 delta만 적용하고 보존 manifest와 원 evaluator로 회귀를 확인합니다.
+- 지속 메모리는 `memory/INDEX.md`에 경로·요약·읽기 시점·출처·검증일·상태를 색인하고, 생성·이동·대체·보관과 인덱스를 한 변경 단위로 갱신합니다.
 - 개선은 공통 명세 선변경 → 전체 어댑터 재생성 → parity·콜드스타트·원 evaluator 재검증 순서로 진행합니다.
 - 인간 승인 게이트, 미실행 검증, 인라인 폴백과 잔여 fail을 숨기지 않습니다.
 

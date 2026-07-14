@@ -4,11 +4,12 @@ The canonical state lives under `harness/`. Claude and Codex files are generated
 
 ## Canonical layers
 
-1. `harness/harness-spec.json` defines roles, skills, orchestration, evaluation, approval gates, improvement, limits, and selected runtimes.
+1. `harness/harness-spec.json` defines roles, skills, orchestration, evaluation, approval gates, memory indexing, improvement, limits, and selected runtimes.
 2. `harness/team/agents/<role-id>.md` contains runtime-neutral role instructions.
 3. Every `skills[].instructions` points to the canonical `harness/skills/<skill-id>/SKILL.md` body.
 4. `harness/loops/`, `state/`, and `ledger/` hold the execution, evidence, recovery, and improvement protocol.
-5. Runtime adapters expose the same IDs and handoffs in native discovery formats.
+5. `harness/memory/INDEX.md` is the canonical locator for durable memory. It indexes summaries and sources; current state and events remain canonical in `state/` and `ledger/`.
+6. Runtime adapters expose the same IDs and handoffs in native discovery formats.
 
 ## Required semantics
 
@@ -19,6 +20,22 @@ The canonical state lives under `harness/`. Claude and Codex files are generated
 - Every approval gate has a stable ID, trigger, owner, and required action; an empty list explicitly means no gates.
 - Evidence collection and verdict ownership are separate capabilities, even when a small project assigns both to one role.
 - Improvement changes the canonical spec first, regenerates every selected adapter, then reruns the original evaluator and parity validation.
+- Schema `1.1` requires `memory.index`, the `preserve-and-reconcile` policy, and a document line budget. Schema `1.0` remains readable so an existing harness can be upgraded additively.
+
+## Existing harness reconciliation
+
+- Absence of `harness/` selects create mode. A valid runtime-neutral spec selects improve mode. Partial or legacy assets select reconcile mode.
+- Improve and reconcile operations start with a baseline validator/evaluator run and an inventory of owned, user-owned, and unknown-origin files.
+- Existing IDs, state, append-only ledger, evaluators, gates, root rules, and durable memory are preserved unless the user explicitly approves a semantic replacement.
+- Managed blocks and generated adapters are updated only inside their namespace. Conflicting fields are reported exactly; stale files become cleanup candidates after validation and are not deleted automatically.
+- Completion requires the post-change contract checks, the original evaluator, and a preservation-manifest comparison. Baseline failures must be distinguished from newly introduced regressions.
+
+## Memory index
+
+- The canonical index is `harness/memory/INDEX.md` and records `path | summary | read when | source | last verified | status` for durable memory.
+- Creating, moving, renaming, superseding, or archiving a memory document updates the index in the same change. Active paths must exist and IDs and paths must be unique.
+- Prefer `superseded` or `archived` over deletion. Do not overwrite or delete user memory or unknown-origin entries without explicit approval.
+- Avoid duplicating state or event history: `state/state.json` remains the current-state source, and `ledger/journal.jsonl` remains append-only history.
 
 ## Claude adapter
 

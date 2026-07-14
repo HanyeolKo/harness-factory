@@ -38,6 +38,7 @@ REQUIRED_HARNESS_FILES = [
     "ledger/JOURNAL-FORMAT.md",
     "ledger/DECISIONS.md",
     "ledger/journal.jsonl",
+    "memory/INDEX.md",
     "budget/CONTEXT-BUDGET.md",
     "state/state.json",
 ]
@@ -201,7 +202,7 @@ required = [
     "loops/EXECUTION-LOOP.md", "loops/EVAL-LOOP.md", "loops/IMPROVE-LOOP.md",
     "recovery/RECOVERY-PLAYBOOK.md", "recovery/CHECKPOINT.md",
     "ledger/JOURNAL-FORMAT.md", "ledger/DECISIONS.md",
-    "ledger/journal.jsonl", "budget/CONTEXT-BUDGET.md", "state/state.json",
+    "ledger/journal.jsonl", "memory/INDEX.md", "budget/CONTEXT-BUDGET.md", "state/state.json",
 ]
 root = Path("harness")
 missing = [p for p in required if not (root / p).exists()]

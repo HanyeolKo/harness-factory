@@ -40,8 +40,11 @@ TOP_LEVEL_KEYS = {
     "orchestration",
     "evaluators",
     "approval_gates",
+    "memory",
     "loops",
 }
+REQUIRED_TOP_LEVEL_KEYS = TOP_LEVEL_KEYS - {"memory"}
+MEMORY_STATUSES = {"active", "superseded", "archived", "empty"}
 
 
 class Validator:
@@ -57,6 +60,8 @@ class Validator:
         self.domain_ids: set[str] = set()
         self.evaluator_ids: set[str] = set()
         self.gate_ids: set[str] = set()
+        self.memory_index_path: Path | None = None
+        self.memory_max_document_lines = 0
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -87,9 +92,13 @@ class Validator:
         return self.errors
 
     def validate_shape(self) -> None:
-        self.check_keys(self.spec, "spec", TOP_LEVEL_KEYS, TOP_LEVEL_KEYS)
-        if self.spec.get("schema_version") != "1.0":
-            self.error("schema_version must be '1.0'")
+        schema_version = self.spec.get("schema_version")
+        required_top_level = set(REQUIRED_TOP_LEVEL_KEYS)
+        if schema_version == "1.1":
+            required_top_level.add("memory")
+        self.check_keys(self.spec, "spec", required_top_level, TOP_LEVEL_KEYS)
+        if schema_version not in {"1.0", "1.1"}:
+            self.error("schema_version must be '1.0' or '1.1'")
 
         harness = self.object(self.spec.get("harness"), "harness")
         self.check_keys(
@@ -350,6 +359,33 @@ class Validator:
                 if not isinstance(value, str) or not value.strip():
                     self.error(f"{label}.{field} must be a non-empty string")
 
+        memory_value = self.spec.get("memory")
+        if memory_value is not None:
+            memory = self.object(memory_value, "memory")
+            self.check_keys(
+                memory,
+                "memory",
+                {"index", "policy", "max_document_lines"},
+                {"index", "policy", "max_document_lines"},
+            )
+            index_path = memory.get("index")
+            if self.safe_relative(index_path, "memory.index"):
+                expected_index = f"{harness_root_text}/memory/INDEX.md"
+                if index_path.replace("\\", "/") != expected_index:
+                    self.error(f"memory.index must use canonical path {expected_index!r}")
+                resolved_index = (self.target / index_path).resolve()
+                if not resolved_index.is_relative_to(self.target):
+                    self.error("memory.index escapes the target project")
+                else:
+                    self.memory_index_path = resolved_index
+            if memory.get("policy") != "preserve-and-reconcile":
+                self.error("memory.policy must be 'preserve-and-reconcile'")
+            max_lines = memory.get("max_document_lines")
+            if not isinstance(max_lines, int) or isinstance(max_lines, bool) or max_lines < 1:
+                self.error("memory.max_document_lines must be a positive integer")
+            else:
+                self.memory_max_document_lines = max_lines
+
         loops = self.object(self.spec.get("loops"), "loops")
         self.check_keys(
             loops,
@@ -418,6 +454,8 @@ class Validator:
             "budget/CONTEXT-BUDGET.md",
             "state/state.json",
         ]
+        if self.spec.get("memory") is not None:
+            required.append("memory/INDEX.md")
         for relative in required:
             if not (self.harness_root / relative).is_file():
                 self.error(f"missing common harness file: {relative}")
@@ -501,6 +539,95 @@ class Validator:
         journal = self.harness_root / "ledger" / "journal.jsonl"
         if journal.is_file() and not journal.read_text(encoding="utf-8").strip():
             self.error("ledger/journal.jsonl must contain an initial event")
+        if self.memory_index_path is not None and self.memory_index_path.is_file():
+            self.validate_memory_index(self.memory_index_path)
+
+    def validate_memory_index(self, path: Path) -> None:
+        text = path.read_text(encoding="utf-8")
+        self.validate_memory_document_budget(path, "memory index", text)
+        required_headers = [
+            "ID",
+            "경로",
+            "한 줄 요약",
+            "언제 읽나",
+            "출처",
+            "마지막 검증",
+            "상태",
+        ]
+        header = next(
+            (
+                line
+                for line in text.splitlines()
+                if line.lstrip().startswith("|")
+                and all(marker in line for marker in required_headers)
+            ),
+            None,
+        )
+        if header is None:
+            self.error("memory index is missing required table headers")
+            return
+
+        seen_ids: set[str] = set()
+        seen_paths: set[str] = set()
+        for line in text.splitlines():
+            if not line.lstrip().startswith("|"):
+                continue
+            columns = [column.strip() for column in line.strip().strip("|").split("|")]
+            if len(columns) != 7:
+                self.error(f"memory index has a malformed table row: {line!r}")
+                continue
+            if columns[0] in {"ID", "---"}:
+                continue
+            if all(set(column) <= {"-", ":"} for column in columns):
+                continue
+            entry_id, relative, _summary, _read_when, _source, _verified, status = columns
+            if status not in MEMORY_STATUSES:
+                self.error(f"memory index has unsupported status {status!r}: {entry_id!r}")
+                continue
+            if status == "empty":
+                if entry_id != "-" or relative != "-":
+                    self.error("memory index empty row must use '-' for ID and path")
+                continue
+            if not self.identifier(entry_id, "memory index ID"):
+                continue
+            if entry_id in seen_ids:
+                self.error(f"memory index contains duplicate ID: {entry_id!r}")
+            seen_ids.add(entry_id)
+            normalized = relative.replace("\\", "/")
+            if normalized in seen_paths:
+                self.error(f"memory index contains duplicate path: {relative!r}")
+            seen_paths.add(normalized)
+            if normalized in {"harness/state/state.json", "harness/ledger/journal.jsonl"}:
+                self.error(f"memory index must not duplicate state or event history: {relative!r}")
+            if status == "active" and self.safe_relative(relative, "memory index path"):
+                candidate = (self.target / relative).resolve()
+                if not candidate.is_relative_to(self.target) or not candidate.is_file():
+                    self.error(f"memory index active path does not exist: {relative!r}")
+                elif candidate.suffix.lower() == ".md":
+                    try:
+                        candidate_text = candidate.read_text(encoding="utf-8")
+                    except UnicodeDecodeError:
+                        self.error(f"memory index active Markdown is not UTF-8: {relative!r}")
+                    else:
+                        self.validate_memory_document_budget(
+                            candidate, f"memory document {relative!r}", candidate_text
+                        )
+
+    def validate_memory_document_budget(
+        self, path: Path, label: str, text: str
+    ) -> None:
+        if self.memory_max_document_lines < 1:
+            return
+        line_count = len(text.splitlines())
+        if (
+            line_count > self.memory_max_document_lines
+            and "<!-- 문서규율 예외:" not in text
+        ):
+            self.error(
+                f"{label} exceeds memory.max_document_lines "
+                f"({line_count} > {self.memory_max_document_lines}): "
+                f"{path.relative_to(self.target)!s}"
+            )
 
     def validate_adapters(self) -> None:
         runtimes = set(self.spec.get("runtime_targets", []))

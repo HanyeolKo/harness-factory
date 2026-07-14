@@ -14,9 +14,10 @@
 
 ## 1. 구조 완결성
 
-- [ ] 공통 산출물이 존재한다: harness-spec.json, HARNESS.md, ENVIRONMENT.md, team/TEAM-ARCHITECTURE.md, spec agent마다 team/agents/<role-id>.md, spec skill마다 skills/<skill-id>/SKILL.md, loops/ 3종, recovery/ 2종, ledger/ 3종(journal.jsonl 포함), budget/, state/state.json
+- [ ] 공통 산출물이 존재한다: harness-spec.json, HARNESS.md, ENVIRONMENT.md, team/TEAM-ARCHITECTURE.md, spec agent마다 team/agents/<role-id>.md, spec skill마다 skills/<skill-id>/SKILL.md, loops/ 3종, recovery/ 2종, ledger/ 3종(journal.jsonl 포함), memory/INDEX.md, budget/, state/state.json
 - [ ] `harness-spec.json`이 schema version, 중첩 required/unsupported key, domain/agent/skill/gate ID 유일성, 상대경로, 참조 무결성, DAG, evaluator, approval_gates, limits 계약을 통과한다
 - [ ] 템플릿 출처가 D-001에 기록됐다: 로컬 경로 또는 GitHub URL + ref + 실제 commit. resolver의 필수 템플릿 계약을 통과했다
+- [ ] **기존 하네스 융화**: 기존 자산이 있으면 `improve|reconcile` 모드, 기준선 validator/evaluator, 파일별 관리 주체, 보존 manifest, delta plan(`unchanged|add|modify-proposed|conflict|approval-required`)이 기록됐다. 삭제·이름 변경·의미 교체는 승인 없이 적용되지 않았다
 - [ ] 미사용 축이 있다면 파일 삭제가 아니라 파일 내 "미사용 — 사유" 표기로 처리됐다
 - [ ] `grep -rn '{{' <HARNESS_ROOT>` 결과 0건 — 치환 안 된 플레이스홀더 없음
 - [ ] "이 대화에서", "위에서 논의한" 류의 세션 의존 표현이 없다 (미래 세션에게 그 대화는 존재하지 않는다)
@@ -39,6 +40,8 @@
 - [ ] **불변 조건**: 인터뷰에서 오버라이드가 있었다면 README §불변 조건 5개를 침범하지 않았다
 - [ ] **기록**: journal.jsonl에 최초 라인(`session_start` 또는 생성 기록)이 있다. DECISIONS.md에 D-001(초기 구성 결정 + 인터뷰 요약 + 적용 기본값)이 기록됐다
 - [ ] **코스트**: 예산 단위·단위당 예산·80%/100% 행동이 확정됐다
+- [ ] **메모리 인덱스**: spec `1.1`의 `memory.index`가 `memory/INDEX.md`를 가리키고 `preserve-and-reconcile` 정책과 줄 예산이 있다. 인덱스에 경로·요약·읽기 시점·출처·마지막 검증·상태 열이 있으며 active 경로, 중복 ID/경로, 고아 문서를 검사했다
+- [ ] **보존 재검증**: 기존 하네스면 전후 보존 manifest가 일치하고 원 evaluator를 다시 실행했다. 기준선 실패와 새 회귀를 구분해 기록했다
 
 ## 3. 콜드스타트 테스트 (원칙 5 — 핵심 관문)
 
@@ -49,6 +52,7 @@
 - [ ] 그 행동의 완료는 무엇으로 판정하나? → 근거: 해당 단위의 evaluator 필드
 - [ ] 복합 요청일 때 domain별 실행 팀은 어떤 순서로 동작하나? → 근거: harness-spec.json orchestration + team/TEAM-ARCHITECTURE.md
 - [ ] 실패가 반복되면 어디로 환류되나? → 근거: EVAL-LOOP.md 평가 팀 레인 + IMPROVE-LOOP.md 보강 신호
+- [ ] 현재 작업에 필요한 지속 메모리를 어디서 선택하나? → 근거: harness-spec.json `memory.index` + memory/INDEX.md
 
 ## 4. 인도 보고
 
@@ -56,6 +60,7 @@
 
 - [ ] 생성 파일 목록 (트리 형태)
 - [ ] 적용된 결정: 인터뷰 답변 + 적용 기본값 + 설계 방향 + domain/agent/skill 토폴로지 + 추상 모델 티어와 runtime별 매핑
+- [ ] 기존 하네스면 적용 모드 + delta plan + 보존·흡수·충돌 항목 + memory index 상태
 - [ ] 검증·보완 루프 결과: 수행 회전 수, 각 회전의 보완 내용, 잔여 fail (없으면 "없음")
 - [ ] 첫 실행 방법: HARNESS.md 시작 프로토콜 + Claude `/<skill-id>` / Codex `$<skill-id>` 실행·평가·회고 호출명
 - [ ] 첫 백로그 항목 (예: 검증 스크립트 신설이 필요했다면 그 안내)

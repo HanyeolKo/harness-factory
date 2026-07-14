@@ -50,6 +50,7 @@ REQUIRED_PATHS = (
     "templates/loops/EVAL-LOOP.md.tmpl",
     "templates/loops/EXECUTION-LOOP.md.tmpl",
     "templates/loops/IMPROVE-LOOP.md.tmpl",
+    "templates/memory/INDEX.md.tmpl",
     "templates/recovery/CHECKPOINT.md.tmpl",
     "templates/recovery/RECOVERY-PLAYBOOK.md.tmpl",
     "templates/team/TEAM-ARCHITECTURE.md.tmpl",

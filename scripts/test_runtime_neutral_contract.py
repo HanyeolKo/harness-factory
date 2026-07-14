@@ -159,7 +159,7 @@ def fixture_skill_description(kind: str) -> str:
 
 def make_spec() -> dict:
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "harness": {
             "id": NAMESPACE,
             "purpose": "Validate dynamic, cross-runtime harness generation.",
@@ -223,6 +223,11 @@ def make_spec() -> dict:
                 "required_action": "obtain explicit approval",
             }
         ],
+        "memory": {
+            "index": "harness/memory/INDEX.md",
+            "policy": "preserve-and-reconcile",
+            "max_document_lines": 100,
+        },
         "loops": {
             "execution": "harness/loops/EXECUTION-LOOP.md",
             "evaluation": "harness/loops/EVAL-LOOP.md",
@@ -257,6 +262,12 @@ def build_fixture(target: Path, spec: dict | None = None) -> None:
         "recovery/CHECKPOINT.md": "# Checkpoint\n\nPersist next action.",
         "ledger/JOURNAL-FORMAT.md": "# Journal\n\nAppend only.",
         "ledger/DECISIONS.md": "# Decisions\n\nD-001 fixture.",
+        "memory/INDEX.md": (
+            "# Memory Index\n\n"
+            "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
+            "|---|---|---|---|---|---|---|\n"
+            "| - | - | 등록된 지속 메모리 없음 | - | - | 2026-07-13 | empty |"
+        ),
         "budget/CONTEXT-BUDGET.md": "# Budget\n\n80 percent warning.",
     }
     for relative, text in required_text.items():
@@ -449,6 +460,14 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             canonical_skill,
             (ROOT / ".codex/skills/build-harness/SKILL.md").read_bytes(),
         )
+        canonical_skill_text = canonical_skill.decode("utf-8")
+        for marker in [
+            "create|improve|reconcile",
+            "기존 하네스 융화 규칙",
+            "메모리 인덱스 관리",
+            "preserve-and-reconcile",
+        ]:
+            self.assertIn(marker, canonical_skill_text)
         canonical_resolver = (
             ROOT / "skills/build-harness/scripts/resolve_factory.py"
         ).read_bytes()
@@ -692,6 +711,58 @@ class RuntimeNeutralContractTests(unittest.TestCase):
                 any("references unknown evaluator" in error for error in errors),
                 errors,
             )
+
+    def test_memory_index_contract_and_legacy_spec_are_supported(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="harness-runtime-memory-") as temp:
+            target = Path(temp)
+            build_fixture(target)
+            memory_index = target / "harness/memory/INDEX.md"
+            write_text(
+                memory_index,
+                (
+                    "# Memory Index\n\n"
+                    "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
+                    "|---|---|---|---|---|---|---|\n"
+                    "| durable-note | harness/memory/missing.md | missing | task | user | 2026-07-13 | active |"
+                ),
+            )
+            errors = Validator(
+                target, target / "harness/harness-spec.json"
+            ).validate()
+            self.assertTrue(
+                any("active path does not exist" in error for error in errors),
+                errors,
+            )
+            long_memory = target / "harness/memory/long.md"
+            write_text(long_memory, "\n".join(["line"] * 101))
+            write_text(
+                memory_index,
+                (
+                    "# Memory Index\n\n"
+                    "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
+                    "|---|---|---|---|---|---|---|\n"
+                    "| durable-note | harness/memory/long.md | long | task | user | 2026-07-13 | active |"
+                ),
+            )
+            errors = Validator(
+                target, target / "harness/harness-spec.json"
+            ).validate()
+            self.assertTrue(
+                any("exceeds memory.max_document_lines" in error for error in errors),
+                errors,
+            )
+
+        with tempfile.TemporaryDirectory(prefix="harness-runtime-legacy-") as temp:
+            target = Path(temp)
+            legacy_spec = make_spec()
+            legacy_spec["schema_version"] = "1.0"
+            del legacy_spec["memory"]
+            build_fixture(target, legacy_spec)
+            (target / "harness/memory/INDEX.md").unlink()
+            errors = Validator(
+                target, target / "harness/harness-spec.json"
+            ).validate()
+            self.assertEqual([], errors, "\n".join(errors))
 
     def test_cycle_and_missing_adapter_are_rejected(self) -> None:
         with tempfile.TemporaryDirectory(prefix="harness-runtime-negative-") as temp:

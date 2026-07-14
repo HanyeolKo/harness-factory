@@ -35,15 +35,16 @@
 4. SELECT   개정 안건 1~2건만 선정 → 제안서 ledger/retro-<N>.md 산출 (AUDIT 결과 포함).
 
 [5~7: 메인 루프 — 유일한 쓰기 주체]
-5. AMEND    제안서 검토 후 harness-spec.json을 먼저 개정하고 공통 문서와 선택 runtime adapter를 모두 재생성한다.
-            DECISIONS.md에 근거와 AUDIT 결과(직전 개정 효과 유무)를 기록.
+5. AMEND    기존 하네스는 기준선·보존 manifest와 delta plan을 확인한다. 제안서 검토 후 harness-spec.json을 먼저
+            개정하고 delta에 포함된 공통 문서와 선택 runtime adapter만 동기화한다. 지속 메모리 변경은
+            memory/INDEX.md와 같은 변경 단위로 처리한다. DECISIONS.md에 근거와 AUDIT 결과를 기록.
 6. VERIFY   adapter parity와 콜드스타트 테스트 재통과 (principles/05 절차). fail이면 개정 미완.
 7. RESET    state.json 갱신 — **이번 개정이 겨냥한 실패 키의 fail_counts만 0으로 리셋**(효과 확인을 위해
             0부터 재계상 — AUDIT의 근거), 겨냥하지 않은 키는 유지. units_since_retro = 0,
             coldstart_fail = false, last_retro_targets = 이번 겨냥 키.
 ```
 
-VERIFY에는 보강을 촉발한 원 evaluator 재실행도 포함한다. 콜드스타트 또는 원 evaluator가 fail이면 같은 안건을 최대 3회 보완하고, 이후 잔여 fail과 적용 중단 사유를 공개한다.
+VERIFY에는 보강을 촉발한 원 evaluator, memory index 무결성, 전후 보존 manifest 비교도 포함한다. 콜드스타트 또는 원 evaluator가 fail이면 같은 안건을 최대 3회 보완하고, 이후 잔여 fail과 적용 중단 사유를 공개한다. 기준선부터 있던 실패와 새 회귀를 구분한다.
 
 ## 규칙
 
