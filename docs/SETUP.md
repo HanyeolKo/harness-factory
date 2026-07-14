@@ -118,7 +118,7 @@ $harness-factory:build-harness "D:\workspace\step_fps"
 $harness-factory:build-harness 이 프로젝트를 분석하되 Codex 어댑터만 생성해줘.
 ```
 
-기존 state와 ledger를 유지해야 한다면 같은 호출에서 보존 요구를 명시합니다.
+기존 하네스가 있으면 별도 지시가 없어도 `improve|reconcile` 모드로 열어 state, append-only ledger, evaluator, gate, 사용자 규칙과 메모리를 보존합니다. 삭제·이름 변경·의미 교체처럼 보존 정책을 바꿀 때만 범위와 승인을 명시합니다.
 
 ## 팩토리 source와 오프라인 설정
 

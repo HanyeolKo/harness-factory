@@ -85,9 +85,12 @@ namespace가 `step-control-tower`인 예:
 - `state/state.json`: 현재 phase, queue, current, next_action, improve counter의 source of truth
 - `ledger/journal.jsonl`: append-only 실행·evidence·verdict·handoff 기록
 - `ledger/DECISIONS.md`: schema, evaluator, 역할, 모델 매핑, gate 변경 근거
+- `memory/INDEX.md`: 지속 메모리의 경로, 요약, 읽기 시점, 출처, 검증일, 상태를 관리하는 정본 인덱스
 - `recovery/CHECKPOINT.md`: 세션 종료·게이트·예산 경계의 복구 정보
 
 `state.next_action`은 비우지 않습니다. 평가 evidence와 journal line이 없으면 수행되지 않은 것으로 간주합니다.
+
+메모리는 생성·이동·이름 변경·대체·보관과 인덱스 행을 같은 변경 단위에서 갱신합니다. 현재 상태나 사건 이력을 메모리에 복제하지 않고, 기존 사용자 메모리는 승인 없이 덮어쓰거나 삭제하지 않습니다.
 
 ## 개선 트리거
 
@@ -130,7 +133,7 @@ python scripts\skill_smoke_build_harness.py
 python <factory-root>\scripts\validate_runtime_neutral.py <target-project>
 ```
 
-검증기는 spec ID·중첩 필드·상대경로·DAG·evaluator·approval gate·capability backbone, 공통 agent/skill, Claude frontmatter와 access 제한, Codex agent TOML의 name/description/instructions, global limits, 양 runtime skill과 managed block, placeholder와 byte parity를 확인합니다.
+검증기는 spec ID·중첩 필드·상대경로·DAG·evaluator·approval gate·memory index·capability backbone, 공통 agent/skill, Claude frontmatter와 access 제한, Codex agent TOML의 name/description/instructions, global limits, 양 runtime skill과 managed block, placeholder와 byte parity를 확인합니다.
 
 ## 콜드스타트
 
@@ -140,7 +143,8 @@ python <factory-root>\scripts\validate_runtime_neutral.py <target-project>
 2. `harness/harness-spec.json`
 3. `harness/team/TEAM-ARCHITECTURE.md`
 4. `harness/state/state.json`
-5. 현재 unit의 refs
+5. `harness/memory/INDEX.md`
+6. 현재 unit의 refs와 인덱스에서 선택한 지속 메모리
 
 그 뒤 파일 근거로 목적과 현재 phase, 즉시 다음 행동, 해당 행동의 evaluator를 답하지 못하면 cold-start fail입니다.
 

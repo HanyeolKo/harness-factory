@@ -32,6 +32,7 @@
 - Claude agent access별 tools/disallowedTools/permissionMode와 Codex agent TOML/global limits/root block.
 - 필수 3종과 임의 domain skill의 공통 canonical SKILL.md 및 Claude/Codex byte-identical 투영.
 - spec 중첩 key·참조·DAG·evaluator·approval_gates, 양 adapter parity, 미치환 placeholder, state/journal 콜드스타트 계약.
+- 기존 spec `1.0` 하위 호환, spec `1.1` memory index 필수 열·active 경로·문서 줄 예산, `create|improve|reconcile` 스킬 계약.
 
 ## 남은 운영 권고
 
