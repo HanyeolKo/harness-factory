@@ -2,7 +2,7 @@
 """Compatibility entry point for the runtime-neutral harness contract tests.
 
 The historical helper functions below remain temporarily for older callers;
-main delegates to the dynamic Claude/Codex fixture and parity test suite.
+main delegates to the Claude/Codex/Gemini fixture and parity test suite.
 """
 from __future__ import annotations
 

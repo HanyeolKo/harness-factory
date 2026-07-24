@@ -1,79 +1,195 @@
-# CONSTRUCTOR-PROTOCOL — 구성자(LLM)용 하네스 생성 규약
+# CONSTRUCTOR-PROTOCOL — 하네스 구성·수정 규약
 
-이 문서는 `build-harness` 스킬이 실행할 LLM용 지시문이다. 구성자는 대상 프로젝트를 분석해 런타임 중립 정본을 먼저 만들고, 그 정본에서 Claude와 Codex의 네이티브 호출 어댑터를 생성한다.
+이 문서는 factory의 일곱 스킬이 따라야 할 공통 규약입니다. 구성자는 대상 프로젝트를 분석해 프로젝트 내부의 런타임 중립 정본을 만들거나 수정하고, 그 정본에서 Claude·Codex·Gemini 네이티브 어댑터를 투영합니다.
 
-스킬은 먼저 동봉된 `scripts/resolve_factory.py`로 `FACTORY_ROOT`를 확정한다. 로컬 템플릿이 없을 때만 공식 GitHub 저장소의 지정 ref를 캐시에 가져오며, resolver가 필수 파일 계약을 검증한 경로만 사용한다. 사용한 경로 또는 URL·ref·commit은 D-001에 남긴다.
+## 0. 소유권 경계
 
-## 1. 원칙 로드와 자료 수집
+- factory는 프로젝트 하네스를 package, registry, 중앙 state로 흡수하지 않는다.
+- `harness/`, state, ledger, evaluation report의 소유자는 대상 프로젝트다.
+- 기존 하네스가 있으면 같은 위치에서 점진적으로 변경한다.
+- factory checkout에는 재사용 가능한 schema, provider 계약, template, validator, skill만 둔다.
+- 프로젝트별 관찰을 factory 템플릿에 환류하는 것은 별도 사용자 승인 작업이다.
 
-- `README.md`, `principles/` 전체, `interview/QUESTION-BANK.md`, `CHECKLIST.md`를 읽는다.
-- 대상 프로젝트의 README·docs, 빌드/테스트/CI 설정, 기존 규칙 파일, 디렉토리 구조, 커밋 이력·이슈·로그 등 읽을 수 있는 자료를 수집한다.
-- 수집 목적은 (a) 결정적 evaluator 후보 발굴, (b) 인터뷰 질문 소거, (c) 하네스 목적 가설 수립, (d) 도메인 경계와 기존 제어탑·skill·agent·hook 후보 식별이다.
-- `harness:harness`의 장점인 제어탑 → 도메인 coordinator → 전문 실행 → 평가/보강 환류를 일반화한다. 역할 이름과 수를 복사하지 않고 대상의 디렉터리·서비스·데이터 계약·검증 책임에서 도출한다.
-- 기존 `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.agents/`, `.codex/`는 덮어쓸 대상이 아니라 병합할 사용자 구성이다.
-- 목적 가설은 반드시 사용자 입력으로 확정한다. 수집 결과를 남길 때는 원문 덤프가 아니라 인덱스+요약으로 남긴다.
+각 스킬은 먼저 동봉된 `scripts/resolve_factory.py`로 `FACTORY_ROOT`를 확정합니다. resolver가 필수 계약을 검증한 source만 읽고, 경로 또는 repository/ref/commit을 생성 하네스의 D-001에 기록합니다.
 
-## 2. 인터뷰
+## 1. 스킬 선택
 
-- `interview/QUESTION-BANK.md`의 1차 핵심 4문항을 우선 질의한다. 코드베이스에서 이미 답을 확인한 것은 묻지 않는다.
-- 필요할 때만 2차 보완 질문을 추가하고, 전체 질문은 최대 2회 배치로 끝낸다.
-- 복합 프로젝트·장기 작업·경계면 위험이 보이면 Q11의 도메인·팀·평가·런타임 질문을 사용한다. 사용자가 "알아서"라고 하면 필수 capability backbone과 Claude+Codex 양쪽 어댑터를 적용한다.
-- 사용자가 “알아서 해줘”라고 하면 질문 은행의 기본값을 적용하되, 적용한 기본값을 인도 보고에 명시한다.
+가장 작은 적합 스킬을 선택합니다.
 
-## 3. 설계 결정 확정
+| 상황 | 스킬 |
+|---|---|
+| 하네스가 없거나 전체 토폴로지 재설계 | `build-harness` |
+| agent·권한·handoff 변경 | `build-agent` |
+| 실행/domain skill 변경 | `build-skill` |
+| task/harness evaluator 변경 | `build-evaluator` |
+| 구조와 provider parity 확인 | `verify-harness` |
+| 하네스 변경 효과 판정 | `evaluate-harness` |
+| 입증된 하네스 결함 수정 | `improve-harness` |
 
-- 인터뷰 답변을 `templates/`의 치환 필드와 `schema/harness-spec.schema.json`에 매핑한다.
-- 설계 방향은 기본값(코스트 기반 자동검증·보완)을 우선 적용하되 사용자 요청이 다르면 오버라이드한다.
-- 먼저 대상의 domain graph를 확정한다. 각 domain은 경로와 coordinator를 갖고, 교차 경계는 명시적 handoff로 연결한다.
-- agent/skill 토폴로지를 확정한다. 역할 수는 고정하지 않지만 routing, execution, verification, verdict, defect-counting, improvement capability 합집합은 반드시 존재한다. 복합 경계에서는 impact-analysis와 coordination을 분리한다.
-- 각 역할에는 lane, capabilities, domains, access, `fast|balanced|deep` 모델 티어를 배정한다. Claude/Codex의 구체 모델명은 공통 명세에 넣지 않고 adapter 렌더링에서 매핑한다.
-- 모든 인간 승인 조건은 `approval_gates`의 id, trigger, owner, required_action으로 명시한다. 승인 게이트가 없으면 빈 배열로 확정하고 adapter 자유 텍스트에만 별도 게이트를 만들지 않는다.
-- Claude agent 권한은 `access`에서 명시적으로 매핑한다. `read-only`는 `tools: Read, Grep, Glob`, `disallowedTools: Write, Edit, NotebookEdit, Bash`, `permissionMode: plan`을 사용한다. `workspace-write`도 필요한 도구만 allowlist하고 기본 permission mode를 유지하며, `bypassPermissions`는 생성하지 않는다.
-- 정상 실행 handoff는 DAG로 만든다. 재시도와 개선 환류는 DAG에 역방향 edge를 넣지 않고 loops 계약으로 표현한다.
-- 실행자는 작업 산출물을 만들고 evaluator runner가 원본 증거를 생성하며 evaluator owner가 pass/fail을 판정한다.
-- 확정한 결정과 근거를 생성될 하네스의 `ledger/DECISIONS.md` D-001에 기록한다.
+원자적 변경 요청에 `build-harness`를 사용해 전체 state를 재초기화하지 않습니다.
 
-## 4. 뼈대 인스턴스화
+## 2. 조사와 인터뷰
 
-- `templates/harness-spec.json.tmpl`을 먼저 렌더링해 `harness/harness-spec.json`을 만든다. JSON parse, 중첩 required/unsupported key, ID 중복, 상대경로, 참조, DAG, approval gate를 확인한 뒤 다음 단계로 간다.
-- YAML/TOML의 동적 scalar는 값 조각을 escape하지 않는다. 전체 값을 JSON string으로 한 번 직렬화해 `*_JSON` placeholder에 넣고, template에서 placeholder 주위에 따옴표를 다시 붙이지 않는다. 이 JSON string subset은 YAML과 TOML 양쪽에서 안전하며 colon, hash, quote, newline을 보존한다.
-- 공통 `templates/`를 렌더링한다. `templates/team/agents/AGENT.md.tmpl`은 spec agent마다 한 번씩 `team/agents/<role-id>.md`로 생성한다.
-- spec의 모든 skill은 `skills[].instructions`가 가리키는 `harness/skills/<skill-id>/SKILL.md`를 공통 정본으로 만든다. `templates/adapters/shared/SKILL.md.tmpl`을 skill마다 렌더링하고, 필수 실행·평가·회고 본문은 `SKILL-TEMPLATE.md`의 preset을 사용할 수 있으며 임의 domain skill도 같은 generic template으로 만든다.
-- `state/state.json`에는 최소 1개 queue item, evaluator, 비어 있지 않은 `next_action`, 초기화된 `improve` 카운터를 둔다.
-- `ledger/journal.jsonl`에는 최초 생성 또는 `session_start` 라인을 둔다.
-- Claude adapter: 기존 `CLAUDE.md`의 관리 블록 밖을 보존하고, 각 공통 skill 정본을 `.claude/skills/<skill-id>/SKILL.md`로 byte-identical copy하며 agent별 `.claude/agents/<namespace>-<role-id>.md`를 만든다.
-- Codex adapter: 기존 `AGENTS.md`와 `.codex/config.toml`을 구조적으로 병합하고, 같은 공통 skill 정본을 `.agents/skills/<skill-id>/SKILL.md`로 byte-identical copy하며 agent별 `name`·`description`·`developer_instructions`를 가진 `.codex/agents/<namespace>-<role-id>.toml`, 전역 agent limits를 만든다.
-- 두 agent adapter는 실행 의미를 복제하지 않는 thin wrapper로 렌더링한다. Claude 본문과 Codex `developer_instructions`에는 공통 spec·역할 파일 경로와 그 정본을 따르라는 고정 문장만 두며 `ROLE_INSTRUCTIONS`를 다시 삽입하지 않는다.
-- 기존 관리 블록은 같은 namespace 블록을 교체해 idempotent하게 갱신한다. 사용자 문장이나 unrelated TOML table을 삭제하지 않는다. 충돌하는 agent ID나 TOML 필드가 있으면 자동 덮어쓰지 않고 보고한다.
+- `README.md`, `principles/`, `interview/QUESTION-BANK.md`, `CHECKLIST.md`를 읽는다.
+- 대상의 README/docs, 빌드·테스트·CI, root 규칙, 디렉터리·서비스·데이터 계약, 기존 agent/skill/hook/evaluator를 조사한다.
+- 수집 목적은 목적 가설, 결정적 task evaluator, domain graph, 기존 하네스 보존 경계, harness-effect baseline을 찾는 것이다.
+- 코드와 문서에서 확인한 사실은 다시 묻지 않는다.
+- 확인되지 않은 목적, 승인 gate, 완료 기준, provider 범위만 최대 두 번의 질문 묶음으로 확인한다.
+- 사용자가 맡기면 질문 은행의 schema 1.1 기본값과 Claude·Codex·Gemini를 적용하고 인도 보고에 명시한다.
 
-## 5. 검증·보완 루프
+## 3. 공통 설계
 
-- `python <FACTORY_ROOT>/scripts/validate_runtime_neutral.py <target>`와 `CHECKLIST.md` 전 항목을 검증한다.
-- 핵심 관문은 콜드스타트 테스트다: `HARNESS.md`부터 지시된 순서로만 읽고 목적/현재 단계, 즉시 다음 행동, 완료 evaluator를 파일 근거로 답한다.
-- 팀 구조 관문도 수행한다: spec과 `TEAM-ARCHITECTURE.md`만 읽고 domain graph, 실행 흐름, evaluator runner/owner, 실패가 improvement owner로 환류되는 경로를 답할 수 있어야 한다.
-- 자동 연결 관문도 수행한다: 실행 직후 평가 스킬 자동 인계, fail 사건당 1회 카운트, 임계값·평가 공백·콜드스타트 fail의 회고 자동 개시, 제안서 자동 적용, 콜드스타트+원 evaluator 재검증이 이어져야 한다.
-- Claude/Codex adapter의 agent ID·skill ID 집합이 spec과 같아야 한다. Claude frontmatter 이름과 access별 tools/disallowedTools/permissionMode, Codex agent TOML의 name/description/instructions, global limits, root 관리 블록, native skill 경로를 검증한다. 모든 runtime skill은 `skills[].instructions` 공통 파일과 byte-identical이어야 한다.
-- 한쪽 adapter만 보완하지 않는다. 공통 의미가 바뀌면 spec → 공통 문서 → 모든 선택 adapter 순으로 재생성하고 parity를 다시 확인한다.
-- fail이 있으면 보완 후 재검증한다. 이 검증→보완 회전은 최대 3회까지 허용한다.
-- 각 회전에서 고친 내용은 생성될 하네스의 `ledger/DECISIONS.md` D-001에 누적한다.
-- 3회 후에도 fail이 남으면 인도를 중단하지 말고 잔여 fail과 사유를 사용자에게 명시한다. fail 은폐만 금지된다.
+### Domain과 agent
 
-## 6. 인도 보고
+- 역할 수와 이름을 고정하지 않고 실제 프로젝트 경계에서 도출한다.
+- capability 합집합에 routing, execution, verification, verdict, defect-counting, improvement를 포함한다.
+- agent마다 lane, capabilities, domains, access, `fast|balanced|deep` 티어를 지정한다.
+- 실제 vendor 모델명은 provider adapter에서 매핑하고 공통 spec에 넣지 않는다.
+- 정상 handoff는 DAG다. retry와 improvement 환류는 loop로 표현하고 역방향 edge를 넣지 않는다.
 
-사용자에게 다음을 요약한다.
+### Skill evaluator 연결
 
-- 생성 파일 목록.
-- 적용 결정: 인터뷰 답변, 적용 기본값, domain graph, 동적 agent/skill 토폴로지, 추상 모델 티어와 런타임 매핑, 위임/폴백 모드, 템플릿 출처·ref·commit.
-- 검증·보완 루프 결과: 회전 수, 보완 내용, 잔여 fail.
-- 첫 실행 방법: 새 세션에서 `<HARNESS_ROOT>/HARNESS.md`를 읽고 시작 프로토콜을 따르거나, 설치된 실행 스킬을 호출하도록 안내한다.
-- 스킬을 설치했다면 Claude `/<skill-id>`와 Codex `$<skill-id>` 형식으로 실행·평가·회고 호출명을 각각 안내한다.
+schema 1.1에서는 모든 `skills[].evaluator`가 필수입니다.
 
-## 7. 불변 조건
+- entry/evaluation/verification/domain → `scope: task`; verification은 구조 validator
+- harness-evaluation/improvement → `self_evaluation.evaluator`; `scope: harness`, `type: experiment`
 
-1. evaluator 없는 작업 단위는 실행하지 않는다.
-2. 평가 기록 없는 pass 처리는 없다.
-3. 인간 승인 게이트는 승인 없이 통과하지 않는다.
-4. `state.json.next_action`은 비워두지 않고, `journal.jsonl`은 append-only로만 다룬다.
-5. fail은 검증·인도·보고에서 숨기지 않는다.
-6. adapter는 정본이 아니다. 의미 변경은 `harness-spec.json`에 먼저 반영한다.
-7. 선택된 런타임 사이에서 역할·skill·evaluator·gate 의미가 달라지지 않는다.
+실행자와 task evidence runner, task verdict owner를 계약상 분리합니다. harness evaluator는 task fail을 곧바로 하네스 결함으로 간주하지 않습니다.
+
+### 승인 gate
+
+모든 인간 승인 조건을 `approval_gates`의 id, trigger, owner, required_action으로 기록합니다. provider 자유 텍스트에만 별도 gate를 만들지 않습니다.
+
+## 4. build-harness 절차
+
+1. schema 1.1 spec 생성과 모든 skill evaluator 링크 검증
+2. JSON key, ID, 상대경로, 참조, DAG 검증
+3. 공통 team/agent/skill/loop/recovery/state/ledger 렌더링
+4. task evaluator와 `scope:harness,type:experiment` evaluator 렌더링
+5. `evaluation/suites/targeted.json`에 세 reason의 결정적 metric 렌더링
+6. checker, recorder, self-evaluation state 렌더링
+7. canonical은 별도 hash하고 `watched_paths`에는 선택 provider의 exact managed artifact만 등록
+8. 선택 provider adapter 투영
+9. validator와 CHECKLIST 수행
+10. baseline full evaluation을 수행하고 recorder로 ACK하거나, 초기 mandatory event를 pending으로 명시
+
+초기 state에는 빈 managed hash와 `canonical-contract-change` pending event를 둡니다. provider root 전체나 unrelated user skill/agent는 watched path에 넣지 않습니다.
+
+## 5. 원자적 build 절차
+
+`build-agent`, `build-skill`, `build-evaluator`는 다음 transaction을 따릅니다.
+
+1. 현재 spec, state, ledger, provider 목록 읽기
+2. 변경 전 `verify-harness`
+3. 충돌 ID와 영향 handoff/evaluator 분석
+4. spec과 공통 정본 변경; skill 변경이면 evaluator 링크도 갱신
+5. 선택 provider의 exact managed artifact 재투영
+6. 새 projection/wrapper/config의 exact path만 `watched_paths`에 반영
+7. 해당 mandatory event를 pending events에 중복 없이 추가
+8. 변경 후 `verify-harness`; parity pass→fail이면 `parity-fail` 추가 후 구조 복구
+9. checker를 다시 실행하고 유효한 decision만 라우팅
+
+이벤트는 agent→`agent-change`, skill→`skill-change`, evaluator→`evaluator-change`, 공통 계약→`canonical-contract-change`, provider artifact→`adapter-change`입니다. 기존 queue, append-only ledger, evaluation run을 재초기화하지 않습니다.
+
+## 6. provider 렌더링
+
+provider ID와 경로는 `providers/<id>/contract.json`에서 읽습니다.
+
+### Claude
+
+- 기존 `CLAUDE.md` 관리 블록 밖 보존
+- 공통 skill을 `.claude/skills/<skill-id>/SKILL.md`에 byte-identical copy
+- `.claude/agents/<namespace>-<role-id>.md` 생성
+- `read-only`는 읽기 도구만 허용하고 쓰기·shell 도구 금지
+
+### Codex
+
+- 기존 `AGENTS.md` 관리 블록 밖 보존
+- 공통 skill을 `.agents/skills/<skill-id>/SKILL.md`에 byte-identical copy
+- `.codex/agents/<namespace>-<role-id>.toml` 생성
+- `.codex/config.toml`의 관련 agent limits만 구조적 병합
+
+### Gemini
+
+- 기존 `GEMINI.md` 관리 블록 밖 보존
+- 공통 skill을 `.gemini/skills/<skill-id>/SKILL.md`에 byte-identical copy
+- `.gemini/agents/<namespace>-<role-id>.md` 생성
+- 전체 DAG sequencing은 entry/main orchestrator가 소유하고 agent wrapper는 공통 역할 계약을 참조
+
+어댑터는 thin wrapper입니다. 역할 의미를 복제해 별도 정본을 만들지 않습니다.
+
+## 7. event-driven self-evaluation
+
+schema 1.1은 checker/state/evaluation loop/evaluator/targeted suite path, sampling·interval·cooldown·budget·threshold, mandatory events와 `watched_paths`를 확정합니다. canonical은 별도 hash하며 watched path는 선택 provider의 root guidance 파일, spec 각 skill projection, namespaced agent wrapper, 생성 config처럼 exact managed artifact만 포함합니다.
+
+작업 경계 라우팅은 다음 순서를 고정합니다.
+
+1. checker `reasons`에 `input-invalid:*`가 있으면 effect evaluation/LLM을 열지 않고 `verify-harness`와 구조 복구 후 재실행합니다.
+2. `adapter-change|parity-fail`이면 provider parity verify가 pass해야 다음 단계로 갑니다. cold-start false→true와 parity pass→fail은 각각 pending event를 추가합니다.
+3. 자동 경로의 `none`은 종료합니다. 사용자 명시 full 요청은 raw checker JSON 전체를 `override.original`에 보존하고 top-level effective `decision: full`, `mandatory: false`, `override.kind: explicit-user-request`, original reasons 뒤 marker, 동일한 deferred reasons·hashes·`acknowledgement`를 기록합니다. 이 구조화된 override만 budget·cooldown을 우회하며 input-invalid/parity 검증은 우회하지 않습니다.
+4. `targeted`는 `evaluation/suites/targeted.json`에서 `cost-regression|retry-pressure|deterministic-sample` reason과 연결된 결정적 metric만 실행합니다. 임의 LLM targeted 평가는 금지합니다.
+5. `full`은 harness experiment evaluator를 실행합니다.
+
+checker는 읽기 전용이고 `none|targeted|full`만 반환합니다. trigger는 개선 명령이 아닙니다. 완료 task의 기존 state transaction이 `current_unit`, `units_since_full += 1`, `cooldown_remaining_units = max(0, n-1)`, recent/rolling evidence를 정확히 한 번 갱신하며 추가 LLM 호출은 하지 않습니다.
+
+## 8. evaluate-harness 계약
+
+- full은 같은 evaluator와 pass condition으로 baseline/control/treatment를 비교합니다.
+- 표본 미달, arm 조건 불일치, 미실행 evaluator는 `inconclusive`입니다.
+- 평가 전 checker JSON을 `<target>\harness\evaluation\runs\<run-id>\trigger.json`에 동결하고 완료된 targeted/full마다 다음 recorder를 호출합니다.
+
+```powershell
+python <target>\harness\triggers\record_self_evaluation.py <target>\harness --decision <targeted|full> --decision-file <target>\harness\evaluation\runs\<run-id>\trigger.json --verdict <improved|neutral|regressed|inconclusive>
+```
+
+recorder는 frozen trigger의 decision/reasons, current managed hashes, `acknowledgement` failure snapshot을 확인합니다. ACK decision/reasons는 변화한 rolling-metric decision으로 대체하지 않습니다. full은 처리 시작 pending/reason과 frozen failure snapshot만 ACK하고 managed canonical/provider hashes, units, cooldown을 갱신합니다. 평가 중 생긴 새 event·failure는 보존합니다. targeted는 last decision·cooldown만 갱신합니다. 이 상태 전이로 같은 mandatory signal이 반복 평가되지 않습니다.
+
+full report가 regression 또는 하네스 결함을 귀속한 경우에만 `improve-harness`로 전달합니다.
+
+## 9. improve-harness 계약
+
+1. 하네스 귀속 근거와 겨냥 지표 확인
+2. 예상 효과와 rollback 조건 기록
+3. 변경 1~2개 선택
+4. 공통 spec/문서 선변경
+5. 모든 선택 provider adapter 재투영
+6. `verify-harness`, cold-start, 원 task evaluator 실행
+7. checker JSON을 run의 `trigger.json`에 동결하고 full harness-effect evaluation 실행
+8. completed full recorder ACK
+9. improved 또는 사전 허용된 neutral만 수용
+10. regression이면 안전한 rollback 후 근거 기록
+
+평가 기준 완화, gate 우회, evidence 삭제, unrelated state 초기화는 금지합니다.
+
+## 10. 검증·인도
+
+다음을 수행합니다.
+
+```powershell
+python <FACTORY_ROOT>\scripts\validate_runtime_neutral.py <target>
+python <target>\harness\triggers\check_self_evaluation.py <target>\harness
+# completed targeted/full 이후 recorder는 §8의 명령으로 실행
+```
+
+CHECKLIST의 구조, provider, 평가, trigger fixture, cold-start를 최대 3회 보완합니다. 잔여 fail은 숨기지 않고 인도 보고에 명시합니다.
+
+인도 보고에는 다음을 포함합니다.
+
+- 생성·수정 파일과 보존한 state/ledger
+- 적용 기본값과 domain/agent/skill/evaluator 토폴로지
+- provider 목록과 모델 티어 매핑
+- task evaluation과 harness-effect evaluation 호출법
+- trigger 정책, budget/cooldown/sampling 값
+- 검증 회전과 잔여 fail
+
+## 11. 불변 조건
+
+1. task evaluator 없는 작업 단위를 실행하지 않는다.
+2. 원본 evidence와 기록 없는 pass는 없다.
+3. 인간 승인 gate는 승인 없이 통과하지 않는다.
+4. `state.json.next_action`은 비우지 않고 journal은 append-only다.
+5. fail과 인라인 폴백을 숨기지 않는다.
+6. adapter 의미 변경은 공통 spec에 먼저 반영한다.
+7. 선택 provider 간 역할·skill·evaluator·gate 의미를 동일하게 유지한다.
+8. trigger 발생만으로 하네스를 자동 수정하지 않는다.
+9. factory가 프로젝트 state를 중앙 소유하지 않는다.

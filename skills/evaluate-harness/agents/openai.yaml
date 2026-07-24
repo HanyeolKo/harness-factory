@@ -1,0 +1,4 @@
+interface:
+  display_name: "Evaluate Harness"
+  short_description: "Measure harness quality and cost effectiveness"
+  default_prompt: "Use $evaluate-harness to measure harness effectiveness."

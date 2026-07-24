@@ -1,29 +1,40 @@
 # EXECUTION LOOP — 실행 루프
 
-작업 단위: **개정 안건 1건 (파일 1~2개 범위)**. 큐는 `state/state.json`의 `queue`에 산다.
+작업 단위는 개정 안건 1건이다. task evaluation은 항상 수행하고 harness effect evaluation은 checker가 요청할 때만 수행한다.
 
-## 루프 (작업 단위 1개당 1회전)
+## 루프
 
+```text
+1. PICK       state/state.json에서 다음 단위를 선택한다.
+2. GUARD      예산과 인간 승인 게이트를 확인한다.
+3. DEFINE     이 단위의 scope=task evaluator와 pass 조건을 확정한다.
+4. EXECUTE    작업을 수행한다.
+5. TASK-EVAL  loops/EVAL-LOOP.md로 작업 결과를 판정한다.
+6. RECORD     완료 unit마다 current_unit 갱신, units_since_full += 1,
+              cooldown_remaining_units = max(0, n-1)을 정확히 한 번 적용하고
+              pass/fail, 재시도, 비용, 시간을 상태와 journal에 기록한다.
+7. INCIDENT   coldstart_fail false→true 또는 parity pass→fail을 pending event에 중복 없이 추가한다.
+8. CHECK      read-only checker를 실행한다. LLM을 호출하지 않는다.
+9. ROUTE      reasons에 input-invalid:*가 있으면 effect evaluation·LLM·improvement를 금지한다.
+              verify-harness로 구조만 복구하고 checker를 다시 실행한다.
+              adapter-change|parity-fail은 provider parity pass 전 평가를 금지한다.
+              none은 추가 로드 없이 종료한다.
+              targeted/full은 checker stdout을 run의 trigger.json에 그대로 동결한 뒤 평가한다.
+10. ACK       완료된 targeted/full run만 recorder에 frozen decision file과 verdict를 전달한다.
+11. COMMIT    task pass와 필요한 구조 검증을 확인한 뒤 프로젝트 저장소에 커밋한다.
 ```
-1. RETRO-CHECK  (매 회전, 신규 단위 착수 전) state.json `improve`를 결정적으로 조회한다 — 에이전트·추론 불필요:
-                (a) fail_counts에 3 이상인 키 존재? (b) units_since_retro ≥ 10? (c) coldstart_fail = true?
-                하나라도 참이면 IMPROVE-LOOP §실행 방식대로 회고를 개시한다 (별개 에이전트 기본).
-                완료된 회고 제안서(ledger/retro-*.md)가 미적용 상태로 대기 중이면 적용(AMEND→VERIFY→RESET)부터 수행한다.
-2. PICK     state.json 큐에서 다음 단위를 집는다. 큐가 비면 → 대기 중 회고 제안서 적용 후 종료 프로토콜.
-3. GUARD    예산 확인 (budget/CONTEXT-BUDGET.md). 80% 이상이면 신규 착수 금지 → 체크포인트 → 종료 프로토콜.
-            게이트 대상 단계면 인간 승인부터.
-4. DEFINE   이 단위의 evaluator를 확인한다. 미정의면 실행 금지 — 먼저 EVAL-LOOP 규격으로 정의한다 (원칙 1).
-5. EXECUTE  수행한다. 결정적 경계 준수: 구조·규율 검사(플레이스홀더 잔존, 줄 수, 파일 존재)는 스크립트,
-            문서 내용을 어떻게 고칠지의 판단은 LLM.
-6. EVALUATE EVAL-LOOP 실행. 판정과 근거를 journal.jsonl에 기록.
-7. BRANCH   pass → state.json에서 단위를 done으로 이동 + `improve.units_since_retro` +1, 1로.
-            fail → RECOVERY-PLAYBOOK의 분류표로 넘긴다. 회복 후 6 재실행.
-8. RECORD   기록 수준(단위 시작/종료 + 판정 + 실패 + 결정)에 따라 journal.jsonl 갱신은 각 단계에서 즉시 수행한다.
-```
 
-## 규칙
+## 결정적 경계
 
-- 한 번에 진행 중(in-progress) 단위는 1개다. 병렬 수행: 없음 — 병렬은 사용자 요청 시에만.
-- 단위 예산: 세션 컨텍스트의 1/4. 초과 예상 시 단위를 쪼개서 큐에 되넣는다.
-- 같은 조작 2회 반복 시 스크립트화를 판정한다 (원칙 3). 스크립트화하면 ENVIRONMENT.md 자산 표에 등재.
-- 루프 밖 임의 작업(큐에 없는 작업) 착수 금지. 필요하면 큐에 추가부터.
+- checker는 파일을 수정하지 않고 compact JSON만 반환한다.
+- `targeted.json`은 `cost-regression|retry-pressure|deterministic-sample`을 고정 metric에 연결한다.
+- budget·cooldown은 비필수 신호만 유예하며 mandatory full을 묵살하지 않는다.
+- recorder는 완료 run 뒤에만 호출한다. full ACK가 처리한 pending event와 frozen failure snapshot만 ACK하고 managed hash를 갱신한다.
+- task evaluator는 self-evaluation decision과 관계없이 작업마다 실행한다.
+
+## 불변조건
+
+- evaluator 없는 작업 실행, 증거 없는 pass, gate 우회는 금지한다.
+- checker의 `none`이나 `input-invalid:*`를 개선 필요로 해석하지 않는다.
+- targeted 결과만으로 하네스를 수정하지 않는다.
+- 한 번에 쓰기 주체는 하나다. 결과는 대상 프로젝트에 남는다.

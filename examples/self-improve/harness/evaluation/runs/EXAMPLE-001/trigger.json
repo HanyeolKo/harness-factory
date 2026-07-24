@@ -1,0 +1,14 @@
+{
+  "decision": "full",
+  "mandatory": true,
+  "reasons": [
+    "canonical-contract-change"
+  ],
+  "deferred_reasons": [],
+  "current_canonical_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "current_adapter_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+  "acknowledgement": {
+    "coldstart_fail": false,
+    "fail_counts": {}
+  }
+}

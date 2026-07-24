@@ -1,6 +1,6 @@
 # TEAM ARCHITECTURE — {{TARGET}}
 
-`../harness-spec.json`이 역할·스킬·handoff의 정본이다. 이 문서는 사람이 빠르게 읽기 위한 투영이며, 의미 변경은 spec에 먼저 반영한다.
+`../harness-spec.json`이 역할·skill·handoff의 정본이며 이 문서는 사람이 빠르게 읽는 투영이다.
 
 ## 도메인 경계
 
@@ -10,9 +10,7 @@
 
 {{AGENT_TABLE}}
 
-역할 수는 고정하지 않는다. 작은 프로젝트는 한 역할이 여러 필수 역량을 가질 수 있고, 복합 프로젝트는 도메인별 coordinator·worker·evaluator를 추가할 수 있다.
-
-필수 역량 집합은 routing, execution, verification, verdict, defect-counting, improvement다. impact-analysis와 coordination은 경계면이 있는 프로젝트에서 분리하는 기본값이다.
+역할 수는 고정하지 않는다. routing, execution, verification, verdict, defect-counting, improvement capability의 합집합은 유지하되 작은 프로젝트는 한 역할에 병합할 수 있다.
 
 ## 오케스트레이션
 
@@ -24,17 +22,17 @@
 
 {{HANDOFF_TABLE}}
 
-## 평가·보강
+## 평가 책임
 
 {{EVALUATION_TABLE}}
 
-- 실행 직후 평가 레인으로 자동 인계한다.
-- 원본 증거와 journal 기록 없는 pass는 없다.
-- 반복 실패, evaluator 공백, 콜드스타트 fail은 improvement owner에게 전달한다.
-- 개선은 `harness-spec.json`을 먼저 수정하고 선택된 모든 런타임 어댑터를 재생성한 뒤 원 evaluator와 parity를 다시 검증한다.
+- task evaluator runner가 증거를 만들고 owner가 pass condition과 대조한다.
+- harness evaluator는 baseline/control/treatment 효과만 비교하며 task verdict와 섞지 않는다.
+- 반복 실패·비용·cold-start·parity 사건은 rolling state에 기록하고 checker가 `none|targeted|full`을 결정한다.
+- improvement owner는 full 근거가 하네스 원인을 확인한 뒤에만 proposal을 만든다.
 
 ## 런타임 투영
 
 {{RUNTIME_ADAPTER_TABLE}}
 
-서브에이전트 기능을 사용할 수 없을 때만 인라인 폴백하며 `team_mode:inline`과 사유를 journal에 기록한다.
+Claude, Codex, Gemini adapter는 같은 agent/skill 의미를 노출한다. provider가 subagent를 지원하지 못하면 메인 orchestrator가 공통 역할 정의를 인라인 수행하고 사유를 기록한다. Gemini에서는 subagent 간 재귀 위임 대신 메인 orchestrator가 DAG를 소유한다.

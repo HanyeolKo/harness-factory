@@ -1,141 +1,155 @@
 # 인터뷰 질문 은행 — Phase 1 질의 프로토콜
 
-구성자가 사용자에게 던질 질문의 은행이다. 목적은 심문이 아니라 **빠른 구성**이다.
+구성자가 사용자에게 던질 질문의 은행입니다. 목적은 심문이 아니라 **빠른 프로젝트 소유 하네스 구성**입니다.
 
 ## 운영 규칙
 
-1. **최대 2회 배치**: 1차 배치는 핵심 4문항(Q1~Q4)으로 고정. 2차 배치는 1차 답변이 만든 분기에서 필요한 것만 최대 4문항.
-2. **묻기 전에 조사**: 명령 시점 기준 읽을 수 있는 자료(README·docs, 빌드/테스트/CI 설정, 기존 규칙 파일, 구조, 이력)를 최대한 수집한 뒤 질문한다. 코드베이스에서 확인 가능한 답(테스트 러너 존재, 언어, CI 유무)은 절대 묻지 않는다 — Phase 0 수집 결과로 질문을 소거하라. 단, **하네스의 목적만은 수집 자료로 추정만 하고 반드시 사용자 입력으로 확정한다** (Q1).
-3. **"알아서 해줘" 처리**: 각 질문의 기본값 열을 적용하고, 인도 시 "다음 기본값을 적용했습니다" 목록으로 명시한다.
-4. **선택지 제시형으로**: 자유 서술 질문보다 선택지 + Other 형태가 빠르다. `AskUserQuestion` 같은 구조화 질의 수단이 있으면 사용한다.
-5. **답변 → 템플릿 매핑**: 각 질문의 "매핑" 행이 답을 어느 템플릿 필드에 꽂을지 지정한다. 매핑 결과는 Phase 2에서 `DECISIONS.md` D-001로 기록한다.
-6. **설계 방향 오버라이드**: 기본 설계 방향은 코스트 기반 자동검증·보완 하네스다 (README §기본 설계 방향). 사용자의 답변·요청이 이와 다른 방향(예: 인간 승인 중심, 기록 최소화, 검증 수단 교체)을 가리키면 **사용자의 방향이 우선한다**. 오버라이드 사실과 근거를 D-001에 기록하고 HARNESS.md 설계 방향 절에 반영하라. 단, **README §불변 조건 5개는 오버라이드 대상이 아니다** — 사용자 요청이 불변 조건을 침범하면 그 사실을 안내하고 침범하지 않는 대안을 제시하라.
+1. **최대 2회 배치**: 1차는 핵심 Q1~Q4, 2차는 필요한 분기만 최대 4문항.
+2. **묻기 전에 조사**: README/docs, 빌드·테스트·CI, 기존 규칙·하네스·state를 조사해 확인 가능한 질문을 소거한다.
+3. **목적은 사용자 확정**: 수집 자료로 가설을 제시하되 Q1의 목적은 사용자 입력으로 확정한다.
+4. **“알아서” 처리**: 아래 기본값을 적용하고 인도 보고에 명시한다.
+5. **선택지 우선**: 자유 서술보다 선택지와 짧은 보완 입력을 사용한다.
+6. **결정 기록**: 답변과 적용 기본값을 `ledger/DECISIONS.md` D-001에 기록한다.
+7. **프로젝트 소유권**: 기존 하네스를 factory package로 옮길지 묻지 않는다. 기본은 대상 프로젝트 안에서 보존·점진 개선이다.
+8. **설계 오버라이드**: 사용자 방향이 우선하지만 evaluator 없는 pass, 승인 gate 우회, evidence 삭제, provider 의미 불일치는 허용하지 않는다.
 
----
+## 1차 배치 — 핵심 4문항
 
-## 1차 배치 — 핵심 4문항 (항상 질문)
+### Q1. 대상·목적·산출물
 
-### Q1. 대상·목적·산출물 (목적 확정 — 생략 불가)
+> 수집한 자료로는 이 하네스가 `<목적 가설>`을 위해 프로젝트 전체 또는 `<범위>`를 관리하는 것으로 보입니다. 맞나요? 주 산출물은 코드, 문서, 데이터, 혼합 중 무엇인가요?
 
-> 이 하네스가 관리할 대상은 무엇인가요? (프로젝트 전체 / 특정 대형 작업) 그리고 주된 산출물의 형태는? (코드 / 문서 / 데이터 / 혼합)
+- **기본값**: 대상은 현재 repository. 목적은 기본값 없이 사용자 확정 필요.
+- **매핑**: `harness.id`, `harness.purpose`, domain graph, task evaluator 후보.
 
-- **질의 방식**: Phase 0 수집 자료로 세운 목적 가설을 함께 제시하고 확인·수정받는다. 예: "수집한 자료로는 ~를 위한 하네스로 보입니다. 맞나요, 아니면 다른 목적인가요?" 가설 없이 백지 질문하지 않되, 가설을 답으로 단정하지도 않는다.
-- **기본값**: 대상은 현재 레포지토리 전체, 산출물은 Phase 0 조사로 추정. 단 **목적 자체는 기본값이 없다 — 사용자 확정 없이는 Phase 2로 넘어갈 수 없다.**
-- **매핑**: `{{TARGET}}`, `{{PURPOSE}}` → `HARNESS.md`의 목적 절. 산출물 형태 답변은 치환 필드가 아니라 **EVAL-LOOP의 evaluator 유형 후보를 결정하는 재료**로 쓴다 (코드→결정적-자동, 문서→루브릭 등)
+### Q2. Task 완료 판정
 
-### Q2. 완료 판정 수단 (평가 — 가장 중요한 질문)
+> 개별 작업이 “제대로 됐다”는 무엇으로 판정할까요? (a) 기존 테스트/빌드/린트 (b) 새 결정적 검증 스크립트 (c) 루브릭 기반 판정 (d) 인간 최종 승인과 a~c 중 하나
 
-> 작업이 "제대로 됐다"를 무엇으로 판정하길 원하시나요?
-> (a) 기존 테스트/빌드/린트 통과 (b) 새로 만들 검증 스크립트 (c) 루브릭 기반 LLM 판정 (d) 최종 인간 확인
-
-- **기본값**: Phase 0에서 발견한 결정적 수단 (a). 없으면 (b)를 첫 백로그로 + 임시 (c)
-- **매핑**: `{{EVALUATOR_PRIMARY}}`, `{{EVALUATOR_COMMANDS}}` → `EVAL-LOOP.md`, `ENVIRONMENT.md` 검증 커맨드
-- **주의**: (d)만 선택되면 "인간 확인은 게이트이지 evaluator가 아니다"를 안내하고 (a)~(c) 중 하나를 병행 확보하라 (원칙 1).
+- **기본값**: 발견된 결정적 수단. 없으면 검증 스크립트를 첫 backlog로 두고 임시 rubric을 사용.
+- **매핑**: `evaluators[].scope: task`, command, pass condition, runner, owner와 entry/evaluation/verification/domain `skills[].evaluator`.
+- **주의**: 인간 확인은 approval gate이며 evaluator를 대체하지 않는다.
 
 ### Q3. 운영 방식
 
-> 하네스는 어떻게 운영되나요? (a) 사용자가 상주하며 세션 단위로 함께 진행 (b) 장시간 자율 실행 (c) 크론/트리거 기반 무인 반복
+> 하네스는 어떻게 운영되나요? (a) 사용자 상주 세션 (b) 장시간 자율 실행 (c) cron/event 기반 무인 반복
 
 - **기본값**: (a)
-- **매핑**: `{{OPERATION_MODE}}` → RECOVERY-PLAYBOOK 에스컬레이션 문턱(무인일수록 보수적), IMPROVE-LOOP 회고 주기(무인일수록 짧게), 체크포인트 빈도
+- **매핑**: recovery escalation, checkpoint 빈도, self-evaluation full interval/cooldown.
 
-### Q4. 코스트 민감도
+### Q4. 비용과 평가 강도
 
-> 컨텍스트/토큰 예산 관리 강도는? (a) 타이트 — 예산 초과 시 즉시 중단·분할 (b) 보통 — 80% 경고, 초과 시 체크포인트 후 교체 (c) 느슨 — 기록만 하고 제한 없음
+> 컨텍스트·토큰과 하네스 자체 평가 비용에 얼마나 민감한가요? (a) 타이트 (b) 보통 (c) 느슨
 
 - **기본값**: (b)
-- **매핑**: `{{BUDGET_POLICY}}` → `CONTEXT-BUDGET.md`의 정책 강도, EXECUTION-LOOP의 예산 확인 단계
+- **매핑**: 작업 budget, `self_evaluation.targeted_sample_rate`, `cooldown_units`, `budget_ratio`, `full_interval_units`.
+- **안내**: 매 작업 경계에는 결정적 checker만 실행한다. targeted는 고정 metric suite, full은 harness experiment이며 완료 뒤 recorder가 ACK한다. input-invalid와 미해결 parity는 effect evaluation/LLM으로 보내지 않는다.
 
----
+## 2차 배치 — 필요한 분기만
 
-## 2차 배치 — 분기별 보완 질문 (필요한 것만, 최대 4개)
+### Q5. [대형 작업] 작업 단위
 
-### Q5. [Q1=대형 작업일 때] 작업 분해 단위
+> 파일, 모듈, 기능, 데이터 배치 중 어떤 단위가 자연스러우며 대략 몇 개인가요?
 
-> 이 작업을 어떤 단위로 쪼개는 게 자연스러운가요? (파일/모듈 단위, 기능 단위, 데이터 배치 단위 등) 대략 몇 개 단위가 될까요?
+- **기본값**: 조사에서 제안하고 확인만 받는다.
+- **매핑**: execution loop, state queue, evaluation sampling unit.
 
-- **기본값**: 구성자가 Phase 0 조사로 제안하고 확인만 받는다
-- **매핑**: `{{WORK_UNIT}}` → EXECUTION-LOOP의 단위 정의, state.json의 큐 구조
-
-### Q6. [파괴적 단계가 예상될 때] 게이트 목록
+### Q6. [파괴적 단계] 승인 gate
 
 > 배포, 삭제, 외부 발신, 마이그레이션 실행처럼 인간 승인이 필요한 단계가 있나요?
 
-- **기본값**: 파괴적 단계 전부 게이트 등재 (보수적)
-- **매핑**: `{{GATES}}` → RECOVERY-PLAYBOOK 게이트 목록
+- **기본값**: 파괴적·외부 영향 단계 전부 gate.
+- **매핑**: `approval_gates`.
 
-### Q7. [Q3=(b)/(c)일 때] 실패 시 연락 기준
+### Q7. [자율/무인] 중단·연락 기준
 
-> 자율 실행 중 어떤 상황이면 멈추고 사용자에게 물어야 하나요? (스코프 실패 즉시 / 재시도 상한 도달 시 / 세션 예산 소진 시)
+> 어떤 상황이면 자동 처리를 멈추고 사용자에게 물어야 하나요? (scope 불명확 / retry 상한 / 예산 소진 / gate 도달)
 
-- **기본값**: 셋 다 에스컬레이션
-- **매핑**: `{{ESCALATION_RULES}}` → RECOVERY-PLAYBOOK
+- **기본값**: 네 경우 모두 중지·에스컬레이션.
+- **매핑**: recovery와 waiting 상태.
 
-### Q8. [Q2=(c) 루브릭일 때] 품질 기준
+### Q8. [루브릭] 품질 기준
 
-> 산출물이 "좋다"의 기준 2~3가지를 말씀해 주세요. (예: 정확성, 근거 인용, 분량 상한)
+> 산출물이 “좋다”의 기준 2~3가지는 무엇인가요? 예: 정확성, 근거, 분량, 성능.
 
-- **기본값**: 구성자가 산출물 유형 표준 루브릭 초안을 만들어 확인받는다
-- **매핑**: `{{RUBRIC}}` → EVAL-LOOP 루브릭 절
+- **기본값**: 산출물 유형 표준 rubric 초안을 제안하고 확인.
+- **매핑**: task evaluator rubric.
 
-### Q9. [기존 규칙 파일(CLAUDE.md 등)이 있을 때] 통합 방식
+### Q9. [기존 root 규칙] 통합 방식
 
-> 기존 규칙 파일이 있습니다. 하네스를 여기에 통합할까요, 별도 `harness/`로 두고 참조만 걸까요?
+> 기존 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`가 있습니다. 별도 `harness/` 정본을 두고 각 문서에 managed block만 추가해도 될까요?
 
-- **기본값**: 별도 `harness/` + 기존 규칙 파일에 참조 한 줄 추가
-- **매핑**: `{{HARNESS_ROOT}}`, 기존 파일 수정 여부
+- **기본값**: 예. 기존 사용자 본문 보존.
+- **매핑**: harness root와 provider managed block. `watched_paths`에는 선택 provider의 exact root guidance, spec skill projection, namespaced wrapper, 생성 config만 둔다.
 
-### Q10. [기록 상세도가 쟁점일 때] 기록 수준
+### Q10. [기록량] 기록 수준
 
-> 기록은 어느 수준으로? (a) 판정·실패·결정만 (b) 모든 작업 단위의 시작/종료 포함 (c) 최대 상세
+> 기록은 (a) 판정·실패·결정만 (b) unit 시작/종료 포함 (c) 최대 상세 중 어느 수준인가요?
 
 - **기본값**: (b)
-- **매핑**: `{{JOURNAL_LEVEL}}` → JOURNAL-FORMAT의 기록 대상 이벤트 목록
+- **매핑**: journal event와 evaluation report 상세도.
 
+### Q11. [복합 프로젝트] 팀과 provider
 
-### Q11. [복합 프로젝트·장기 작업일 때] 에이전트 팀과 평가 레인
+> domain별 coordinator·worker가 필요한가요? evidence runner와 verdict owner는 누가 맡고 Claude, Codex, Gemini 중 어떤 adapter가 필요한가요?
 
-> 프로젝트 경계별 coordinator·worker가 필요한가요? 완료 판정과 원본 증거 수집은 누가 소유해야 하며 Claude/Codex 중 어느 어댑터가 필요한가요?
+- **기본값**: 역할 수는 고정하지 않고 routing, execution, verification, verdict, defect-counting, improvement capability를 배치한다. 경계면에서는 impact-analysis·coordination을 분리하고 세 provider를 모두 생성한다.
+- **매핑**: domains, agents, skills, orchestration, evaluators, runtime targets, provider adapters.
+- **주의**: 한 agent가 여러 역할을 맡더라도 산출물·evidence·verdict 단계는 분리한다.
 
-- **기본값**: `harness:harness`의 제어탑 패턴을 일반화하되 역할 수와 이름은 고정하지 않는다. routing, execution, verification, verdict, defect-counting, improvement 역량을 모두 배치하고, 경계면이 있으면 impact-analysis·coordination을 도메인별 역할로 분리한다. 명시가 없으면 Claude와 Codex 어댑터를 모두 생성한다.
-- **매핑**: `harness-spec.json`의 domains/agents/skills/orchestration/evaluators, `team/TEAM-ARCHITECTURE.md`, 양 런타임 어댑터
-- **주의**: 단일 에이전트 운영이라도 역할과 증거는 분리한다. 서브에이전트 미지원 시에만 인라인 폴백과 사유를 기록한다. 실행자가 자기 작업을 무증거 pass 처리하는 구조는 허용하지 않는다.
----
+### Q12. [기존 하네스 또는 효과 평가] baseline
 
-## 기본값 일괄표 ("전부 알아서" 시나리오)
+> 최근 안정 구간에서 작업 성공률, 평균 비용, retry 수를 계산할 수 있나요? 새 하네스 변경이 유지해야 할 지표는 무엇인가요?
+
+- **기본값**: 최근 결정적 task evaluator 기록에서 가능한 지표를 계산. 자료가 없으면 baseline 수집 전 verdict를 `inconclusive`로 제한.
+- **매핑**: `scope: harness`, `type: experiment` evaluator와 harness-evaluation/improvement skill 링크, baseline, success/cost/retry threshold, minimum samples.
+
+## 기본값 일괄표
 
 | 필드 | 기본값 |
 |---|---|
-| TARGET | 현재 레포지토리 |
-| EVALUATOR_PRIMARY | 발견된 결정적 수단, 없으면 검증 스크립트 신설(백로그 1번) |
-| EVALUATOR_TYPE | EVALUATOR_PRIMARY에서 도출 (결정적-자동 / 결정적-수동정의 / 루브릭-LLM) |
-| PASS_CONDITION | evaluator 커맨드 exit 0 (루브릭형은 전 기준 pass) |
-| OPERATION_MODE | 상주 세션형 |
-| BUDGET_POLICY | 보통 (80% 경고 / 100% 체크포인트+교체) |
-| BUDGET_UNIT | 토큰 측정 가능 환경이면 토큰, 아니면 작업 단위 수 |
-| UNIT_BUDGET | 세션 컨텍스트의 1/4 |
-| WORK_UNIT | Phase 0 조사 기반 제안 |
-| PARALLELISM | 없음 (in-progress 1개) — 병렬은 사용자 요청 시에만 |
-| DETERMINISTIC_BOUNDARY | 검증·집계·형식변환·반복 조작은 스크립트, 무엇을 바꿀지의 판단은 LLM |
-| COMMIT_POLICY | 작업 단위 pass마다 1커밋 |
-| GATES | 파괴적 단계 전부 |
-| ESCALATION_RULES | 등급 S 실패 전부 (RECOVERY-PLAYBOOK 등급표 기준) |
-| JOURNAL_LEVEL | 작업 단위 시작/종료 + 판정 + 실패 + 결정 |
+| TARGET | 현재 repository |
+| HARNESS_OWNERSHIP | 대상 프로젝트가 정본·state·ledger·evidence 소유 |
+| SCHEMA_VERSION | 1.1 |
+| TASK_EVALUATOR | 발견된 결정적 수단, 없으면 검증 스크립트 신설 |
+| HARNESS_EVALUATOR | `scope: harness`, `type: experiment`; harness-evaluation/improvement skill이 참조 |
+| PASS_CONDITION | command exit 0 또는 rubric 전 기준 pass |
+| OPERATION_MODE | 사용자 상주 세션 |
+| WORK_BUDGET | 80% 경고, 100% checkpoint 후 중지/교체 |
+| WORK_UNIT | 조사 기반 제안 |
+| PARALLELISM | 안전한 독립 경계만 병렬, spec limit 명시 |
+| DETERMINISTIC_BOUNDARY | 검증·집계·trigger는 스크립트, 의미 판단만 LLM |
+| GATES | 파괴적·외부 영향 단계 전부 |
+| JOURNAL_LEVEL | unit 시작/종료 + evidence + verdict + 결정 |
 | HARNESS_ROOT | `<대상>/harness/` |
-| RETRO_INTERVAL (회고 주기) | 작업 단위 10개마다, 무인 모드면 5개마다 |
-| 회고 실행 방식 | 트리거 검사는 매 태스크 경계 결정적 조회, 발동 시 별개 에이전트가 분석·제안, 개정 적용은 메인 루프 (에이전트 불가 환경은 인라인) |
-| FAIL_THRESHOLD | 같은 실패 키 3회 |
-| RETRY_POLICY | 3회, 백오프 2s/4s/8s |
-| DESIGN_ORIENTATION | 코스트 기반 자동검증·보완 (README §기본 설계 방향) |
-| TEAM_ARCHITECTURE | 필수 capability backbone + 대상 경계별 coordinator/worker/evaluator. 역할 병합·확장은 근거와 함께 spec에 기록 |
-| RUNTIME_TARGETS | Claude + Codex 모두. 사용자가 명시한 경우에만 축소 |
-| SKILL_NAME | 대상 이름 기반 kebab-case (스킬 미설치면 해당 없음) |
+| SELF_EVALUATION_MODE | event-driven; input-invalid→verify/recovery, adapter/parity→verify-first |
+| TARGETED_SAMPLE_RATE | 0.05; 프로젝트 baseline으로 조정 |
+| TARGETED_SUITE | `self_evaluation.targeted_suite` 경로의 cost/retry/sample 결정적 metric |
+| EVALUATION_ACK | checker JSON을 run trigger.json에 동결하고 완료 targeted/full마다 recorder |
+| FULL_INTERVAL_UNITS | 10 units |
+| COOLDOWN_UNITS | 직전 평가 후 2 units |
+| EVALUATION_BUDGET_RATIO | 전체 작업 예산의 10% 이하 |
+| SUCCESS_RATE_DROP_POINTS | 5 percentage points |
+| COST_INCREASE_RATIO | 0.20 |
+| FAIL_THRESHOLD | 같은 failure key 3회 |
+| RETRY_THRESHOLD | unit당 3회 |
+| MINIMUM_SAMPLES | 5 units |
+| MANDATORY_EVENTS | canonical/agent/skill/evaluator/adapter 변경, cold-start/parity fail |
+| TEAM_ARCHITECTURE | capability backbone + 프로젝트 경계별 동적 역할 |
+| RUNTIME_TARGETS | Claude + Codex + Gemini, 사용자 명시 시 축소 |
+| WATCHED_PATHS | canonical은 별도 hash; 선택 provider exact managed artifact만 포함 |
 
-## 질문 없이 채우는 필드 (출처 명시 — 사용자에게 묻지 않는다)
+수치 기본값은 시작점입니다. 기존 기록이 충분하면 관측 baseline으로 조정하고 근거를 D-001에 남깁니다.
+
+## 질문 없이 채우는 필드
 
 | 필드 | 출처 |
 |---|---|
-| BUILD_COMMAND / RUN_COMMAND / LINT_COMMAND | Phase 0 조사 (없으면 "없음" 기입 — 빈칸 금지) |
-| PROJECT_TREE / EXISTING_SCRIPTS / FORBIDDEN | Phase 0 조사 (FORBIDDEN은 기존 규칙 파일·CI 설정에서 수집, 없으면 게이트 목록만) |
-| CREATED_DATE | 하네스 생성 시점 |
-| INTERVIEW_SUMMARY / VERIFY_ROUND_1 | Phase 2 결정 요약 / Phase 4 검증 회전 결과 (구성자가 작성) |
+| BUILD/RUN/LINT/TEST command | repository 조사. 없으면 “없음”을 명시하고 backlog 생성 |
+| PROJECT_TREE / EXISTING_SCRIPTS / FORBIDDEN | repository, CI, root 규칙 조사 |
+| EXISTING_HARNESS_STATE | 대상 프로젝트의 현재 state/ledger. 보존 대상 |
+| PROVIDER_NATIVE_PATHS | `providers/<id>/contract.json` |
+| SKILL_EVALUATOR_LINKS | skill kind과 evaluator scope/type에서 결정 |
+| WATCHED_EXACT_ARTIFACTS | spec과 선택 provider projection에서 계산; 사용자 질문 불필요 |
+| CREATED_DATE | 생성 시점 |
+| INTERVIEW_SUMMARY / VERIFY_ROUND | 결정 기록 / 실제 검증 결과 |

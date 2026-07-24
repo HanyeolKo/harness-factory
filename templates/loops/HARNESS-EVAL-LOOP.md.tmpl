@@ -1,0 +1,41 @@
+# HARNESS EVALUATION LOOP — 하네스 효과 평가
+
+작업 evaluator와 분리해 하네스 적용 자체가 baseline보다 나아졌는지 판정한다. 자동 경로는 결정적 checker가 `targeted|full`을 반환했을 때만 연다.
+
+## 진입 라우팅
+
+1. checker JSON을 `evaluation/runs/<run-id>/trigger.json`에 불변 입력으로 보존한다. 사용자 명시 full 요청은 raw checker JSON 전체를 `override.original`에 보존한다. top-level은 evaluator와 recorder가 공유하는 effective `decision: full`, `mandatory: false`이고, `override.kind: explicit-user-request`, `reasons: [*original.reasons, explicit-user-request]`, original과 동일한 deferred reasons·hashes·`acknowledgement`를 기록한다. raw checker full은 wrapper 없이 사용하며 단순 decision 변조나 구조화되지 않은 budget·cooldown 우회는 금지한다.
+2. `reasons`에 `input-invalid:*`가 있으면 effect evaluation과 LLM judge를 열지 않는다. `{{SKILL_NAME}}-verify`와 구조 복구를 수행한 뒤 checker를 다시 실행한다.
+3. `adapter-change` 또는 `parity-fail`이 있으면 provider parity 검증을 먼저 통과해야 한다. 실패 시 `state/self-evaluation.json.pending_events`에 `parity-fail`을 중복 없이 추가하고 중지한다.
+4. `targeted`는 `evaluation/suites/targeted.json`에서 reason과 정확히 연결된 결정적 metric만 실행한다. `cost-regression`, `retry-pressure`, `deterministic-sample` 외의 임의 범위나 LLM 평가는 허용하지 않는다.
+5. `full`만 아래 비교 arm 전체를 실행한다.
+
+## 비교 arm
+
+| arm | 조건 | 목적 |
+|---|---|---|
+| baseline | 하네스 없음 | 원래 runtime 성능 |
+| control | 일반적인 최소 지시만 사용 | 단순 프롬프트 효과 분리 |
+| treatment | 현재 하네스 적용 | 하네스 고유 효과 측정 |
+
+모든 arm은 같은 commit, fixture, 모델/version, 권한, 도구, 예산을 사용한다. 연결 evaluator는 `scope: harness`, `type: experiment`다.
+
+## 절차
+
+1. FREEZE — suite, fixture, evaluator, 환경 hash를 실행 전에 고정한다.
+2. RUN — targeted metric 또는 full arm의 원본 결과와 비용을 `evaluation/runs/<run-id>/`에 보존한다.
+3. SCORE — 결정적 품질 지표를 우선 계산하고 full의 비결정적 항목만 blind rubric으로 판정한다.
+4. COMPARE — full이면 품질·성공률·비용·시간·재시도·인간 개입을 비교한다.
+5. VERDICT — `improved|neutral|regressed|inconclusive` 중 하나로 판정한다.
+6. RECORD — `evaluation/reports/<run-id>.json`과 journal에 decision, reasons, suite, 증거 경로를 기록한다.
+7. ACK — 완료된 `targeted|full`마다 다음 결정적 recorder를 반드시 호출한다.
+
+```text
+python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
+```
+
+recorder는 frozen `trigger.json`의 decision/reasons, managed hashes, `acknowledgement` failure snapshot이 유효한지 확인한 뒤 원자 갱신한다. ACK decision/reasons는 평가 중 변한 rolling-metric decision으로 대체하지 않는다. full은 처리한 reason/pending-event와 frozen failure snapshot만 ACK하고 canonical/provider hashes, units, cooldown을 갱신한다. 평가 중 새로 들어온 event·failure는 다음 boundary에 남는다. targeted는 last decision과 cooldown만 갱신하며 mandatory event를 ACK하지 않는다. 이 ACK가 동일한 mandatory 신호의 반복 평가를 막는다.
+
+8. HANDOFF — full report가 `regressed`이거나 하네스 결함을 귀속한 경우에만 improvement owner에게 전달한다.
+
+평가 비용은 운영 비용과 분리해 기록하되 treatment 주입 비용은 숨기지 않는다. 표본 부족, arm 조건 불일치, 미실행 evaluator는 `inconclusive`다. 미완료·중단 run에는 recorder를 호출하지 않는다.

@@ -1,0 +1,19 @@
+<!-- harness-factory:start {{SKILL_NAME}} -->
+## {{SKILL_NAME}} harness
+
+- Canonical contract: `{{HARNESS_ROOT}}/harness-spec.json`
+- Entry: `{{SKILL_NAME}}`
+- Task evaluation: `{{SKILL_NAME}}-eval` (internal/compatibility)
+- Structural verification: `{{SKILL_NAME}}-verify`
+- Harness effect evaluation: `{{SKILL_NAME}}-evaluate`
+- Evidence-gated improvement: `{{SKILL_NAME}}-improve`
+- Trigger: `python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}`
+- ACK: `python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>`
+- Targeted suite: `{{HARNESS_ROOT}}/evaluation/suites/targeted.json`
+- Skills: `.gemini/skills/{{SKILL_NAME}}*/SKILL.md`
+- Agents: `.gemini/agents/{{SKILL_NAME}}-*.md`
+
+Every schema 1.1 skill has an evaluator link. At task boundaries run only the deterministic checker. Route `input-invalid:*` to structural verification/recovery without effect evaluation or LLM. For `adapter-change|parity-fail`, require provider parity verification before effect evaluation and append a new `parity-fail` pending event on a pass-to-fail transition. Targeted evaluation may run only the deterministic reason mapping in `targeted.json`.
+
+Before evaluation, freeze the checker JSON at `{{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json`. After every completed targeted/full evaluation, run the recorder with that decision file. A full ACK updates managed canonical/provider hashes and clears only the processed pending-event snapshot, preventing the same mandatory signal from reopening evaluation; newly arrived events remain pending. Load improvement only after full evidence attributes a regression to the harness. Gemini main orchestration owns the DAG; subagents return handoffs instead of invoking one another. Update the canonical contract before regenerating every selected provider adapter.
+<!-- harness-factory:end {{SKILL_NAME}} -->

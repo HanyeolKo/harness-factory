@@ -11,7 +11,7 @@
 
 ---
 
-## D-001 — 하네스 초기 구성 (2026-07-11)
+## D-001 — 하네스 초기 구성 (2026-07-11, 0.1 역사 기록)
 
 - 결정: harness-factory로 하네스 뼈대 생성. 설계 방향 = 코스트 기반 자동검증·보완 (기본형 유지, 오버라이드 없음)
 - 근거: 인터뷰 결과 —
@@ -26,3 +26,13 @@
     주 evaluator 실행 확인은 U-001 신설 전이므로 임시 루브릭으로 대체 판정.
   - 2회전: 미수행 — 사용자 지시로 1회 한정 실행. 발견된 팩토리 결함(검사 규격 오탐)은 인도 보고에 명시
   - 3회전: 미수행
+
+## D-002 — 이벤트 기반 자기평가로 전환 (2026-07-24)
+
+- 결정: task evaluation과 harness effect evaluation을 분리하고, 태스크 경계에서는 결정적 checker만 항상 실행한다.
+- 근거: 매 작업마다 LLM 회고를 실행하면 평가 비용과 컨텍스트 사용량이 실제 작업량에 비례해 불필요하게 증가한다.
+- 라우팅: checker는 `none|targeted|full`만 반환한다. `none`은 추가 로드 없이 종료하고, improvement는 full 평가가 회귀 또는 하네스 결함을 확인한 경우에만 수행한다.
+- 소유권: 설치 후 상태·평가·개선 이력은 대상 프로젝트가 소유하며 팩토리가 흡수하지 않는다.
+- ACK: targeted/full checker 출력을 run의 `trigger.json`에 동결하고, 완료 run만 recorder의 `--decision-file`로 ACK한다.
+- adapter 신호: 선택 provider의 root guidance·개별 managed skill/agent·config만 감시하고 디렉터리 전체는 감시하지 않는다.
+- 영향: D-001의 `RETRO_INTERVAL` 직접 회고 규칙과 13개 파일 계약은 현재 운영 계약에서 폐기됐다. 현재 정본은 schema·template·validator다.

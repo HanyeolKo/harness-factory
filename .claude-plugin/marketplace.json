@@ -4,15 +4,15 @@
     "name": "HanyeolKo"
   },
   "metadata": {
-    "description": "Runtime-neutral agent harness tooling for Claude and Codex",
-    "version": "0.1.0"
+    "description": "Project-owned agent harness tooling for Claude, Codex, and Gemini",
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "harness-factory",
       "source": "./",
-      "description": "Build project-specific agent teams, skills, orchestration, evaluation, and improvement loops.",
-      "version": "0.1.0"
+      "description": "Build, extend, verify, evaluate, and improve project-owned agent harnesses with event-driven evaluation.",
+      "version": "0.2.0"
     }
   ]
 }

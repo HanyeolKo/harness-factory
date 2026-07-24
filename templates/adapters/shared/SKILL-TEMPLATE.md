@@ -1,8 +1,10 @@
-# Required skill body presets
+# Required generated skill presets
 
-These complete examples define the required entry, evaluation, and improvement semantics. When rendering `SKILL.md.tmpl`, adapt the matching example's procedural content into `{{SKILL_BODY}}`; the generic template owns the final frontmatter and heading. Its `*_JSON` frontmatter placeholders receive one complete JSON-serialized string value, with no extra template quotes, so YAML safely preserves colons, hashes, quotes, and newlines. Every spec skill, including arbitrary `domain` skills, is first rendered as the canonical file named by `skills[].instructions`. Copy that complete canonical file byte-for-byte into Claude `.claude/skills/<skill-id>/SKILL.md` and Codex `.agents/skills/<skill-id>/SKILL.md`; do not render the adapters independently.
+Render each preset through `SKILL.md.tmpl`. Create the canonical `harness/skills/<skill-id>/SKILL.md` once and copy it byte-for-byte to every selected provider skill root. Provider adapters never rewrite skill meaning.
 
-## Entry skill
+In schema 1.1 every skill object has `evaluator`. Link entry/evaluation/verification/domain skills to a `scope: task` evaluator. Link harness-evaluation/improvement skills to the `self_evaluation.evaluator`, which is `scope: harness`, `type: experiment`.
+
+## Entry — `<id>`
 
 ```markdown
 ---
@@ -12,19 +14,20 @@ description: {{SKILL_DESCRIPTION_JSON}}
 
 # {{SKILL_NAME}}
 
-1. `{{HARNESS_ROOT}}/HARNESS.md`, `{{HARNESS_ROOT}}/harness-spec.json`, `{{HARNESS_ROOT}}/state/state.json`을 읽는다.
-2. 인자가 있으면 새 요청 또는 큐 필터로, 없으면 `state.next_action`으로 해석한다.
-3. spec의 `orchestration.entry_skill`과 같은 skill의 `entry_agent`부터 시작한다.
-4. Claude는 `.claude/agents/{{SKILL_NAME}}-<role-id>.md`, Codex는 같은 name을 선언한 `.codex/agents/{{SKILL_NAME}}-<role-id>.toml`의 native agent를 호출한다.
-5. `orchestration.handoffs` DAG를 따라 필요한 역할만 위임한다. 역할 수나 이름으로 역량을 추측하지 않고 capabilities, lane, domains, access를 따른다.
-6. 각 handoff에는 원문 요청, unit id, 허용 경로, 입력 artifact, evaluator, 승인 게이트만 전달한다.
-7. 실행 직후 `{{SKILL_NAME}}-eval`을 수행한다. 반복 실패, evaluator 공백, 콜드스타트 fail이면 `{{SKILL_NAME}}-retro`를 자동 개시한다.
-8. state를 갱신하고 journal에 근거·handoff·verdict를 append-only로 기록한다.
+1. Read `{{HARNESS_ROOT}}/HARNESS.md`, `harness-spec.json`, and `state/state.json`.
+2. Resolve the requested unit and `orchestration.entry_skill`; delegate only along the spec DAG.
+3. Use the selected provider native agent projection. Gemini main orchestration owns handoff sequencing.
+4. Run this skill's linked scope=task evaluator and preserve raw evidence.
+5. Update task state and append the journal.
+6. If cold-start changes false→true, append `coldstart-fail` to self-evaluation pending events once. If parity changes pass→fail, append `parity-fail` once.
+7. At the task boundary run only `python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}`.
+8. Route `input-invalid:*` to `{{SKILL_NAME}}-verify` and structural recovery without effect evaluation/LLM. Require parity verification before evaluating `adapter-change|parity-fail`.
+9. On `none`, stop. On `targeted|full`, invoke `{{SKILL_NAME}}-evaluate` with the decision JSON.
 
-evaluator 없는 실행, 증거 없는 pass, 승인 게이트 우회는 금지한다. native agent가 없을 때만 인라인 폴백하고 사유를 기록한다. adapter가 spec과 다르면 parity fail로 중지한다.
+Never infer improvement from a checker result. Missing evaluator, parity failure, or approval gate blocks a pass.
 ```
 
-## Evaluation skill
+## Task evaluation — `<id>-eval`
 
 ```markdown
 ---
@@ -34,18 +37,14 @@ description: {{SKILL_DESCRIPTION_JSON}}
 
 # {{SKILL_NAME}}-eval
 
-1. `{{HARNESS_ROOT}}/harness-spec.json`, `{{HARNESS_ROOT}}/loops/EVAL-LOOP.md`, 평가 대상 unit을 읽는다.
-2. unit에 연결된 evaluator의 runner, owner, command, pass_condition을 확인한다. 없으면 `fail(structural:no-evaluator)`다.
-3. runner 역할이 검증을 실행하고 명령·cwd·exit code·원본 출력을 보존한다.
-4. owner 역할이 원본 증거를 pass condition과 대조해 verdict를 낸다. 실행 역할의 자기 판정으로 대체하지 않는다.
-5. fail이면 `defect-counting` capability 역할이 실패 키를 확정하고 사건당 한 번 카운트한다.
-6. journal에 eval·evidence·verdict·count·handoff를 기록한다.
-7. 반복 실패, evaluator 공백, 콜드스타트 fail이면 `{{SKILL_NAME}}-retro`를 자동 개시한다.
-
-evaluator 약화는 평가가 아니라 spec 변경이며 개선 절차와 재검증이 필요하다.
+1. Resolve this skill's `evaluator` link and require `scope: task`.
+2. The runner executes the frozen command and preserves command, cwd, exit code, and raw output.
+3. The owner compares evidence with the frozen pass condition.
+4. Record `pass|fail`; count one stable failure key per incident and update rolling metrics.
+5. Do not start harness evaluation or improvement. The task-boundary checker owns scheduling.
 ```
 
-## Improvement skill
+## Structural verification — `<id>-verify`
 
 ```markdown
 ---
@@ -53,16 +52,51 @@ name: {{SKILL_ID_JSON}}
 description: {{SKILL_DESCRIPTION_JSON}}
 ---
 
-# {{SKILL_NAME}}-retro
+# {{SKILL_NAME}}-verify
 
-1. `{{HARNESS_ROOT}}/harness-spec.json`, `{{HARNESS_ROOT}}/loops/IMPROVE-LOOP.md`, improve 카운터와 관련 journal 범위만 읽는다.
-2. `loops.improvement_owner` 역할에 읽기 전용 입력을 주어 근거가 있는 개선안 1~2개를 받는다.
-3. 인간 승인 게이트 대상만 적용 전 승인을 기다린다.
-4. 의미 변경을 `harness-spec.json`에 먼저 반영하고 공통 문서를 갱신한다.
-5. 선택된 모든 런타임의 skills, agents, root guidance, config를 spec에서 다시 생성한다.
-6. parity validator, 콜드스타트, 원 evaluator를 다시 실행한다.
-7. fail이면 최대 3회 보완하고 잔여 fail을 공개한다. pass하면 겨냥한 실패 키만 리셋한다.
-8. DECISIONS.md와 journal에 근거, 재생성, 검증 결과를 기록한다.
-
-evaluator 완화, 게이트 우회, fail 은폐, 한쪽 adapter만의 의미 변경은 금지한다.
+Run the linked scope=task structural validator. Validate schema, references, DAG, permissions, root managed blocks, canonical skill byte parity, watched provider paths, self-evaluation state, and cold-start readability. If parity changes pass→fail, append `parity-fail` to pending events without duplicates. Verification does not modify the harness or claim outcome improvement.
 ```
+
+## Harness effect evaluation — `<id>-evaluate`
+
+```markdown
+---
+name: {{SKILL_ID_JSON}}
+description: {{SKILL_DESCRIPTION_JSON}}
+---
+
+# {{SKILL_NAME}}-evaluate
+
+1. Run or preserve the deterministic checker decision.
+2. For `input-invalid:*`, stop and route to verification/structural recovery; do not open effect evaluation or an LLM judge.
+3. For `adapter-change|parity-fail`, require provider parity verification to pass first.
+4. On `none`, stop. On `targeted`, execute only the reason mapping in `evaluation/suites/targeted.json`; never invent an LLM targeted suite.
+5. On `full`, use the linked scope=harness,type=experiment evaluator and freeze baseline/control/treatment conditions.
+6. Store immutable runs and report `improved|neutral|regressed|inconclusive`.
+7. After every completed targeted/full run invoke:
+   `python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <verdict>`
+8. Forward only a full regression or attributed harness defect to `{{SKILL_NAME}}-improve`.
+
+The recorder validates the frozen trigger file and requires its managed hashes to remain current. Full ACK clears only processed pending events and refreshes watched hashes/units/cooldown; targeted updates last decision/cooldown. Never ACK an incomplete run.
+```
+
+## Improvement — `<id>-improve`
+
+```markdown
+---
+name: {{SKILL_ID_JSON}}
+description: {{SKILL_DESCRIPTION_JSON}}
+---
+
+# {{SKILL_NAME}}-improve
+
+1. Require a completed full effect report that attributes a regression to the harness, or an explicit evidence-backed user request.
+2. Route malformed state and unresolved parity to structural verification/recovery first; do not treat them as an LLM improvement trigger.
+3. Stage one hypothesis and at most two component changes, common spec first.
+4. Regenerate every selected provider adapter and run the linked task structural evaluator plus the original task evaluator.
+5. Rerun the frozen scope=harness,type=experiment evaluator, store the report, then call the recorder for the completed full run.
+6. Accept improved or explicitly approved neutral; revert regressed/inconclusive.
+7. Record decisions, runs, and rejected proposals inside this project only.
+```
+
+Existing `<id>-retro` may remain only as a compatibility alias to `<id>-improve`; it must not contain an independent periodic policy.

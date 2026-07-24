@@ -1,67 +1,93 @@
 # HARNESS — harness-factory 레포 지속 개선
 
-> 이 파일은 이 하네스의 **단일 진입점**이다. 새 세션은 반드시 이 파일부터 읽는다.
-> 생성: 2026-07-11 / 팩토리: harness-factory / 마지막 개정: 2026-07-11
+> schema 1.1 이벤트 기반 흐름의 문서 예시다. 전체 생성 fixture나 validator 정본은 아니다.
 
-## 목적
+## 소유권과 경계
 
-harness-factory 레포(원칙·템플릿·질문은행·체크리스트)의 지속 개선 작업을 관리한다. 산출물은 문서(마크다운 규칙·템플릿).
-완료 판정: `scripts/verify.sh` 통과 (U-001로 신설 예정 — 신설 전까지 EVAL-LOOP의 임시 루브릭) + 개정 건별 콜드스타트 재검증.
+이 하네스의 상태·기록·평가 결과·개선 이력은 대상 프로젝트가 소유한다. harness-factory는 최초 생성과 명시적으로 요청된 구성 변경을 돕지만 설치된 하네스를 흡수하거나 원격 운영하지 않는다.
 
-## 설계 방향
+이 예제는 `harness-spec.json`, 두 trigger script, runtime adapter를 의도적으로 생략한다. 포함·생략 범위는 `../README.md`가 정본이다.
 
-코스트 기반 자동검증·보완 (기본형 유지). 변경 시 DECISIONS.md 기록 + 이 절 갱신.
+## 목적과 판정 분리
 
-## 문서 규율 (원칙 7)
+harness-factory 레포의 문서·템플릿·검증 계약을 지속 개선한다.
 
-추가 문서는 인덱스 기반 100줄 내외 기본값. 초과는 분할 또는 `<!-- 문서규율 예외: ... -->` 표기 후 파일 맵에 "전문" 등재.
+| 판정 | 실행 시점 | evaluator | 결과 |
+|---|---|---|---|
+| task evaluation | 모든 작업 단위 | `loops/EVAL-LOOP.md` | `pass|fail` |
+| harness effect evaluation | checker가 요청할 때만 | `loops/HARNESS-EVAL-LOOP.md` | `improved|neutral|regressed|inconclusive` |
 
-## 세션 시작 프로토콜 (읽기 예산: 아래 목록 외 선행 읽기 금지)
+## 세션 시작
 
-1. 이 파일 (HARNESS.md)
-2. `state/state.json` — 현재 상태·작업 큐·다음 행동
-3. `budget/CONTEXT-BUDGET.md`의 소진 장부 마지막 3행
-4. state.json `current.refs`에 명시된 파일만
+1. 이 파일을 읽는다.
+2. `state/state.json`에서 현재 작업·다음 행동을 확인한다.
+3. `budget/CONTEXT-BUDGET.md`의 마지막 소진 기록을 읽는다.
+4. `state.json.current.refs`에 명시된 파일만 추가로 읽는다.
+5. 목적·다음 행동·완료 evaluator 중 하나라도 복원할 수 없으면 `improve.coldstart_fail = true`로 기록하고 `coldstart-fail` pending event를 중복 없이 추가한다.
+6. `loops/EXECUTION-LOOP.md`를 시작한다.
 
-읽기 완료 후 다음 3문항에 파일 근거로 답할 수 있는지 확인한다 — 목적과 현재 단계 / 즉시 수행할 다음 행동 / 그 행동의 완료 판정.
-**하나라도 답할 수 없으면 콜드스타트 fail이다**: state.json `improve.coldstart_fail = true` 기록 → IMPROVE-LOOP 트리거.
-답할 수 있으면 즉시 `loops/EXECUTION-LOOP.md`의 루프를 개시한다.
+## 태스크 경계 라우팅
 
-## 세션 종료 프로토콜
+완전한 생성물에서는 read-only checker를 실행한다.
 
-1. `state/state.json` 갱신 (체크포인트 — `recovery/CHECKPOINT.md` 규격)
-2. `ledger/journal.jsonl`에 `session_end` 기록
-3. `budget/CONTEXT-BUDGET.md` 소진 장부 1행 추가
-4. 커밋: 작업 단위 pass마다 1커밋, 메시지 `improve(<대상 파일>): <개정 요지>`
+```text
+python harness/triggers/check_self_evaluation.py harness
+```
+
+결정값보다 `reasons`를 먼저 검사한다.
+
+- `input-invalid:*`: effect evaluation과 LLM judge를 열지 않는다. `verify-harness`로 schema·참조·파일·adapter parity만 복구한 뒤 checker를 다시 실행한다.
+- `adapter-change|parity-fail`: 선택 provider parity가 pass할 때까지 effect evaluation을 열지 않는다.
+- `none`: 평가·개선 문서를 추가로 읽지 않는다.
+- `targeted`: `evaluation/suites/targeted.json`의 연결 metric만 실행한다.
+- `full`: frozen `trigger.json`을 입력으로 baseline/control/treatment를 비교한다.
+
+완료된 targeted/full은 `HARNESS-EVAL-LOOP.md`의 recorder로 ACK한다. checker 결과만으로 improvement를 시작하지 않는다.
+
+## provider 감시 artifact
+
+실제 spec의 `watched_paths`는 선택 provider별 root guidance, 각 managed skill 파일, 각 namespaced agent 파일, 선택 config의 정확한 파일 집합이다. skill/agent root 디렉터리 전체는 감시하지 않는다.
 
 ## 축 구성
 
-| 축 | 상태 | 문서 |
+| 축 | 문서 | 계약 |
 |---|---|---|
-| 실행 | 사용 | `loops/EXECUTION-LOOP.md` — 작업 단위: 개정 안건 1건 (파일 1~2개 범위) |
-| 평가 (1급) | 사용 | `loops/EVAL-LOOP.md` — 주 evaluator: scripts/verify.sh (결정적-수동정의, 신설 전 임시 루브릭) |
-| 회복 | 사용 | `recovery/RECOVERY-PLAYBOOK.md`, `recovery/CHECKPOINT.md` |
-| 보완 | 사용 | `loops/IMPROVE-LOOP.md` — 회고 주기: 작업 단위 10개마다 |
-| 기록 | 사용 | `ledger/` — 수준: 단위 시작/종료 + 판정 + 실패 + 결정 |
-| 코스트 | 사용 | `budget/CONTEXT-BUDGET.md` — 정책: 보통 (80% 경고 / 100% 체크포인트+교체) |
+| 실행 | `loops/EXECUTION-LOOP.md` | 작업 1건씩 수행 |
+| 작업 평가 | `loops/EVAL-LOOP.md` | 매 작업 완료 전 필수 |
+| 하네스 평가 | `loops/HARNESS-EVAL-LOOP.md` | checker가 `targeted|full`일 때만 |
+| 개선 | `loops/IMPROVE-LOOP.md` | full 평가의 회귀·하네스 결함 근거 필요 |
+| 회복 | `recovery/RECOVERY-PLAYBOOK.md` | task fail 분류·회복 |
+| 상태 | `state/` | 작업 상태와 자기평가 상태 분리 |
+| 기록·비용 | `ledger/`, `budget/` | 평가 비용과 운영 비용 분리 |
 
-## 운영 방식
+## 세션 종료
 
-- 모드: 상주 세션형
-- 에스컬레이션: 등급 S 전부 (`recovery/RECOVERY-PLAYBOOK.md` §중지 프로토콜)
-- 인간 승인 게이트: 산출물 계약(파일명·위치) 변경, README §불변 조건 문구 수정
+1. `state/state.json`과 `state/self-evaluation.json`을 갱신한다.
+2. `ledger/journal.jsonl`에 `session_end`를 기록한다.
+3. 운영 비용과 평가 비용을 분리해 기록한다.
+4. task evaluator와 필요한 구조 검증을 통과한 작업 단위만 커밋한다.
 
 ## 파일 맵
 
-```
+```text
 examples/self-improve/harness/
-├── HARNESS.md            # (이 파일) 진입점
-├── ENVIRONMENT.md        # 검증 커맨드, 디렉토리 맵, 금지사항
-├── loops/                # EXECUTION·EVAL·IMPROVE
-├── recovery/             # RECOVERY-PLAYBOOK, CHECKPOINT
-├── ledger/               # journal.jsonl, DECISIONS.md, JOURNAL-FORMAT.md, retro-<N>.md(운영 중)
-├── budget/               # CONTEXT-BUDGET.md
-└── state/state.json      # 현재 상태 (단일 source of truth)
+├── HARNESS.md
+├── ENVIRONMENT.md
+├── loops/
+│   ├── EXECUTION-LOOP.md
+│   ├── EVAL-LOOP.md
+│   ├── HARNESS-EVAL-LOOP.md
+│   └── IMPROVE-LOOP.md
+├── evaluation/
+│   ├── EVALUATION-CONTRACT.md
+│   ├── suites/targeted.json
+│   └── runs/EXAMPLE-001/trigger.json
+├── recovery/
+├── ledger/
+├── budget/
+└── state/
+    ├── state.json
+    └── self-evaluation.json
 ```
 
-파일명·위치 변경 시: `ledger/DECISIONS.md` 기록 + 이 파일 맵 갱신을 한 커밋으로.
+`evaluation/runs/EXAMPLE-001/trigger.json`은 형식 설명용 동결 입력이다. 실행 가능한 spec·checker·recorder·adapter는 이 예제에 포함하지 않는다.

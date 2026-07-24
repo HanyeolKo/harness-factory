@@ -1,0 +1,4 @@
+interface:
+  display_name: "Improve Harness"
+  short_description: "Apply one evidence-backed in-project harness improvement"
+  default_prompt: "Use $improve-harness to apply one evidence-backed improvement."

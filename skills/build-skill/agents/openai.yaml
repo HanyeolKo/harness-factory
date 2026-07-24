@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Skill"
+  short_description: "Add one canonical workflow skill to a harness"
+  default_prompt: "Use $build-skill to add one canonical workflow skill."

@@ -1,0 +1,17 @@
+# COMPONENT MUTATION PROTOCOL — {{TARGET}}
+
+생성된 하네스의 점진 개선은 이 프로젝트 안에서 수행한다. 팩토리는 state, ledger, evaluation run을 가져가지 않는다.
+
+## 공통 transaction
+
+1. 현재 spec hash와 선택 provider를 고정한다.
+2. agent, skill, evaluator 중 한 component ID만 후보로 변경한다.
+3. 공통 `harness-spec.json`과 canonical file을 먼저 갱신한다.
+4. 선택된 모든 provider adapter를 같은 후보에서 투영한다.
+5. targeted 검증과 full parity를 통과시킨다.
+6. 관련 task evaluator와 동결된 harness evaluation suite로 효과를 확인한다.
+7. 개선된 후보만 승격하고 실패 후보는 rejected evidence로 보존한다.
+
+## 보존 대상
+
+`state/`, append-only `ledger/`, `evaluation/runs/`, root managed block 밖 사용자 내용, unrelated provider 설정은 덮어쓰지 않는다. 삭제·rename·split·merge처럼 범위가 큰 변경은 전체 migration으로 처리한다.

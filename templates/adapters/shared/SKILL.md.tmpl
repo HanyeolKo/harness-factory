@@ -5,11 +5,12 @@ description: {{SKILL_DESCRIPTION_JSON}}
 
 # {{SKILL_ID}}
 
-먼저 `{{HARNESS_ROOT}}/harness-spec.json`을 읽고 `skills`에서 `{{SKILL_ID}}`의 kind, entry_agent, domains, instructions를 확인한다.
+먼저 `{{HARNESS_ROOT}}/harness-spec.json`을 읽고 `skills`에서 `{{SKILL_ID}}`의 kind, entry_agent, domains, instructions, evaluator를 확인한다.
 
 - kind: `{{SKILL_KIND}}`
 - entry agent: `{{ENTRY_AGENT}}`
 - domains: {{SKILL_DOMAINS}}
+- evaluator: `{{EVALUATOR_ID}}`
 
 {{SKILL_BODY}}
 

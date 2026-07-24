@@ -18,9 +18,7 @@
     "loops"
   ],
   "properties": {
-    "schema_version": {
-      "const": "1.0"
-    },
+    "schema_version": {"enum": ["1.0", "1.1"]},
     "harness": {
       "type": "object",
       "additionalProperties": false,
@@ -35,7 +33,7 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"enum": ["claude", "codex"]}
+      "items": {"enum": ["claude", "codex", "gemini"]}
     },
     "limits": {
       "type": "object",
@@ -55,11 +53,7 @@
         "required": ["id", "paths", "coordinator"],
         "properties": {
           "id": {"$ref": "#/$defs/id"},
-          "paths": {
-            "type": "array",
-            "minItems": 1,
-            "items": {"$ref": "#/$defs/relativePath"}
-          },
+          "paths": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/relativePath"}},
           "coordinator": {"$ref": "#/$defs/id"}
         }
       }
@@ -70,32 +64,13 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "description",
-          "lane",
-          "capabilities",
-          "domains",
-          "model_tier",
-          "access"
-        ],
+        "required": ["id", "description", "lane", "capabilities", "domains", "model_tier", "access"],
         "properties": {
           "id": {"$ref": "#/$defs/id"},
           "description": {"type": "string", "minLength": 1},
-          "lane": {
-            "enum": ["control", "execution", "evaluation", "improvement"]
-          },
-          "capabilities": {
-            "type": "array",
-            "minItems": 1,
-            "uniqueItems": true,
-            "items": {"$ref": "#/$defs/id"}
-          },
-          "domains": {
-            "type": "array",
-            "uniqueItems": true,
-            "items": {"$ref": "#/$defs/id"}
-          },
+          "lane": {"enum": ["control", "execution", "evaluation", "improvement"]},
+          "capabilities": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+          "domains": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
           "model_tier": {"enum": ["fast", "balanced", "deep"]},
           "access": {"enum": ["read-only", "workspace-write"]}
         }
@@ -110,14 +85,11 @@
         "required": ["id", "kind", "entry_agent", "domains", "instructions"],
         "properties": {
           "id": {"$ref": "#/$defs/id"},
-          "kind": {"enum": ["entry", "evaluation", "improvement", "domain"]},
+          "kind": {"enum": ["entry", "evaluation", "verification", "harness-evaluation", "improvement", "domain"]},
           "entry_agent": {"$ref": "#/$defs/id"},
-          "domains": {
-            "type": "array",
-            "uniqueItems": true,
-            "items": {"$ref": "#/$defs/id"}
-          },
-          "instructions": {"$ref": "#/$defs/relativePath"}
+          "domains": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+          "instructions": {"$ref": "#/$defs/relativePath"},
+          "evaluator": {"$ref": "#/$defs/id"}
         }
       }
     },
@@ -138,10 +110,7 @@
               "from": {"$ref": "#/$defs/id"},
               "to": {"$ref": "#/$defs/id"},
               "when": {"type": "string", "minLength": 1},
-              "artifacts": {
-                "type": "array",
-                "items": {"$ref": "#/$defs/relativePath"}
-              }
+              "artifacts": {"type": "array", "items": {"$ref": "#/$defs/relativePath"}}
             }
           }
         }
@@ -153,21 +122,13 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "id",
-          "owner",
-          "runner",
-          "type",
-          "command",
-          "pass_condition"
-        ],
+        "required": ["id", "owner", "runner", "type", "command", "pass_condition"],
         "properties": {
           "id": {"$ref": "#/$defs/id"},
+          "scope": {"enum": ["task", "harness"]},
           "owner": {"$ref": "#/$defs/id"},
           "runner": {"$ref": "#/$defs/id"},
-          "type": {
-            "enum": ["deterministic", "manual-deterministic", "rubric"]
-          },
+          "type": {"enum": ["deterministic", "manual-deterministic", "rubric", "experiment"]},
           "command": {"type": "string", "minLength": 1},
           "pass_condition": {"type": "string", "minLength": 1}
         }
@@ -191,14 +152,7 @@
     "loops": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "execution",
-        "evaluation",
-        "improvement",
-        "improvement_owner",
-        "fail_threshold",
-        "retro_interval"
-      ],
+      "required": ["execution", "evaluation", "improvement", "improvement_owner", "fail_threshold"],
       "properties": {
         "execution": {"$ref": "#/$defs/relativePath"},
         "evaluation": {"$ref": "#/$defs/relativePath"},
@@ -207,13 +161,64 @@
         "fail_threshold": {"type": "integer", "minimum": 1},
         "retro_interval": {"type": "integer", "minimum": 1}
       }
+    },
+    "self_evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode", "checker", "state", "evaluation_loop", "evaluator",
+        "watched_paths", "targeted_suite",
+        "targeted_sample_rate", "full_interval_units", "cooldown_units",
+        "budget_ratio", "success_rate_drop_points", "cost_increase_ratio",
+        "retry_threshold", "minimum_samples", "mandatory_events"
+      ],
+      "properties": {
+        "mode": {"const": "event-driven"},
+        "checker": {"$ref": "#/$defs/relativePath"},
+        "state": {"$ref": "#/$defs/relativePath"},
+        "evaluation_loop": {"$ref": "#/$defs/relativePath"},
+        "evaluator": {"$ref": "#/$defs/id"},
+        "watched_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relativePath"}
+        },
+        "targeted_suite": {"$ref": "#/$defs/relativePath"},
+        "targeted_sample_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "full_interval_units": {"type": "integer", "minimum": 1},
+        "cooldown_units": {"type": "integer", "minimum": 0},
+        "budget_ratio": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "success_rate_drop_points": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+        "cost_increase_ratio": {"type": "number", "minimum": 0},
+        "retry_threshold": {"type": "integer", "minimum": 1},
+        "minimum_samples": {"type": "integer", "minimum": 1},
+        "mandatory_events": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}}
+      }
     }
   },
-  "$defs": {
-    "id": {
-      "type": "string",
-      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+  "allOf": [
+    {
+      "if": {"properties": {"schema_version": {"const": "1.1"}}},
+      "then": {
+        "required": ["self_evaluation"],
+        "properties": {
+          "skills": {"items": {"required": ["evaluator"]}},
+          "evaluators": {"items": {"required": ["scope"]}}
+        }
+      }
     },
+    {
+      "if": {"properties": {"schema_version": {"const": "1.0"}}},
+      "then": {
+        "properties": {
+          "loops": {"required": ["retro_interval"]}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
     "relativePath": {
       "type": "string",
       "minLength": 1,

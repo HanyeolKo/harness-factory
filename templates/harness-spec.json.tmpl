@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "harness": {
     "id": "{{SKILL_NAME}}",
     "purpose": {{PURPOSE_JSON}},
@@ -24,7 +24,32 @@
     "evaluation": "{{HARNESS_ROOT}}/loops/EVAL-LOOP.md",
     "improvement": "{{HARNESS_ROOT}}/loops/IMPROVE-LOOP.md",
     "improvement_owner": "{{IMPROVEMENT_OWNER}}",
-    "fail_threshold": {{FAIL_THRESHOLD}},
-    "retro_interval": {{RETRO_INTERVAL_COUNT}}
+    "fail_threshold": {{FAIL_THRESHOLD}}
+  },
+  "self_evaluation": {
+    "mode": "event-driven",
+    "checker": "{{HARNESS_ROOT}}/triggers/check_self_evaluation.py",
+    "state": "{{HARNESS_ROOT}}/state/self-evaluation.json",
+    "evaluation_loop": "{{HARNESS_ROOT}}/loops/HARNESS-EVAL-LOOP.md",
+    "evaluator": "{{HARNESS_EVALUATOR_ID}}",
+    "watched_paths": {{SELF_EVAL_WATCHED_PATHS_JSON}},
+    "targeted_suite": "{{HARNESS_ROOT}}/evaluation/suites/targeted.json",
+    "targeted_sample_rate": {{SELF_EVAL_SAMPLE_RATE}},
+    "full_interval_units": {{FULL_EVAL_INTERVAL}},
+    "cooldown_units": {{SELF_EVAL_COOLDOWN}},
+    "budget_ratio": {{SELF_EVAL_BUDGET_RATIO}},
+    "success_rate_drop_points": {{SUCCESS_DROP_POINTS}},
+    "cost_increase_ratio": {{COST_INCREASE_RATIO}},
+    "retry_threshold": {{SELF_EVAL_RETRY_THRESHOLD}},
+    "minimum_samples": {{SELF_EVAL_MINIMUM_SAMPLES}},
+    "mandatory_events": [
+      "canonical-contract-change",
+      "agent-change",
+      "skill-change",
+      "evaluator-change",
+      "adapter-change",
+      "coldstart-fail",
+      "parity-fail"
+    ]
   }
 }

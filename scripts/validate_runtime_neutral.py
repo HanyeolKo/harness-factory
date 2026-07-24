@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -15,12 +16,41 @@ except ModuleNotFoundError as exc:  # pragma: no cover - Python < 3.11
 
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 MODEL_TIERS = {"fast", "balanced", "deep"}
-RUNTIMES = {"claude", "codex"}
+SCHEMA_VERSIONS = {"1.0", "1.1"}
 LANES = {"control", "execution", "evaluation", "improvement"}
 ACCESS = {"read-only", "workspace-write"}
 CLAUDE_READ_ONLY_TOOLS = {"Read", "Grep", "Glob"}
 CLAUDE_READ_ONLY_DISALLOWED = {"Write", "Edit", "NotebookEdit", "Bash"}
 CLAUDE_WORKSPACE_WRITE_TOOLS = {"Read", "Grep", "Glob", "Write", "Edit", "Bash"}
+GEMINI_READ_ONLY_TOOLS = {"read_file", "glob", "search_file_content"}
+GEMINI_WORKSPACE_WRITE_TOOLS = GEMINI_READ_ONLY_TOOLS | {
+    "write_file",
+    "replace",
+    "run_shell_command",
+}
+TASK_SKILL_KINDS = {"entry", "evaluation", "verification", "domain"}
+HARNESS_SKILL_KINDS = {"harness-evaluation", "improvement"}
+MANDATORY_SELF_EVALUATION_EVENTS = {
+    "canonical-contract-change",
+    "agent-change",
+    "skill-change",
+    "evaluator-change",
+    "adapter-change",
+    "coldstart-fail",
+    "parity-fail",
+}
+TARGETED_REASONS = {"cost-regression", "retry-pressure", "deterministic-sample"}
+HARNESS_EFFECT_VERDICTS = {"improved", "neutral", "regressed", "inconclusive"}
+PROVIDER_REQUIRED_KEYS = {
+    "id",
+    "display_name",
+    "capabilities",
+    "root_guidance",
+    "skill_root",
+    "agent_root",
+    "agent_extension",
+}
+PROVIDER_ALLOWED_KEYS = PROVIDER_REQUIRED_KEYS | {"config"}
 REQUIRED_CAPABILITIES = {
     "routing",
     "execution",
@@ -41,6 +71,7 @@ TOP_LEVEL_KEYS = {
     "evaluators",
     "approval_gates",
     "loops",
+    "self_evaluation",
 }
 
 
@@ -50,13 +81,17 @@ class Validator:
         self.spec_path = spec_path.resolve()
         self.errors: list[str] = []
         self.spec: dict = {}
+        self.schema_version = ""
         self.namespace = ""
         self.harness_root = self.target / "harness"
+        self.provider_contracts: dict[str, dict] = {}
+        self.runtime_targets: set[str] = set()
         self.agent_ids: set[str] = set()
         self.skill_ids: set[str] = set()
         self.domain_ids: set[str] = set()
         self.evaluator_ids: set[str] = set()
         self.gate_ids: set[str] = set()
+        self.provider_path_preflight_failed = False
 
     def error(self, message: str) -> None:
         self.errors.append(message)
@@ -75,21 +110,117 @@ class Validator:
             return
         self.spec = value
 
+    def load_provider_contracts(self) -> None:
+        provider_root = Path(__file__).resolve().parents[1] / "providers"
+        if not provider_root.is_dir():
+            self.error(f"provider registry is missing: {provider_root}")
+            return
+        contract_paths = sorted(provider_root.glob("*/contract.json"))
+        if not contract_paths:
+            self.error("provider registry contains no contracts")
+            return
+        for path in contract_paths:
+            label = f"provider contract {path.parent.name}"
+            try:
+                contract = json.loads(path.read_text(encoding="utf-8"))
+            except OSError as exc:
+                self.error(f"cannot read {label}: {exc}")
+                continue
+            except json.JSONDecodeError as exc:
+                self.error(f"{label} is not valid JSON: {exc}")
+                continue
+            if not isinstance(contract, dict):
+                self.error(f"{label} must be an object")
+                continue
+            self.check_keys(
+                contract,
+                label,
+                PROVIDER_REQUIRED_KEYS,
+                PROVIDER_ALLOWED_KEYS,
+            )
+            provider_id = self.identifier(contract.get("id"), f"{label}.id")
+            if not provider_id:
+                continue
+            if provider_id != path.parent.name:
+                self.error(
+                    f"{label}.id must match its directory name: {provider_id!r}"
+                )
+            if provider_id in self.provider_contracts:
+                self.error(f"duplicate provider contract id: {provider_id}")
+                continue
+            display_name = contract.get("display_name")
+            if not isinstance(display_name, str) or not display_name.strip():
+                self.error(f"{label}.display_name must be a non-empty string")
+            capabilities = self.string_list(
+                contract.get("capabilities"), f"{label}.capabilities"
+            )
+            if not capabilities:
+                self.error(f"{label}.capabilities must not be empty")
+            if len(capabilities) != len(set(capabilities)):
+                self.error(f"{label}.capabilities contains duplicates")
+            for capability in capabilities:
+                self.identifier(capability, f"{label}.capabilities")
+            for key in ("root_guidance", "skill_root", "agent_root"):
+                if not self.safe_relative(contract.get(key), f"{label}.{key}"):
+                    self.provider_path_preflight_failed = True
+            extension = contract.get("agent_extension")
+            if (
+                not isinstance(extension, str)
+                or not extension.startswith(".")
+                or "/" in extension
+                or "\\" in extension
+            ):
+                self.error(f"{label}.agent_extension must be a filename extension")
+            if "config" in contract and not self.safe_relative(
+                contract.get("config"), f"{label}.config"
+            ):
+                self.provider_path_preflight_failed = True
+            self.provider_contracts[provider_id] = contract
+
     def validate(self) -> list[str]:
         self.load()
         if not self.spec:
             return self.errors
+        self.load_provider_contracts()
         self.validate_shape()
+        self.preflight_provider_paths()
         if self.namespace:
             self.validate_common_files()
-            self.validate_adapters()
-            self.validate_placeholders()
+            if not self.provider_path_preflight_failed:
+                self.validate_adapters()
+                self.validate_placeholders()
         return self.errors
 
+    def validate_provider_path_preflight(self) -> list[str]:
+        """Validate spec shape and provider paths without reading adapter artifacts."""
+        self.load()
+        if not self.spec:
+            return self.errors
+        self.load_provider_contracts()
+        self.validate_shape()
+        self.preflight_provider_paths()
+        return self.errors
+
+    def preflight_provider_paths(self) -> None:
+        for runtime in sorted(self.runtime_targets):
+            contract = self.provider_contracts.get(runtime)
+            if not isinstance(contract, dict):
+                self.provider_path_preflight_failed = True
+                continue
+            for key in ("root_guidance", "skill_root", "agent_root", "config"):
+                if key in contract:
+                    self.provider_path(runtime, key)
+
     def validate_shape(self) -> None:
-        self.check_keys(self.spec, "spec", TOP_LEVEL_KEYS, TOP_LEVEL_KEYS)
-        if self.spec.get("schema_version") != "1.0":
-            self.error("schema_version must be '1.0'")
+        version = self.spec.get("schema_version")
+        if not isinstance(version, str) or version not in SCHEMA_VERSIONS:
+            self.error(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
+        else:
+            self.schema_version = version
+        required_top_level = TOP_LEVEL_KEYS - {"self_evaluation"}
+        if self.schema_version == "1.1":
+            required_top_level.add("self_evaluation")
+        self.check_keys(self.spec, "spec", required_top_level, TOP_LEVEL_KEYS)
 
         harness = self.object(self.spec.get("harness"), "harness")
         self.check_keys(
@@ -109,12 +240,13 @@ class Validator:
                 self.error("harness.root escapes the target project")
 
         runtimes = self.string_list(self.spec.get("runtime_targets"), "runtime_targets")
+        self.runtime_targets = set(runtimes)
         if not runtimes:
             self.error("runtime_targets must not be empty")
-        invalid_runtimes = set(runtimes) - RUNTIMES
+        invalid_runtimes = self.runtime_targets - set(self.provider_contracts)
         if invalid_runtimes:
             self.error(f"unsupported runtime targets: {sorted(invalid_runtimes)}")
-        if len(runtimes) != len(set(runtimes)):
+        if len(runtimes) != len(self.runtime_targets):
             self.error("runtime_targets contains duplicates")
 
         limits = self.object(self.spec.get("limits"), "limits")
@@ -170,6 +302,7 @@ class Validator:
 
         capabilities: set[str] = set()
         agent_by_id = {agent.get("id"): agent for agent in agents}
+        evaluator_by_id = {evaluator.get("id"): evaluator for evaluator in evaluators}
         for index, agent in enumerate(agents):
             label = f"agents[{index}]"
             self.check_keys(
@@ -234,14 +367,27 @@ class Validator:
         )
         for index, skill in enumerate(skills):
             label = f"skills[{index}]"
-            self.check_keys(
-                skill,
-                label,
-                {"id", "kind", "entry_agent", "domains", "instructions"},
-                {"id", "kind", "entry_agent", "domains", "instructions"},
-            )
+            skill_keys = {
+                "id",
+                "kind",
+                "entry_agent",
+                "domains",
+                "instructions",
+                "evaluator",
+            }
+            required_skill_keys = skill_keys - {"evaluator"}
+            if self.schema_version == "1.1":
+                required_skill_keys.add("evaluator")
+            self.check_keys(skill, label, required_skill_keys, skill_keys)
             kind = skill.get("kind")
-            if kind not in {"entry", "evaluation", "improvement", "domain"}:
+            if not isinstance(kind, str) or kind not in {
+                "entry",
+                "evaluation",
+                "verification",
+                "harness-evaluation",
+                "improvement",
+                "domain",
+            }:
                 self.error(f"{label}.kind is invalid: {kind!r}")
             else:
                 skill_kinds.add(kind)
@@ -260,7 +406,21 @@ class Validator:
                     self.error(
                         f"{label}.instructions must use canonical path {expected!r}"
                     )
-        for required_kind in {"entry", "evaluation", "improvement"}:
+            evaluator_id = skill.get("evaluator")
+            if evaluator_id is not None:
+                if evaluator_id not in self.evaluator_ids:
+                    self.error(f"{label}.evaluator references unknown evaluator")
+                elif kind in TASK_SKILL_KINDS | HARNESS_SKILL_KINDS:
+                    expected_scope = "harness" if kind in HARNESS_SKILL_KINDS else "task"
+                    actual_scope = evaluator_by_id[evaluator_id].get("scope")
+                    if actual_scope is not None and actual_scope != expected_scope:
+                        self.error(
+                            f"{label}.evaluator must have {expected_scope} scope"
+                        )
+        required_skill_kinds = {"entry", "evaluation", "improvement"}
+        if self.schema_version == "1.1":
+            required_skill_kinds.update({"harness-evaluation", "verification"})
+        for required_kind in required_skill_kinds:
             if required_kind not in skill_kinds:
                 self.error(f"skills is missing kind: {required_kind}")
 
@@ -307,14 +467,33 @@ class Validator:
                 self.safe_relative(artifact, f"{label}.artifacts")
         self.validate_dag(edges)
 
+        evaluator_scopes: set[str] = set()
+        evaluator_keys = {
+            "id",
+            "scope",
+            "owner",
+            "runner",
+            "type",
+            "command",
+            "pass_condition",
+        }
         for index, evaluator in enumerate(evaluators):
             label = f"evaluators[{index}]"
+            required_evaluator_keys = evaluator_keys - {"scope"}
+            if self.schema_version == "1.1":
+                required_evaluator_keys.add("scope")
             self.check_keys(
                 evaluator,
                 label,
-                {"id", "owner", "runner", "type", "command", "pass_condition"},
-                {"id", "owner", "runner", "type", "command", "pass_condition"},
+                required_evaluator_keys,
+                evaluator_keys,
             )
+            scope = evaluator.get("scope")
+            if scope is not None:
+                if not isinstance(scope, str) or scope not in {"task", "harness"}:
+                    self.error(f"{label}.scope must be task or harness")
+                else:
+                    evaluator_scopes.add(scope)
             owner = evaluator.get("owner")
             runner = evaluator.get("runner")
             if owner not in self.agent_ids:
@@ -329,12 +508,17 @@ class Validator:
                 "deterministic",
                 "manual-deterministic",
                 "rubric",
+                "experiment",
             }:
                 self.error(f"{label}.type is invalid")
             for field in ("command", "pass_condition"):
                 value = evaluator.get(field)
                 if not isinstance(value, str) or not value.strip():
                     self.error(f"{label}.{field} must be a non-empty string")
+        if self.schema_version == "1.1":
+            for required_scope in {"task", "harness"}:
+                if required_scope not in evaluator_scopes:
+                    self.error(f"evaluators is missing scope: {required_scope}")
 
         for index, gate in enumerate(approval_gates):
             label = f"approval_gates[{index}]"
@@ -351,26 +535,18 @@ class Validator:
                     self.error(f"{label}.{field} must be a non-empty string")
 
         loops = self.object(self.spec.get("loops"), "loops")
-        self.check_keys(
-            loops,
-            "loops",
-            {
-                "execution",
-                "evaluation",
-                "improvement",
-                "improvement_owner",
-                "fail_threshold",
-                "retro_interval",
-            },
-            {
-                "execution",
-                "evaluation",
-                "improvement",
-                "improvement_owner",
-                "fail_threshold",
-                "retro_interval",
-            },
-        )
+        loop_keys = {
+            "execution",
+            "evaluation",
+            "improvement",
+            "improvement_owner",
+            "fail_threshold",
+            "retro_interval",
+        }
+        required_loop_keys = loop_keys - {"retro_interval"}
+        if self.schema_version == "1.0":
+            required_loop_keys.add("retro_interval")
+        self.check_keys(loops, "loops", required_loop_keys, loop_keys)
         improvement_owner = loops.get("improvement_owner")
         if improvement_owner not in self.agent_ids:
             self.error("loops.improvement_owner references unknown agent")
@@ -378,10 +554,187 @@ class Validator:
             self.error("loops.improvement_owner lacks improvement capability")
         for field in ("execution", "evaluation", "improvement"):
             self.safe_relative(loops.get(field), f"loops.{field}")
-        for field in ("fail_threshold", "retro_interval"):
-            value = loops.get(field)
-            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
-                self.error(f"loops.{field} must be a positive integer")
+        fail_threshold = loops.get("fail_threshold")
+        if (
+            not isinstance(fail_threshold, int)
+            or isinstance(fail_threshold, bool)
+            or fail_threshold < 1
+        ):
+            self.error("loops.fail_threshold must be a positive integer")
+        if "retro_interval" in loops:
+            retro_interval = loops.get("retro_interval")
+            if (
+                not isinstance(retro_interval, int)
+                or isinstance(retro_interval, bool)
+                or retro_interval < 1
+            ):
+                self.error("loops.retro_interval must be a positive integer")
+
+        if self.schema_version == "1.1" or "self_evaluation" in self.spec:
+            self.validate_self_evaluation()
+
+    def validate_self_evaluation(self) -> None:
+        policy = self.object(self.spec.get("self_evaluation"), "self_evaluation")
+        policy_keys = {
+            "mode",
+            "checker",
+            "state",
+            "evaluation_loop",
+            "evaluator",
+            "watched_paths",
+            "targeted_suite",
+            "targeted_sample_rate",
+            "full_interval_units",
+            "cooldown_units",
+            "budget_ratio",
+            "success_rate_drop_points",
+            "cost_increase_ratio",
+            "retry_threshold",
+            "minimum_samples",
+            "mandatory_events",
+        }
+        self.check_keys(policy, "self_evaluation", policy_keys, policy_keys)
+        if policy.get("mode") != "event-driven":
+            self.error("self_evaluation.mode must be 'event-driven'")
+
+        harness_root = self.harness_root_text()
+        expected_paths = {
+            "checker": f"{harness_root}/triggers/check_self_evaluation.py",
+            "state": f"{harness_root}/state/self-evaluation.json",
+            "evaluation_loop": f"{harness_root}/loops/HARNESS-EVAL-LOOP.md",
+            "targeted_suite": f"{harness_root}/evaluation/suites/targeted.json",
+        }
+        for field, expected in expected_paths.items():
+            value = policy.get(field)
+            if self.safe_relative(value, f"self_evaluation.{field}"):
+                normalized = value.replace("\\", "/")
+                if harness_root and normalized != expected:
+                    self.error(
+                        f"self_evaluation.{field} must use canonical path {expected!r}"
+                    )
+
+        evaluator_id = policy.get("evaluator")
+        if not isinstance(evaluator_id, str) or evaluator_id not in self.evaluator_ids:
+            self.error("self_evaluation.evaluator references an unknown evaluator")
+        else:
+            evaluators = {
+                evaluator.get("id"): evaluator
+                for evaluator in self.spec.get("evaluators", [])
+                if isinstance(evaluator, dict)
+            }
+            if evaluators[evaluator_id].get("scope") != "harness":
+                self.error("self_evaluation.evaluator must have harness scope")
+            if evaluators[evaluator_id].get("type") != "experiment":
+                self.error("self_evaluation.evaluator must have experiment type")
+
+        if self.schema_version == "1.1" and isinstance(evaluator_id, str):
+            for index, skill in enumerate(self.spec.get("skills", [])):
+                if not isinstance(skill, dict) or skill.get("kind") not in HARNESS_SKILL_KINDS:
+                    continue
+                if skill.get("evaluator") != evaluator_id:
+                    self.error(
+                        f"skills[{index}].evaluator must match "
+                        f"self_evaluation.evaluator {evaluator_id!r} for "
+                        f"kind {skill.get('kind')!r}"
+                    )
+
+        watched_paths = self.string_list(
+            policy.get("watched_paths"), "self_evaluation.watched_paths"
+        )
+        if not watched_paths:
+            self.error("self_evaluation.watched_paths must not be empty")
+        if len(watched_paths) != len(set(watched_paths)):
+            self.error("self_evaluation.watched_paths contains duplicates")
+        for watched_path in watched_paths:
+            self.safe_relative(watched_path, "self_evaluation.watched_paths")
+        expected_watched_paths: set[str] = set()
+        for runtime in self.runtime_targets:
+            contract = self.provider_contracts.get(runtime, {})
+            root_guidance = contract.get("root_guidance")
+            if isinstance(root_guidance, str):
+                expected_watched_paths.add(root_guidance.replace("\\", "/"))
+            config = contract.get("config")
+            if isinstance(config, str):
+                expected_watched_paths.add(config.replace("\\", "/"))
+            skill_root = contract.get("skill_root")
+            if isinstance(skill_root, str):
+                normalized_skill_root = skill_root.replace(chr(92), "/").rstrip("/")
+                for skill_id in self.skill_ids:
+                    expected_watched_paths.add(
+                        f"{normalized_skill_root}/{skill_id}/SKILL.md"
+                    )
+            agent_root = contract.get("agent_root")
+            extension = contract.get("agent_extension")
+            if isinstance(agent_root, str) and isinstance(extension, str):
+                normalized_agent_root = agent_root.replace(chr(92), "/").rstrip("/")
+                for role in self.agent_ids:
+                    expected_watched_paths.add(
+                        f"{normalized_agent_root}/{self.namespace}-{role}{extension}"
+                    )
+        normalized_watched_paths = {path.replace("\\", "/") for path in watched_paths}
+        if normalized_watched_paths != expected_watched_paths:
+            self.error(
+                "self_evaluation.watched_paths must exactly match selected provider "
+                f"artifacts: expected {sorted(expected_watched_paths)}, got "
+                f"{sorted(normalized_watched_paths)}"
+            )
+
+        self.number_in_range(
+            policy.get("targeted_sample_rate"),
+            "self_evaluation.targeted_sample_rate",
+            minimum=0,
+            maximum=1,
+        )
+        self.number_in_range(
+            policy.get("budget_ratio"),
+            "self_evaluation.budget_ratio",
+            minimum=0,
+            maximum=1,
+            exclusive_minimum=True,
+        )
+        self.number_in_range(
+            policy.get("success_rate_drop_points"),
+            "self_evaluation.success_rate_drop_points",
+            minimum=0,
+            maximum=100,
+            exclusive_minimum=True,
+        )
+        self.number_in_range(
+            policy.get("cost_increase_ratio"),
+            "self_evaluation.cost_increase_ratio",
+            minimum=0,
+        )
+        for field in ("full_interval_units", "retry_threshold", "minimum_samples"):
+            self.number_in_range(
+                policy.get(field),
+                f"self_evaluation.{field}",
+                minimum=1,
+                integer=True,
+            )
+        self.number_in_range(
+            policy.get("cooldown_units"),
+            "self_evaluation.cooldown_units",
+            minimum=0,
+            integer=True,
+        )
+
+        mandatory_events = self.string_list(
+            policy.get("mandatory_events"), "self_evaluation.mandatory_events"
+        )
+        if not mandatory_events:
+            self.error("self_evaluation.mandatory_events must not be empty")
+        if len(mandatory_events) != len(set(mandatory_events)):
+            self.error("self_evaluation.mandatory_events contains duplicates")
+        for event in mandatory_events:
+            self.identifier(event, "self_evaluation.mandatory_events")
+        missing_mandatory_events = (
+            MANDATORY_SELF_EVALUATION_EVENTS - set(mandatory_events)
+        )
+        if missing_mandatory_events:
+            self.error(
+                "self_evaluation.mandatory_events is missing required events: "
+                f"{sorted(missing_mandatory_events)}"
+            )
 
     def validate_dag(self, edges: list[tuple[str, str]]) -> None:
         graph = {role: [] for role in self.agent_ids}
@@ -418,6 +771,17 @@ class Validator:
             "budget/CONTEXT-BUDGET.md",
             "state/state.json",
         ]
+        if self.schema_version == "1.1" or "self_evaluation" in self.spec:
+            required.extend(
+                [
+                    "loops/HARNESS-EVAL-LOOP.md",
+                    "evaluation/EVALUATION-CONTRACT.md",
+                    "evaluation/suites/targeted.json",
+                    "triggers/check_self_evaluation.py",
+                    "triggers/record_self_evaluation.py",
+                    "state/self-evaluation.json",
+                ]
+            )
         for relative in required:
             if not (self.harness_root / relative).is_file():
                 self.error(f"missing common harness file: {relative}")
@@ -488,6 +852,9 @@ class Validator:
                     self.error("state.queue must contain at least one work unit")
                 else:
                     for index, unit in enumerate(queue):
+                        if not isinstance(unit, dict):
+                            self.error(f"state.queue[{index}] must be an object")
+                            continue
                         evaluator = unit.get("evaluator")
                         if not evaluator:
                             self.error(f"state.queue[{index}] is missing evaluator")
@@ -501,19 +868,294 @@ class Validator:
         journal = self.harness_root / "ledger" / "journal.jsonl"
         if journal.is_file() and not journal.read_text(encoding="utf-8").strip():
             self.error("ledger/journal.jsonl must contain an initial event")
+        if self.schema_version == "1.1" or "self_evaluation" in self.spec:
+            self.validate_targeted_suite()
+            self.validate_self_evaluation_state()
+
+    def validate_targeted_suite(self) -> None:
+        path = self.harness_root / "evaluation" / "suites" / "targeted.json"
+        if not path.is_file():
+            return
+        try:
+            suite = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            self.error(f"evaluation/suites/targeted.json is invalid: {exc}")
+            return
+        suite = self.object(suite, "evaluation/suites/targeted.json")
+        self.check_keys(
+            suite,
+            "evaluation/suites/targeted.json",
+            {"schema_version", "checks"},
+            {"schema_version", "checks"},
+        )
+        if suite.get("schema_version") != "1.0":
+            self.error("targeted suite schema_version must be '1.0'")
+        checks = self.object(suite.get("checks"), "targeted suite checks")
+        self.check_keys(checks, "targeted suite checks", TARGETED_REASONS, TARGETED_REASONS)
+        for reason in TARGETED_REASONS:
+            check = self.object(checks.get(reason), f"targeted suite checks.{reason}")
+            self.check_keys(
+                check,
+                f"targeted suite checks.{reason}",
+                {"metrics"},
+                {"metrics"},
+            )
+            metrics = self.string_list(
+                check.get("metrics"), f"targeted suite checks.{reason}.metrics"
+            )
+            if not metrics:
+                self.error(f"targeted suite checks.{reason}.metrics must not be empty")
+            if len(metrics) != len(set(metrics)):
+                self.error(f"targeted suite checks.{reason}.metrics contains duplicates")
+            if any(not metric.strip() for metric in metrics):
+                self.error(
+                    f"targeted suite checks.{reason}.metrics must contain non-empty strings"
+                )
+
+    def validate_self_evaluation_state(self) -> None:
+        path = self.harness_root / "state" / "self-evaluation.json"
+        if not path.is_file():
+            return
+        try:
+            state = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            self.error(f"state/self-evaluation.json is invalid: {exc}")
+            return
+        state = self.object(state, "state/self-evaluation.json")
+        state_keys = {
+            "schema_version",
+            "current_unit",
+            "units_since_full",
+            "last_full_at",
+            "cooldown_remaining_units",
+            "pending_events",
+            "baseline",
+            "recent",
+            "rolling",
+            "hashes",
+            "acknowledged",
+            "last_decision",
+        }
+        self.check_keys(
+            state,
+            "state/self-evaluation.json",
+            state_keys,
+            state_keys,
+        )
+        if state.get("schema_version") != "1.0":
+            self.error("self-evaluation state schema_version must be '1.0'")
+        current_unit = state.get("current_unit")
+        if current_unit is not None and not isinstance(current_unit, str):
+            self.error("self-evaluation state current_unit must be null or a string")
+        last_full_at = state.get("last_full_at")
+        if last_full_at is not None and not isinstance(last_full_at, str):
+            self.error("self-evaluation state last_full_at must be null or a string")
+        for field in ("units_since_full", "cooldown_remaining_units"):
+            self.number_in_range(
+                state.get(field),
+                f"self-evaluation state {field}",
+                minimum=0,
+                integer=True,
+            )
+        pending_events = self.string_list(
+            state.get("pending_events"), "self-evaluation state pending_events"
+        )
+        if len(pending_events) != len(set(pending_events)):
+            self.error("self-evaluation state pending_events contains duplicates")
+        for event in pending_events:
+            self.identifier(event, "self-evaluation state pending_events")
+
+        baseline = self.object(state.get("baseline"), "self-evaluation state baseline")
+        self.check_keys(
+            baseline,
+            "self-evaluation state baseline",
+            {"success_rate", "cost_per_unit"},
+            {"success_rate", "cost_per_unit"},
+        )
+        self.optional_number_in_range(
+            baseline.get("success_rate"),
+            "self-evaluation state baseline.success_rate",
+            minimum=0,
+            maximum=1,
+        )
+        self.optional_number_in_range(
+            baseline.get("cost_per_unit"),
+            "self-evaluation state baseline.cost_per_unit",
+            minimum=0,
+        )
+
+        recent = self.object(state.get("recent"), "self-evaluation state recent")
+        self.check_keys(
+            recent,
+            "self-evaluation state recent",
+            {"samples", "success_rate", "cost_per_unit"},
+            {"samples", "success_rate", "cost_per_unit"},
+        )
+        self.number_in_range(
+            recent.get("samples"),
+            "self-evaluation state recent.samples",
+            minimum=0,
+            integer=True,
+        )
+        self.optional_number_in_range(
+            recent.get("success_rate"),
+            "self-evaluation state recent.success_rate",
+            minimum=0,
+            maximum=1,
+        )
+        self.optional_number_in_range(
+            recent.get("cost_per_unit"),
+            "self-evaluation state recent.cost_per_unit",
+            minimum=0,
+        )
+
+        rolling = self.object(state.get("rolling"), "self-evaluation state rolling")
+        rolling_keys = {
+            "window_units",
+            "passed",
+            "failed",
+            "retries",
+            "operation_cost",
+            "evaluation_cost",
+        }
+        self.check_keys(
+            rolling,
+            "self-evaluation state rolling",
+            rolling_keys,
+            rolling_keys,
+        )
+        self.number_in_range(
+            rolling.get("window_units"),
+            "self-evaluation state rolling.window_units",
+            minimum=1,
+            integer=True,
+        )
+        for field in ("passed", "failed", "retries"):
+            self.number_in_range(
+                rolling.get(field),
+                f"self-evaluation state rolling.{field}",
+                minimum=0,
+                integer=True,
+            )
+        for field in ("operation_cost", "evaluation_cost"):
+            self.number_in_range(
+                rolling.get(field),
+                f"self-evaluation state rolling.{field}",
+                minimum=0,
+            )
+
+        hashes = self.object(state.get("hashes"), "self-evaluation state hashes")
+        self.check_keys(
+            hashes,
+            "self-evaluation state hashes",
+            {"canonical", "adapters"},
+            {"canonical", "adapters"},
+        )
+        for field in ("canonical", "adapters"):
+            if not isinstance(hashes.get(field), str):
+                self.error(f"self-evaluation state hashes.{field} must be a string")
+
+        acknowledged = self.object(
+            state.get("acknowledged"), "self-evaluation state acknowledged"
+        )
+        self.check_keys(
+            acknowledged,
+            "self-evaluation state acknowledged",
+            {"coldstart_fail", "fail_counts"},
+            {"coldstart_fail", "fail_counts"},
+        )
+        if not isinstance(acknowledged.get("coldstart_fail"), bool):
+            self.error(
+                "self-evaluation state acknowledged.coldstart_fail must be a boolean"
+            )
+        fail_counts = self.object(
+            acknowledged.get("fail_counts"),
+            "self-evaluation state acknowledged.fail_counts",
+        )
+        for failure_key, count in fail_counts.items():
+            if not isinstance(failure_key, str) or not failure_key:
+                self.error(
+                    "self-evaluation state acknowledged.fail_counts keys must be "
+                    "non-empty strings"
+                )
+            if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+                self.error(
+                    "self-evaluation state acknowledged.fail_counts values must be "
+                    "nonnegative integers"
+                )
+
+        last_decision = self.object(
+            state.get("last_decision"), "self-evaluation state last_decision"
+        )
+        self.check_keys(
+            last_decision,
+            "self-evaluation state last_decision",
+            {"decision", "reasons", "verdict"},
+            {"decision", "reasons", "verdict"},
+        )
+        decision = last_decision.get("decision")
+        if not isinstance(decision, str) or decision not in {
+            "none",
+            "targeted",
+            "full",
+        }:
+            self.error("self-evaluation state last_decision.decision is invalid")
+        reasons = self.string_list(
+            last_decision.get("reasons"), "self-evaluation state last_decision.reasons"
+        )
+        if len(reasons) != len(set(reasons)):
+            self.error("self-evaluation state last_decision.reasons contains duplicates")
+        verdict = last_decision.get("verdict")
+        if verdict is not None and verdict not in HARNESS_EFFECT_VERDICTS:
+            self.error("self-evaluation state last_decision.verdict is invalid")
 
     def validate_adapters(self) -> None:
-        runtimes = set(self.spec.get("runtime_targets", []))
-        if "claude" in runtimes:
-            self.validate_claude()
-        if "codex" in runtimes:
-            self.validate_codex()
+        for runtime in sorted(self.runtime_targets):
+            if runtime not in self.provider_contracts:
+                continue
+            validator = getattr(self, f"validate_{runtime}", None)
+            if validator is None:
+                self.error(f"provider has no adapter validator: {runtime}")
+                continue
+            validator()
+
+    def validate_managed_skills(self, runtime: str, label: str) -> None:
+        skill_root = self.provider_path(runtime, "skill_root")
+        for skill_id in self.skill_ids:
+            path = skill_root / skill_id / "SKILL.md"
+            if not path.is_file():
+                self.error(f"missing {label} skill: {skill_id}")
+            elif self.frontmatter_name(path) != skill_id:
+                self.error(f"{label} skill frontmatter name mismatch: {skill_id}")
+            else:
+                self.require_json_frontmatter_string(
+                    path, "description", f"{label} skill {skill_id}"
+                )
+                canonical = self.canonical_skill_path_for_id(skill_id)
+                if canonical and canonical.is_file() and path.read_bytes() != canonical.read_bytes():
+                    self.error(
+                        f"{label} skill differs from canonical instructions: {skill_id}"
+                    )
+        actual_skills = (
+            {
+                path.name
+                for path in skill_root.glob(f"{self.namespace}*")
+                if path.is_dir() and (path / "SKILL.md").is_file()
+            }
+            if skill_root.is_dir()
+            else set()
+        )
+        if actual_skills != self.skill_ids:
+            self.error(
+                f"{label} managed-skill parity mismatch: "
+                f"expected {sorted(self.skill_ids)}, got {sorted(actual_skills)}"
+            )
 
     def validate_claude(self) -> None:
         marker = f"<!-- harness-factory:start {self.namespace} -->"
-        self.require_single_marker(self.target / "CLAUDE.md", marker)
+        self.require_single_marker(self.provider_path("claude", "root_guidance"), marker)
         expected_agents = {f"{self.namespace}-{role}" for role in self.agent_ids}
-        agent_root = self.target / ".claude" / "agents"
+        agent_root = self.provider_path("claude", "agent_root")
         actual_agents = (
             {path.stem for path in agent_root.glob(f"{self.namespace}-*.md")}
             if agent_root.is_dir()
@@ -596,68 +1238,14 @@ class Validator:
                     self.error(
                         f"Claude workspace-write permissionMode must be default: {path.name}"
                     )
-        for skill_id in self.skill_ids:
-            path = self.target / ".claude" / "skills" / skill_id / "SKILL.md"
-            if not path.is_file():
-                self.error(f"missing Claude skill: {skill_id}")
-            elif self.frontmatter_name(path) != skill_id:
-                self.error(f"Claude skill frontmatter name mismatch: {skill_id}")
-            else:
-                self.require_json_frontmatter_string(
-                    path, "description", f"Claude skill {skill_id}"
-                )
-                canonical = self.canonical_skill_path_for_id(skill_id)
-                if canonical and canonical.is_file() and path.read_bytes() != canonical.read_bytes():
-                    self.error(f"Claude skill differs from canonical instructions: {skill_id}")
-        skill_root = self.target / ".claude" / "skills"
-        actual_skills = (
-            {
-                path.name
-                for path in skill_root.glob(f"{self.namespace}*")
-                if path.is_dir() and (path / "SKILL.md").is_file()
-            }
-            if skill_root.is_dir()
-            else set()
-        )
-        if actual_skills != self.skill_ids:
-            self.error(
-                "Claude managed-skill parity mismatch: "
-                f"expected {sorted(self.skill_ids)}, got {sorted(actual_skills)}"
-            )
+        self.validate_managed_skills("claude", "Claude")
 
     def validate_codex(self) -> None:
         marker = f"<!-- harness-factory:start {self.namespace} -->"
-        self.require_single_marker(self.target / "AGENTS.md", marker)
-        for skill_id in self.skill_ids:
-            path = self.target / ".agents" / "skills" / skill_id / "SKILL.md"
-            if not path.is_file():
-                self.error(f"missing Codex skill: {skill_id}")
-            elif self.frontmatter_name(path) != skill_id:
-                self.error(f"Codex skill frontmatter name mismatch: {skill_id}")
-            else:
-                self.require_json_frontmatter_string(
-                    path, "description", f"Codex skill {skill_id}"
-                )
-                canonical = self.canonical_skill_path_for_id(skill_id)
-                if canonical and canonical.is_file() and path.read_bytes() != canonical.read_bytes():
-                    self.error(f"Codex skill differs from canonical instructions: {skill_id}")
-        skill_root = self.target / ".agents" / "skills"
-        actual_skills = (
-            {
-                path.name
-                for path in skill_root.glob(f"{self.namespace}*")
-                if path.is_dir() and (path / "SKILL.md").is_file()
-            }
-            if skill_root.is_dir()
-            else set()
-        )
-        if actual_skills != self.skill_ids:
-            self.error(
-                "Codex managed-skill parity mismatch: "
-                f"expected {sorted(self.skill_ids)}, got {sorted(actual_skills)}"
-            )
+        self.require_single_marker(self.provider_path("codex", "root_guidance"), marker)
+        self.validate_managed_skills("codex", "Codex")
 
-        codex_agent_root = self.target / ".codex" / "agents"
+        codex_agent_root = self.provider_path("codex", "agent_root")
         expected_agent_names = {f"{self.namespace}-{role}" for role in self.agent_ids}
         actual_agent_names = (
             {path.stem for path in codex_agent_root.glob(f"{self.namespace}-*.toml")}
@@ -670,7 +1258,7 @@ class Validator:
                 f"expected {sorted(expected_agent_names)}, got {sorted(actual_agent_names)}"
             )
 
-        config_path = self.target / ".codex" / "config.toml"
+        config_path = self.provider_path("codex", "config")
         try:
             config = tomllib.loads(config_path.read_text(encoding="utf-8"))
         except OSError as exc:
@@ -746,19 +1334,129 @@ class Validator:
             if agent_config.get("sandbox_mode") != agents_by_id[role].get("access"):
                 self.error(f"Codex agent access parity mismatch: {agent_path.name}")
 
+    def validate_gemini(self) -> None:
+        marker = f"<!-- harness-factory:start {self.namespace} -->"
+        self.require_single_marker(
+            self.provider_path("gemini", "root_guidance"), marker
+        )
+        self.validate_managed_skills("gemini", "Gemini")
+
+        agent_root = self.provider_path("gemini", "agent_root")
+        expected_agents = {f"{self.namespace}-{role}" for role in self.agent_ids}
+        actual_agents = (
+            {path.stem for path in agent_root.glob(f"{self.namespace}-*.md")}
+            if agent_root.is_dir()
+            else set()
+        )
+        if actual_agents != expected_agents:
+            self.error(
+                "Gemini managed-agent parity mismatch: "
+                f"expected {sorted(expected_agents)}, got {sorted(actual_agents)}"
+            )
+
+        agents_by_id = {agent["id"]: agent for agent in self.spec.get("agents", [])}
+        harness_root = self.harness_root_text()
+        gemini_keys = {
+            "name",
+            "description",
+            "kind",
+            "tools",
+            "model",
+            "temperature",
+            "max_turns",
+        }
+        for role in self.agent_ids:
+            agent_name = f"{self.namespace}-{role}"
+            path = agent_root / f"{agent_name}.md"
+            if not path.is_file():
+                self.error(f"missing Gemini agent: {path.relative_to(self.target)}")
+                continue
+            fields = self.frontmatter_fields(path)
+            self.check_keys(
+                fields,
+                f"Gemini agent {path.name} frontmatter",
+                gemini_keys,
+                gemini_keys,
+            )
+            if fields.get("name") != agent_name:
+                self.error(
+                    f"Gemini agent frontmatter does not match filename: {path.name}"
+                )
+            if fields.get("description") != agents_by_id[role].get("description"):
+                self.error(f"Gemini agent description parity mismatch: {path.name}")
+            self.require_json_frontmatter_string(
+                path, "description", f"Gemini agent {path.name}"
+            )
+            if fields.get("kind") != "local":
+                self.error(f"Gemini agent kind must be local: {path.name}")
+            tools = fields.get("tools")
+            if (
+                not isinstance(tools, list)
+                or not tools
+                or not all(isinstance(tool, str) and tool for tool in tools)
+            ):
+                self.error(
+                    f"Gemini agent tools must be a non-empty string list: {path.name}"
+                )
+            elif len(tools) != len(set(tools)):
+                self.error(f"Gemini agent tools contains duplicates: {path.name}")
+            else:
+                access = agents_by_id[role].get("access")
+                expected_tools = (
+                    GEMINI_READ_ONLY_TOOLS
+                    if access == "read-only"
+                    else GEMINI_WORKSPACE_WRITE_TOOLS
+                )
+                if set(tools) != expected_tools:
+                    self.error(
+                        f"Gemini agent tool access parity mismatch: {path.name}; "
+                        f"expected {sorted(expected_tools)}, got {sorted(set(tools))}"
+                    )
+            model = fields.get("model")
+            if not isinstance(model, str) or not model.strip():
+                self.error(f"Gemini agent model must be a non-empty string: {path.name}")
+            temperature = fields.get("temperature")
+            if (
+                isinstance(temperature, bool)
+                or not isinstance(temperature, (int, float))
+                or temperature != 0
+            ):
+                self.error(f"Gemini agent temperature must be 0: {path.name}")
+            max_turns = fields.get("max_turns")
+            if (
+                not isinstance(max_turns, int)
+                or isinstance(max_turns, bool)
+                or max_turns < 1
+            ):
+                self.error(
+                    f"Gemini agent max_turns must be a positive integer: {path.name}"
+                )
+            agent_text = path.read_text(encoding="utf-8")
+            for common_reference in (
+                f"{harness_root}/harness-spec.json",
+                f"{harness_root}/team/agents/{role}.md",
+            ):
+                if common_reference not in agent_text:
+                    self.error(
+                        f"Gemini agent does not reference common contract "
+                        f"{common_reference!r}: {path.name}"
+                    )
+            if self.markdown_body(path) != self.expected_gemini_agent_body(role):
+                self.error(f"Gemini agent thin-wrapper parity mismatch: {path.name}")
+
     def validate_placeholders(self) -> None:
         roots = [self.harness_root]
-        if "claude" in self.spec.get("runtime_targets", []):
-            roots.extend([self.target / ".claude", self.target / "CLAUDE.md"])
-        if "codex" in self.spec.get("runtime_targets", []):
-            roots.extend(
-                [
-                    self.target / ".agents",
-                    self.target / ".codex",
-                    self.target / "AGENTS.md",
-                ]
-            )
+        for runtime in sorted(self.runtime_targets):
+            contract = self.provider_contracts.get(runtime, {})
+            for key in ("root_guidance", "skill_root", "agent_root", "config"):
+                if key in contract:
+                    roots.append(self.provider_path(runtime, key))
+        seen: set[Path] = set()
         for root in roots:
+            root = root.resolve()
+            if root in seen:
+                continue
+            seen.add(root)
             paths = [root] if root.is_file() else list(root.rglob("*")) if root.exists() else []
             for path in paths:
                 if not path.is_file():
@@ -810,6 +1508,17 @@ class Validator:
             "Treat the common role file as the canonical instructions. Follow its "
             "input, output, access, approval-gate, and handoff contract. Return "
             "evidence and any verification not run."
+        )
+
+    def expected_gemini_agent_body(self, role: str) -> str:
+        harness_root = self.harness_root_text()
+        return (
+            f"# {role}\n\n"
+            f"먼저 `{harness_root}/harness-spec.json`과 "
+            f"`{harness_root}/team/agents/{role}.md`를 읽는다.\n\n"
+            "공통 역할 파일을 이 agent의 지시 정본으로 따른다. 결과에 근거와 "
+            "미실행 검증을 포함한다. Gemini subagent는 다른 subagent를 호출하지 "
+            "않고, 다음 handoff는 메인 오케스트레이터에 반환한다."
         )
 
     def frontmatter_raw_fields(self, path: Path) -> dict[str, str]:
@@ -886,6 +1595,81 @@ class Validator:
         value = self.spec.get("harness", {}).get("root")
         return value.replace("\\", "/").rstrip("/") if isinstance(value, str) else ""
 
+    def provider_path(self, runtime: str, key: str) -> Path:
+        contract = self.provider_contracts.get(runtime, {})
+        value = contract.get(key)
+        if not isinstance(value, str) or not value:
+            self.error(f"provider {runtime!r} is missing path field {key!r}")
+            self.provider_path_preflight_failed = True
+            return self.target
+        try:
+            resolved = (self.target / value).resolve()
+        except (OSError, RuntimeError) as exc:
+            self.error(
+                f"provider {runtime!r} path field {key!r} cannot be resolved: {exc}"
+            )
+            self.provider_path_preflight_failed = True
+            return self.target
+        if not resolved.is_relative_to(self.target):
+            self.error(
+                f"provider {runtime!r} path field {key!r} resolves outside target: "
+                f"{value!r}"
+            )
+            self.provider_path_preflight_failed = True
+            return self.target
+        return resolved
+
+    def number_in_range(
+        self,
+        value: object,
+        label: str,
+        *,
+        minimum: float | None = None,
+        maximum: float | None = None,
+        exclusive_minimum: bool = False,
+        integer: bool = False,
+    ) -> bool:
+        if integer:
+            valid_type = isinstance(value, int) and not isinstance(value, bool)
+        else:
+            valid_type = isinstance(value, (int, float)) and not isinstance(value, bool)
+        if not valid_type:
+            kind = "integer" if integer else "number"
+            self.error(f"{label} must be a {kind}")
+            return False
+        number = float(value)
+        if not math.isfinite(number):
+            self.error(f"{label} must be finite")
+            return False
+        if minimum is not None:
+            if exclusive_minimum and number <= minimum:
+                self.error(f"{label} must be greater than {minimum}")
+                return False
+            if not exclusive_minimum and number < minimum:
+                self.error(f"{label} must be at least {minimum}")
+                return False
+        if maximum is not None and number > maximum:
+            self.error(f"{label} must be at most {maximum}")
+            return False
+        return True
+
+    def optional_number_in_range(
+        self,
+        value: object,
+        label: str,
+        *,
+        minimum: float | None = None,
+        maximum: float | None = None,
+    ) -> bool:
+        if value is None:
+            return True
+        return self.number_in_range(
+            value,
+            label,
+            minimum=minimum,
+            maximum=maximum,
+        )
+
     def unique_ids(self, values: list[dict], label: str) -> set[str]:
         result: set[str] = set()
         for index, value in enumerate(values):
@@ -959,6 +1743,11 @@ def main() -> int:
         type=Path,
         help="explicit spec path (default: <target>/harness/harness-spec.json)",
     )
+    parser.add_argument(
+        "--provider-path-preflight",
+        action="store_true",
+        help="validate spec and resolved provider paths without reading adapters",
+    )
     args = parser.parse_args()
     target = args.target.expanduser().resolve()
     spec_path = (
@@ -966,13 +1755,23 @@ def main() -> int:
         if args.spec
         else target / "harness" / "harness-spec.json"
     )
-    errors = Validator(target, spec_path).validate()
+    validator = Validator(target, spec_path)
+    errors = (
+        validator.validate_provider_path_preflight()
+        if args.provider_path_preflight
+        else validator.validate()
+    )
     if errors:
         print("runtime-neutral harness validation failed:", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print(f"runtime-neutral harness validation passed: {target}")
+    action = (
+        "provider path preflight"
+        if args.provider_path_preflight
+        else "runtime-neutral harness validation"
+    )
+    print(f"{action} passed: {target}")
     return 0
 
 

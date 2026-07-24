@@ -40,6 +40,6 @@
 - 카운터 갱신은 이 플레이북의 책임: fail 기록 시점에 `improve.fail_counts[키]` +1.
 - 같은 사건의 등급 승격 라인(`"escalated":true`)은 재계상하지 않는다 — 계상은 사건당 1회.
 
-## 반복 실패 → 보완
+## 반복 실패 → full 평가 신호
 
-같은 실패 키 3회 누적이면 이 플레이북이 아니라 `loops/IMPROVE-LOOP.md`의 안건이다. 회복은 증상 처치, 보완은 원인 제거다.
+같은 실패 키 3회 누적은 mandatory event다. checker가 이를 `full`로 라우팅하며, full 평가가 하네스 결함을 확인한 경우에만 `loops/IMPROVE-LOOP.md`로 넘긴다. 이 플레이북은 개선을 직접 실행하지 않는다.

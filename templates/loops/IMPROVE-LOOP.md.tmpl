@@ -1,59 +1,38 @@
-# IMPROVE LOOP — 보완 루프 (하네스 자기 개정)
+# IMPROVE LOOP — 증거 기반 하네스 개선
 
-이 하네스는 완성품이 아니라 스스로를 개정하며 성장하는 틀이다 (원칙 6).
+개선 상태와 이력은 이 프로젝트 안에 남는다. harness-factory는 설치된 하네스의 state·journal·evaluation run을 중앙으로 흡수하지 않는다.
 
-## 트리거 (수치 — state.json의 `improve` 카운터로 추적)
+## 진입 조건
 
-| 트리거 | 조건 |
-|---|---|
-| 반복 실패 | 같은 실패 키(`분류:하위유형`) {{FAIL_THRESHOLD}}회 누적 (기본 3, 회복 성공 건 포함 계상) |
-| 정기 회고 | 작업 단위 {{RETRO_INTERVAL}}개 완료마다 (기본 10, 무인 모드 5) |
-| 가독성 붕괴 | 콜드스타트 테스트 fail 즉시 |
+다음 중 하나가 있어야 한다.
 
-## 실행 방식 — 검사는 결정적으로, 회고는 별개 에이전트로 (기본값)
+- `HARNESS-EVAL-LOOP` full report가 `regressed` 또는 하네스 원인을 확인함
+- parity, cold-start, evaluator 부재 같은 mandatory 구조 검증이 실패함
+- 사용자가 근거와 함께 명시적으로 개선을 요청함
 
-- **트리거 검사**: 메인 루프가 매 태스크 경계(EXECUTION-LOOP RETRO-CHECK)에서 state.json 조회로 수행한다. 결정적 조회이므로 에이전트를 띄우지 않는다 — 매 태스크 에이전트 생성은 예산 낭비다 (원칙 2·3).
-- **회고 수행 (아래 1~4단계)**: 트리거 발동 시 사용자 재호출을 기다리지 않고 메인 컨텍스트와 별개인 `harness-spec.json`의 **loops.improvement_owner 에이전트**를 호출한다. 입력은 journal.jsonl·state.json·하네스 문서 **(읽기 전용)**. 산출은 제안서 `ledger/retro-<N>.md` — 안건 1~2건, 근거 journal 라인, 겨냥 실패 키, 예상 효과.
-- **개정 적용 (아래 5~7단계)**: **메인 루프만** 수행한다 — 다음 태스크 경계(RETRO-CHECK)에서 제안서를 자동 적용한다. 인간 승인 게이트 대상만 적용 전 승인을 기다린다. 하네스 문서와 state.json의 쓰기 주체는 항상 메인 1개다. 회고 에이전트는 제안서 외에 아무것도 쓰지 않는다 (동시 쓰기 충돌 방지).
-- **폴백**: 에이전트 생성이 불가한 환경에서는 같은 절차를 메인 루프가 인라인으로 수행한다 (다음 단위 착수 전).
+정기 간격, deterministic sample, 단일 약한 신호, checker의 `targeted`만으로는 진입하지 않는다. checker는 `improve`를 반환하지 않는다.
 
-## 평가 레인에서 오는 보강 신호
+## 절차
 
-- evaluator owner가 evaluator 부재·부정확·과도한 수동판정을 발견하면 즉시 보강 후보로 올린다.
-- defect-counting capability 역할이 같은 실패 키를 {{FAIL_THRESHOLD}}회 이상 집계하면 반복 실패 트리거로 올린다.
-- improvement owner는 보강안을 1~2개로 제한하고, 적용은 entry skill의 오케스트레이터가 단일 쓰기 주체로 수행한다.
-
-## 회고 절차
-
-```
-[1~4: 회고 에이전트 (또는 인라인 폴백)]
-1. AUDIT    직전 개정의 효과 확인: state.json `improve.last_retro_targets`의 실패 키가
-            직전 회고 이후 journal에 재발(리셋 후 재계상)했는지 검사 (스크립트로 — 원칙 3).
-            재발했으면 그 개정은 효과 없음 — 같은 접근의 반복 금지, 다른 접근을 이번 안건 후보로.
-2. EXTRACT  journal.jsonl에서 직전 회고 이후의 fail·recovery·feedback 항목 추출 (스크립트로).
-3. CLASSIFY 패턴 분류: 반복 실패 키 / R→S 승격 빈발 지점 / 예산 초과 지점 / 오프로딩 후보 / 문서 결손.
-4. SELECT   개정 안건 1~2건만 선정 → 제안서 ledger/retro-<N>.md 산출 (AUDIT 결과 포함).
-
-[5~7: 메인 루프 — 유일한 쓰기 주체]
-5. AMEND    제안서 검토 후 harness-spec.json을 먼저 개정하고 공통 문서와 선택 runtime adapter를 모두 재생성한다.
-            DECISIONS.md에 근거와 AUDIT 결과(직전 개정 효과 유무)를 기록.
-6. VERIFY   adapter parity와 콜드스타트 테스트 재통과 (principles/05 절차). fail이면 개정 미완.
-7. RESET    state.json 갱신 — **이번 개정이 겨냥한 실패 키의 fail_counts만 0으로 리셋**(효과 확인을 위해
-            0부터 재계상 — AUDIT의 근거), 겨냥하지 않은 키는 유지. units_since_retro = 0,
-            coldstart_fail = false, last_retro_targets = 이번 겨냥 키.
+```text
+1. FREEZE    원 report, suite, metric, 현재 spec hash와 adapter hash를 고정한다.
+2. ATTRIBUTE 제품 결함과 하네스 결함을 분리한다. 하네스 원인이 아니면 RECOVERY로 돌린다.
+3. PROPOSE   한 가설과 1~2개 변경만 제안하고 예상 metric·원복 조건을 적는다.
+4. STAGE     공통 spec과 canonical component를 먼저 바꾸고 모든 선택 adapter를 생성한다.
+5. VERIFY    targeted 구조 검증, full parity, cold-start, 원 task evaluator를 실행한다.
+6. EVALUATE 동일 fixture·환경으로 full baseline/control/treatment 비교를 다시 수행한다.
+7. DECIDE    improved 또는 승인된 neutral만 채택한다. regressed/inconclusive이면 후보를 원복한다.
+8. RECORD    DECISIONS, append-only journal, evaluation report에 채택·거절 근거를 기록한다.
+9. RESET     채택 시 겨냥한 실패 키와 관련 cooldown만 갱신한다. 다른 이력은 보존한다.
 ```
 
-VERIFY에는 보강을 촉발한 원 evaluator 재실행도 포함한다. 콜드스타트 또는 원 evaluator가 fail이면 같은 안건을 최대 3회 보완하고, 이후 잔여 fail과 적용 중단 사유를 공개한다.
+## 쓰기 주체와 원자성
 
-## 규칙
+- improvement owner는 읽기 전용 분석과 proposal을 담당하고 메인 orchestrator가 유일한 적용 주체다.
+- agent 변경은 build-agent, skill 변경은 build-skill, evaluator 변경은 build-evaluator의 원자적 계약을 따른다.
+- 공통 spec, canonical file, 모든 선택 adapter, 결정 기록은 한 candidate transaction이다.
+- evaluator를 변경할 때 효과 판정에는 변경 전 동결 evaluator 또는 독립된 기준을 사용한다.
 
-- 회고 1회당 개정 1~2건 상한. 동시 대량 개정은 효과 평가를 불가능하게 한다.
-- 회복(RECOVERY)은 증상 처치, 보완(IMPROVE)은 원인 제거다. 같은 실패의 3번째 회복은 여기로 온다.
+## 금지
 
-## 팩토리 환류 후보
-
-여러 회고에서 반복 확인되어 harness-factory 템플릿 자체에 반영할 가치가 있는 개선을 기록한다.
-
-| 날짜 | 개선 내용 | 근거 결정 |
-|---|---|---|
-| | | |
+게이트 우회, evaluator 약화, fail 은폐, provider 한쪽만의 의미 변경, 여러 가설의 동시 대량 변경을 개선으로 인정하지 않는다.

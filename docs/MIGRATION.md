@@ -1,126 +1,159 @@
 # 마이그레이션 가이드
 
-기존 standalone `.claude/skills/build-harness` 또는 `.codex/skills/build-harness`, 고정 역할 기반 `harness/`, Claude 전용 control tower를 런타임 중립 구성으로 옮기는 절차입니다.
+이 문서는 plugin 0.1.x 또는 schema 1.0 하네스를 plugin 0.2.0 / schema 1.1의 프로젝트 소유·이벤트 기반 구조로 옮기는 절차입니다. standalone `build-harness`, 고정 팀, Claude 전용 control tower도 같은 원칙으로 전환합니다.
 
-## 보존 원칙
+## 핵심 경계
 
-다음은 새로 만들지 말고 기존 기록을 보존합니다.
+마이그레이션은 기존 하네스를 factory package 안으로 가져오는 작업이 아닙니다. 기존 프로젝트의 `harness/`를 그 자리에서 보존·확장하고, factory의 원자적 스킬로 정본과 어댑터를 점진적으로 갱신합니다.
+
+다음 데이터는 factory나 별도 registry로 이동하지 않습니다.
 
 - `harness/state/`
 - `harness/ledger/journal.jsonl`
 - `harness/ledger/DECISIONS.md`
-- 사용자 작성 `CLAUDE.md`, `AGENTS.md`
-- 기존 프로젝트별 evaluator와 승인 gate
+- task evaluation evidence와 harness-effect report
+- 진행 중 queue, `next_action`, failure counter
+- 사용자 작성 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`
 
-특히 journal은 append-only입니다. 새 schema로 바꾼다는 이유로 이전 event를 재작성하지 않습니다.
+journal은 append-only입니다. schema 변경을 이유로 이전 event를 재작성하지 않습니다.
 
-## 1. 현재 구성 확인
+## 1. 변경 전 inventory
 
-- standalone `build-harness` 사본 위치
-- 기존 실행·평가·회고 skill 이름
-- `.claude/agents/`의 역할과 handoff
-- `.codex/skills/` 같은 과거 비표준 출력
-- root rules와 `.codex/config.toml`
-- 진행 중 queue, next_action, fail counter
-- 실제로 통과해야 하는 evaluator
+- 현재 schema와 factory ref
+- 기존 실행·평가·회고 skill ID
+- 실제 task evaluator 명령과 pass condition
+- agent, domain, handoff, access 정책
+- 선택된 provider와 native 경로
+- 승인 gate와 waiting 상태
+- state/ledger backup 또는 rollback ref
+- 최근 성공률, 비용, 재시도 baseline
 
-변경 전에 현재 ref와 state/ledger backup 위치를 기록합니다.
+baseline이 없으면 “개선됨” 판정을 내릴 수 없습니다. 최소한 최근 안정 구간의 task 수, pass 수, 비용 단위, retry 수를 기록합니다.
 
-## 2. plugin 설치 확인
+## 2. 0.2.0 스킬 확인
+
+각 런타임에서 다음 일곱 스킬을 확인합니다.
+
+```text
+build-harness
+build-agent
+build-skill
+build-evaluator
+verify-harness
+evaluate-harness
+improve-harness
+```
+
+기존 정본이 유효하면 `build-harness`로 전면 재생성하지 않습니다. 빠진 evaluator는 `build-evaluator`, provider 추가는 관련 build 스킬, 구조 확인은 `verify-harness`처럼 가장 작은 작업 단위를 선택합니다.
+
+## 3. schema 1.1 계약 추가
+
+기존 ID를 가능한 한 유지하며 다음을 추가합니다.
+
+- 모든 `skills[].evaluator` 링크
+  - entry/evaluation/verification/domain → `scope: task`
+  - harness-evaluation/improvement → `scope: harness`, `type: experiment`
+- `self_evaluation` checker, recorder, state, harness evaluator, sampling/cooldown/budget/threshold
+- `self_evaluation.targeted_suite: harness/evaluation/suites/targeted.json`
+- canonical 별도 hash와 `self_evaluation.watched_paths`: 선택 provider의 exact managed artifact만
+- mandatory event와 full harness evaluation loop
+
+```text
+harness/loops/HARNESS-EVAL-LOOP.md
+harness/evaluation/EVALUATION-CONTRACT.md
+harness/evaluation/suites/targeted.json
+harness/triggers/check_self_evaluation.py
+harness/triggers/record_self_evaluation.py
+harness/state/self-evaluation.json
+```
+
+`targeted.json`은 `cost-regression|retry-pressure|deterministic-sample`을 고정 결정적 metric에 매핑합니다. 초기 state에는 `canonical-contract-change` pending event와 빈 managed hash를 둡니다. 첫 full baseline을 완료하면 recorder로 ACK합니다.
+## 4. 평가 의미 분리
+
+기존 `<namespace>-eval`이 작업 완료를 판정했다면 **task evaluator**로 유지합니다. 기존 `<namespace>-retro`가 주기적으로 LLM 회고를 실행했다면 다음처럼 바꿉니다.
+
+- 단순 주기 회고 → 결정적 trigger checker의 `full_interval_units`
+- 작업 실패 집계 → task evaluation과 defect 기록
+- 하네스 효과 비교 → harness-effect evaluator
+- 하네스 문서 수정 → `improve-harness`
+
+호환 alias를 잠시 둘 수 있지만 `retro`가 trigger만으로 자동 수정하지 않도록 합니다. 새 이름의 의미는 `evaluate-harness`가 효과 판정, `improve-harness`가 증거 기반 수정입니다.
+
+## 5. provider adapter 재투영
 
 Claude:
 
-```text
-/harness-factory:build-harness
-```
-
-Codex:
-
-```text
-$harness-factory:build-harness
-```
-
-namespaced skill이 보이지 않으면 마이그레이션을 시작하지 말고 [설치 가이드](SETUP.md)를 먼저 확인합니다.
-
-## 3. 자연어로 마이그레이션 요청
-
-별도 플래그를 가정하지 말고 보존할 상태와 원하는 adapter를 호출에 명시합니다.
-
-Claude 예:
-
-```text
-/harness-factory:build-harness "D:\workspace\step_fps"의 기존 harness와 Claude control tower를 분석해줘.
-state와 append-only ledger, 기존 evaluator를 보존하고 runtime-neutral spec으로 전환한 뒤
-Claude와 Codex adapter를 모두 생성해줘.
-```
-
-Codex 예:
-
-```text
-$harness-factory:build-harness 기존 fixed-team harness를 마이그레이션해줘.
-진행 중 queue와 failure count는 유지하고, 프로젝트 경계에서 역할을 다시 도출해.
-```
-
-## 4. 기존 구성을 공통 spec으로 흡수
-
-- 기존 project/router/coordinator 관계 → `domains`, `agents`, `orchestration.handoffs`
-- 실행·평가·회고·도메인 skill → `skills`와 `harness/skills/<skill-id>/SKILL.md`
-- 검증 명령과 판정 기준 → `evaluators`
-- fail threshold와 retro 주기 → `loops`
-- Claude/Codex별 모델명 → agent의 추상 `model_tier` + adapter 매핑
-- 기존 승인 조건 → `approval_gates`와 waiting 상태
-
-역할 이름이 기존 8개와 같더라도 자동으로 유지할 이유는 없습니다. 실제 domain과 capability가 같은 경우에만 보존하고, 병합·분리 근거를 D-001에 기록합니다.
-
-## 5. native adapter 재생성
-
-Claude:
-
-- 기존 `CLAUDE.md` 보존 + 관리 블록 upsert
+- `CLAUDE.md` 관리 블록 upsert
 - `.claude/skills/<skill-id>/SKILL.md`
 - `.claude/agents/<namespace>-<role-id>.md`
 
 Codex:
 
-- 기존 `AGENTS.md` 보존 + 관리 블록 upsert
+- `AGENTS.md` 관리 블록 upsert
 - `.agents/skills/<skill-id>/SKILL.md`
-- name/description/developer_instructions를 가진 `.codex/agents/<namespace>-<role-id>.toml`
-- 기존 `.codex/config.toml` 보존 + 전역 agent limits 병합
+- `.codex/agents/<namespace>-<role-id>.toml`
+- `.codex/config.toml`의 관련 limits만 구조적 병합
 
-과거 `.codex/skills/<generated-skill>`은 새 표준 출력이 아닙니다. 새 Codex skill이 `.agents/skills`에서 확인될 때까지 삭제하지 않습니다.
+Gemini:
 
-## 6. 검증
+- `GEMINI.md` 관리 블록 upsert
+- `.gemini/skills/<skill-id>/SKILL.md`
+- `.gemini/agents/<namespace>-<role-id>.md`
 
-다음이 모두 pass한 뒤에만 기존 bootstrap 사본을 제거합니다.
+공통 skill과 provider 투영본은 byte-identical이어야 합니다. root 문서의 관리 블록 밖 사용자 내용은 보존합니다.
+`watched_paths`에는 각 root guidance 파일, spec skill projection, namespaced agent wrapper, 생성 config의 exact path만 넣습니다. provider root 전체와 unrelated user skill/agent는 넣지 않습니다.
 
-1. spec parse·참조·DAG
-2. 공통 agent와 두 adapter의 agent/skill parity
-3. Claude namespaced 호출
-4. Codex `$` namespaced 호출
-5. cold-start 목적·next_action·evaluator 복원
-6. 기존 원 evaluator
-7. state queue와 fail counter 보존
-8. ledger append-only 보존
-9. root 사용자 규칙과 unrelated TOML 설정 보존
+## 6. trigger 정책 이관
 
-## 7. 정리
+기존 periodic retro는 checker의 interval/cooldown/budget으로 바꾸되 LLM을 직접 호출하지 않습니다. canonical·agent·skill·evaluator·adapter 변경과 cold-start/parity 실패는 mandatory pending event입니다. cold-start false→true, parity pass→fail 전환 때 새 event를 중복 없이 추가합니다.
 
-검증 후 제거 후보:
+라우팅 순서는 고정합니다.
 
-- 프로젝트에 복사했던 standalone `.claude/skills/build-harness`
-- 과거 bootstrap용 `.codex/skills/build-harness`
-- spec에 없는 stale namespaced agent
-- 새 `.agents/skills`와 중복되는 과거 generated skill
+1. `input-invalid:*` → effect evaluation/LLM 금지, `verify-harness`와 구조 복구 후 recheck
+2. `adapter-change|parity-fail` → parity pass 전 effect evaluation 금지
+3. `none` → 종료
+4. `targeted` → `targeted.json` reason별 결정적 metric만
+5. `full` → harness experiment evaluator
 
-삭제 전에 새 plugin 호출과 rollback ref를 인도 보고에 기록합니다.
+평가 전에 checker JSON을 `<target>\harness\evaluation\runs\<run-id>\trigger.json`에 동결합니다. 완료된 targeted/full마다 recorder를 호출합니다.
+
+```powershell
+python <target>\harness\triggers\record_self_evaluation.py <target>\harness --decision <targeted|full> --decision-file <target>\harness\evaluation\runs\<run-id>\trigger.json --verdict <improved|neutral|regressed|inconclusive>
+```
+
+full ACK는 처리 시작 pending event와 frozen failure snapshot만 ACK하고 exact managed artifact hashes, units, cooldown을 갱신합니다. 평가 중 생긴 새 event·failure는 보존합니다. targeted는 last decision과 cooldown만 갱신합니다. 따라서 같은 mandatory 신호가 반복 평가되지 않습니다.
+## 7. 검증 순서
+
+1. schema 1.1 parse, 모든 skill evaluator 링크, evaluator scope/type
+2. checker와 recorder fixture; malformed decision file, decision mismatch, stale managed hash ACK 거부
+3. `input-invalid:*`가 effect evaluation/LLM을 열지 않는지 확인
+4. adapter/parity reason이 verify를 선행하는지 확인
+5. targeted reason이 고정 deterministic suite와 정확히 매핑되는지 확인
+6. full ACK가 frozen pending/failure만 ACK하고 평가 중 생긴 새 incident를 보존하는지 확인
+7. watched exact managed artifact의 drift·삭제 검출과 unrelated file 제외
+8. Claude·Codex·Gemini byte parity, native path, root managed block
+9. cold-start false→true와 parity pass→fail incident 재검출
+10. 기존 task evaluator, baseline full experiment, state/ledger 보존 확인
+
+검증과 초기 full/recorder ACK가 끝날 때까지 오래된 standalone 스킬과 alias를 삭제하지 않습니다.
+## 8. 정리
+
+제거 후보는 새 호출과 rollback 경로가 검증된 뒤에만 정리합니다.
+
+- 프로젝트에 복사했던 standalone factory skill
+- 과거 비표준 provider skill 경로
+- spec에 없는 stale agent
+- 자동 LLM retro를 직접 호출하는 구형 hook
+
+state, ledger, evaluation evidence는 제거 후보가 아닙니다.
 
 ## 롤백
 
-1. 생성된 managed block과 adapter만 이전 상태로 복원
-2. 보존한 `state/`와 `ledger/` 유지
-3. 기존 standalone skill을 다시 enable
+1. 변경 전 spec과 managed adapter block 복원
+2. 보존한 state, ledger, evidence 유지
+3. 기존 task evaluator 재실행
 4. 기존 factory ref 또는 commit으로 고정
-5. 원 evaluator와 cold-start 재실행
-6. 실패 원인을 새 journal event와 DECISIONS에 기록
+5. cold-start 재실행
+6. 실패 원인을 새 journal event와 DECISIONS에 append
 
-롤백에서도 journal line을 삭제하거나 fail counter를 임의로 낮추지 않습니다.
+롤백에서도 실패 기록을 삭제하거나 counter를 임의로 낮추지 않습니다.
