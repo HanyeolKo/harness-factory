@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Agent"
+  short_description: "Add or update one runtime-neutral harness agent"
+  default_prompt: "Use $build-agent to add one role to the installed harness."

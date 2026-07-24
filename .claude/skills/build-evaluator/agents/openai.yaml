@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Evaluator"
+  short_description: "Define an evidence-based task or harness evaluator"
+  default_prompt: "Use $build-evaluator to define an evidence-based evaluator."

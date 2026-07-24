@@ -1,8 +1,22 @@
 # harness-factory
 
-한 번 호출해 프로젝트별 에이전트 팀과 스킬을 구성하되, 결과를 Claude에 종속시키지 않고 Codex에서도 같은 의미로 실행할 수 있게 만드는 하네스 팩토리입니다.
+프로젝트가 소유하는 에이전트 하네스를 만들고, 운영 중 증거를 바탕으로 점진적으로 개선하는 팩토리입니다. 하나의 `harness/` 정본에서 Claude Code, Codex, Gemini CLI용 네이티브 어댑터를 생성합니다.
 
-대상 프로젝트를 분석해 공통 `harness/` 명세를 먼저 만들고, 그 명세에서 Claude와 Codex의 네이티브 skills·agents·root 규칙을 각각 생성합니다. 역할 수와 이름은 고정하지 않으며 프로젝트의 서비스·모듈·데이터 경계와 실제 evaluator에서 도출합니다.
+팩토리는 설치된 하네스의 상태를 중앙으로 가져오거나 패키지 레지스트리처럼 흡수하지 않습니다. 상태·평가 기록·개선 이력은 항상 대상 프로젝트 안에 남고, 팩토리 스킬은 그 프로젝트의 정본을 직접 생성하거나 좁게 수정합니다.
+
+## 일곱 개의 스킬
+
+| 스킬 | 용도 |
+|---|---|
+| `build-harness` | 프로젝트 분석부터 전체 생성·융화·schema 마이그레이션까지 수행 |
+| `build-agent` | 기존 하네스에 역할 하나를 추가하거나 수정 |
+| `build-skill` | 프로젝트 고유 실행 스킬을 추가하거나 수정 |
+| `build-evaluator` | task evaluator 또는 harness-effect evaluator를 추가하거나 수정 |
+| `verify-harness` | schema·참조·DAG·권한·어댑터 parity를 결정적으로 검증 |
+| `evaluate-harness` | baseline/control/treatment로 하네스 변경 효과를 평가 |
+| `improve-harness` | 검증된 하네스 결함만 1~2개씩 개선하고 효과를 재평가 |
+
+전체를 다시 만들 필요가 없으면 원자적 스킬을 사용합니다. 각 수정은 `harness/harness-spec.json`과 공통 파일을 먼저 바꾸고, 선택된 런타임 어댑터를 다시 투영한 뒤 검증합니다.
 
 ## 바로 호출하기
 
@@ -18,22 +32,53 @@ Codex:
 $harness-factory:build-harness "D:\workspace\step_fps"
 ```
 
-목적까지 한 번에 전달할 수 있습니다.
+Gemini CLI에서는 extension 설치 후 자연어로 스킬을 지정합니다.
 
 ```text
-/harness-factory:build-harness "D:\workspace\step_fps"의 기존 control tower를 보존하면서
-프로젝트별 coordinator, 전문 skill, 평가·자기개선 루프를 Claude와 Codex 양쪽으로 구성해줘.
+build-harness 스킬을 사용해 D:\workspace\step_fps에 Claude, Codex, Gemini 공용 하네스를 구성해줘.
 ```
 
-런타임을 따로 지정하지 않으면 Claude와 Codex 어댑터를 모두 생성합니다. 코드와 문서로 확인할 수 없는 목적·승인 게이트·완료 기준만 최대 두 번의 질문 묶음으로 확인합니다.
+기존 하네스를 점진적으로 바꾸는 예:
 
-기존 하네스에서 다시 호출하면 전체를 덮어쓰지 않습니다. 유효한 공통 spec은 `improve`, 부분·레거시 구성은 `reconcile` 모드로 열고, 기준선 검증과 보존 manifest를 만든 뒤 필요한 delta만 적용합니다. 기존 state, append-only ledger, evaluator, gate, 사용자 규칙과 메모리는 보존 우선이며 삭제·이름 변경·의미 교체는 명시적 승인 없이는 수행하지 않습니다.
+```text
+build-evaluator 스킬을 사용해 이 프로젝트에 비용 회귀를 판정하는 harness-effect evaluator를 추가해줘.
+```
+
+런타임을 지정하지 않으면 지원되는 Claude·Codex·Gemini 어댑터를 생성합니다. 코드와 문서로 확인할 수 없는 목적, 승인 게이트, 완료 기준만 짧게 확인합니다.
+
+## 평가를 항상 돌리지 않는 구조
+
+작업 완료 판정과 하네스 효과 판정을 분리합니다. schema 1.1의 모든 skill은 evaluator를 링크하며 entry/evaluation/verification/domain은 task evaluator, harness-evaluation/improvement는 `scope: harness`, `type: experiment` evaluator를 사용합니다.
+
+매 작업 경계에서는 결정적 checker만 실행합니다.
+
+```text
+task boundary
+  → deterministic checker
+  → input-invalid:*: verify-harness + 구조 복구, effect evaluation/LLM 금지
+  → adapter-change|parity-fail: provider parity pass가 선행
+  → none: 종료
+  → targeted: evaluation/suites/targeted.json의 reason별 결정적 metric만 실행
+  → full: baseline/control/treatment 효과 평가
+  → 완료한 targeted/full: deterministic recorder ACK
+  → full에서 하네스 결함이 입증된 경우에만 improve-harness
+```
+
+자동 경로와 별도로 사용자가 근거 있는 개선을 명시하면 후보 적용 전에 baseline/full evidence를 확보합니다.
+
+`targeted.json`은 `cost-regression`, `retry-pressure`, `deterministic-sample`만 고정 metric으로 연결하므로 모호한 LLM 평가가 매번 열리지 않습니다. `minimum_samples`는 success/cost 회귀 비교에만 적용됩니다. `targeted_sample_rate`는 별도의 결정적 `deterministic-sample` 신호를 만들고, cooldown과 전체 운영비 대비 budget gate는 모든 비필수 신호를 유예합니다. `none` 경로에서는 평가·개선 문서도 로드하지 않습니다. 평가 전 checker JSON을 run의 `trigger.json`에 동결하고, 완료된 평가는 `record_self_evaluation.py`가 frozen decision, managed hash, failure acknowledgement를 확인한 뒤 ACK합니다. full ACK는 처리한 pending event와 frozen failure snapshot만 ACK하고 managed canonical/provider hash를 갱신해 같은 mandatory 신호의 반복 평가를 막습니다. 평가 중 생긴 새 event·failure는 다음 경계에 남습니다.
+
+canonical은 checker가 별도 hash합니다. `self_evaluation.watched_paths`에는 선택 provider의 정확한 managed artifact—root guidance, spec skill projection, namespaced agent wrapper, 생성 config—만 둡니다. provider 디렉터리 전체나 unrelated user 파일은 감시하지 않습니다.
+
+## 기존 하네스 융화와 메모리
+
+`build-harness`는 대상 상태를 `create | improve | reconcile`로 분류합니다. 기존 하네스는 팩토리로 가져오거나 전면 재생성하지 않고, 원 validator/evaluator 기준선과 파일 소유권·preservation manifest를 남긴 뒤 `unchanged | add | modify-proposed | conflict | approval-required` delta만 적용합니다. 기존 ID, state, append-only ledger, evaluator, gate, 사용자 규칙과 출처 불명 파일은 승인 없이 삭제·이름 변경·의미 교체하지 않습니다.
+
+schema 1.1은 `memory.index: harness/memory/INDEX.md`, `policy: preserve-and-reconcile`, 문서 line budget을 갖습니다. 인덱스는 지속 메모리의 경로·요약·읽는 시점·출처·검증일·상태만 관리하고, 현재 상태와 사건 이력은 각각 `state/state.json`, `ledger/journal.jsonl`에 유지합니다. 일반 memory 내용과 index 행 변경은 canonical full-trigger hash에서 제외하고 `verify-harness`의 결정적 검사만 수행합니다. 정책·읽기 라우팅의 정본은 `harness-spec.json`과 `HARNESS.md`이며, 이 정본의 의미가 바뀔 때만 full 성과평가 신호가 됩니다.
 
 ## 설치 요약
 
 ### Claude Code
-
-Claude Code 안에서 marketplace를 추가하고 플러그인을 설치합니다.
 
 ```text
 /plugin marketplace add HanyeolKo/harness-factory
@@ -41,89 +86,89 @@ Claude Code 안에서 marketplace를 추가하고 플러그인을 설치합니�
 /reload-plugins
 ```
 
-로컬 checkout을 바로 시험하려면 다음처럼 실행합니다.
-
-```powershell
-claude --plugin-dir D:\workspace\harness-factory
-```
-
 ### Codex
-
-marketplace를 등록합니다.
 
 ```powershell
 codex plugin marketplace add HanyeolKo/harness-factory --ref main
 codex plugin marketplace list
 ```
 
-그다음 Codex CLI에서는 `/plugins`, ChatGPT 데스크톱 앱에서는 Plugins 화면을 열어 `harness-factory-marketplace`의 `harness-factory`를 설치하고 새 작업을 시작합니다. 새 작업에서 `$` 선택기에 `harness-factory:build-harness`가 나타나면 준비가 끝난 것입니다.
+Codex CLI의 `/plugins` 또는 데스크톱 Plugins 화면에서 `harness-factory`를 설치한 뒤 새 작업을 시작합니다.
 
-버전 고정, 로컬 개발, Windows/Bash 환경변수, 업데이트와 오프라인 설정은 [설치 가이드](docs/SETUP.md)를 참고하세요.
+### Gemini CLI
+
+```powershell
+gemini extensions install https://github.com/HanyeolKo/harness-factory --ref main
+```
+
+로컬 개발 사본은 다음처럼 연결할 수 있습니다.
+
+```powershell
+gemini extensions link D:\workspace\harness-factory
+```
+
+설치와 업데이트, 버전 고정, 오프라인 resolver는 [설치 가이드](docs/SETUP.md)를 참고하세요.
 
 ## 생성 결과
 
 ```text
 <target>/
-├── harness/                         # 런타임 중립 정본
-│   ├── harness-spec.json            # domains, agents, skills, DAG, evaluators, gates, memory, loops
+├── harness/                              # 프로젝트가 소유하는 런타임 중립 정본
+│   ├── harness-spec.json                 # schema 1.1
 │   ├── HARNESS.md
 │   ├── team/agents/<role-id>.md
-│   ├── skills/<skill-id>/SKILL.md   # 모든 runtime skill의 공통 정본
-│   ├── loops/
-│   ├── memory/INDEX.md              # 지속 메모리 경로·요약·출처·상태 인덱스
-│   ├── state/
-│   └── ledger/
-├── CLAUDE.md                        # 기존 내용 + harness-factory 관리 블록
-├── .claude/
 │   ├── skills/<skill-id>/SKILL.md
-│   └── agents/<namespace>-<role-id>.md
-├── AGENTS.md                        # 기존 내용 + harness-factory 관리 블록
-├── .agents/skills/<skill-id>/SKILL.md
-└── .codex/
-    ├── agents/<namespace>-<role-id>.toml
-    └── config.toml
+│   ├── loops/
+│   │   └── HARNESS-EVAL-LOOP.md
+│   ├── evaluation/EVALUATION-CONTRACT.md
+│   ├── evaluation/suites/targeted.json
+│   ├── triggers/check_self_evaluation.py
+│   ├── triggers/record_self_evaluation.py
+│   ├── state/
+│   │   ├── state.json
+│   │   └── self-evaluation.json
+│   ├── memory/INDEX.md                  # 지속 메모리 탐색 인덱스
+│   └── ledger/
+├── CLAUDE.md
+├── .claude/{skills,agents}/
+├── AGENTS.md
+├── .agents/skills/
+├── .codex/{agents,config.toml}
+├── GEMINI.md
+└── .gemini/{skills,agents}/
 ```
 
-`harness/harness-spec.json`과 여기서 참조하는 `harness/skills/<skill-id>/SKILL.md`가 의미의 정본입니다. Claude/Codex 파일은 각 런타임이 발견할 수 있게 만든 어댑터이므로, 역할·handoff·skill·evaluator·승인 게이트를 바꿀 때는 공통 정본을 먼저 바꾸고 양쪽을 다시 생성합니다.
-
-## 생성된 하네스 사용
-
-예를 들어 namespace가 `step-control-tower`라면 다음과 같이 호출합니다.
-
-| 작업 | Claude | Codex |
-|---|---|---|
-| 실행·라우팅 | `/step-control-tower` | `$step-control-tower` |
-| 평가·완료 판정 | `/step-control-tower-eval` | `$step-control-tower-eval` |
-| 회고·보강 | `/step-control-tower-retro` | `$step-control-tower-retro` |
-
-일반 작업은 실행 스킬만 호출하면 됩니다. 실행 후 evaluator로 자동 인계하고, 반복 실패·평가 공백·콜드스타트 실패가 발생하면 개선 루프가 공통 명세와 어댑터를 보강한 뒤 원 evaluator와 parity를 다시 확인합니다.
+`harness/harness-spec.json`과 그 참조 파일이 의미의 정본입니다. 런타임 어댑터만 직접 고치면 다음 투영에서 사라질 수 있으므로, 공통 정본을 먼저 변경합니다.
 
 ## 핵심 보장
 
-- 프로젝트 경계에서 역할·스킬을 도출하며 고정 8역할을 복사하지 않습니다.
-- `fast / balanced / deep` 추상 티어를 사용하고 런타임별 실제 모델 선택은 어댑터에 격리합니다.
-- 실행자와 증거 수집자·완료 판정자를 계약상 분리합니다.
-- evaluator, 원본 증거, journal 기록이 없으면 pass로 처리하지 않습니다.
-- state와 append-only ledger로 새 세션에서도 다음 행동을 복원합니다.
-- 기존 하네스 호출은 `improve|reconcile`로 분류해 전체 재생성 대신 delta만 적용하고 보존 manifest와 원 evaluator로 회귀를 확인합니다.
-- 지속 메모리는 `memory/INDEX.md`에 경로·요약·읽기 시점·출처·검증일·상태를 색인하고, 생성·이동·대체·보관과 인덱스를 한 변경 단위로 갱신합니다.
-- 개선은 공통 명세 선변경 → 전체 어댑터 재생성 → parity·콜드스타트·원 evaluator 재검증 순서로 진행합니다.
-- 인간 승인 게이트, 미실행 검증, 인라인 폴백과 잔여 fail을 숨기지 않습니다.
+- 대상 프로젝트 경계에서 역할과 스킬을 도출하며 고정 팀을 복사하지 않습니다.
+- `fast / balanced / deep` 추상 티어를 사용하고 실제 모델 선택은 어댑터에 격리합니다.
+- 실행자, 증거 수집자, task verdict owner, harness-effect evaluator의 책임을 구분합니다.
+- 원본 증거와 기록이 없으면 pass로 처리하지 않습니다.
+- 저비용 checker는 항상 실행할 수 있지만 LLM 평가와 개선은 조건부이며, 완료 평가는 recorder ACK로 중복 실행을 막습니다.
+- 선택 provider의 정확한 managed artifact만 hash해 adapter drift·삭제를 찾고 무관한 사용자 파일은 제외합니다.
+- 개선은 한 번에 1~2건이며 효과 평가가 나빠지면 수용하지 않습니다.
+- state와 append-only ledger는 대상 프로젝트에 남아 새 세션에서도 복원됩니다.
+- 기존 하네스는 baseline·preservation manifest·delta plan으로 제자리에서 융화하며 memory index는 필요한 문서만 점진적으로 읽게 합니다.
+- 인간 승인 게이트, 미실행 검증, 잔여 fail을 숨기지 않습니다.
 
 ## 문서
 
 - [설치와 업데이트](docs/SETUP.md)
-- [운영·평가·개선 루프](docs/OPERATIONS.md)
-- [기존 standalone/fixed-team 하네스 마이그레이션](docs/MIGRATION.md)
+- [운영·평가·개선](docs/OPERATIONS.md)
+- [0.1/schema 1.0 마이그레이션](docs/MIGRATION.md)
 - [구성자 프로토콜](docs/CONSTRUCTOR-PROTOCOL.md)
+- [평가 계약](docs/SKILL-EVALUATION.md)
 - [인도 전 체크리스트](CHECKLIST.md)
 
 ## 저장소 검증
 
 ```powershell
 python scripts\test_runtime_neutral_contract.py
+python scripts\test_self_evaluation_trigger.py
 python scripts\skill_smoke_build_harness.py
 python scripts\validate_runtime_neutral.py <target-project>
 ```
 
-첫 두 명령은 플러그인 manifest, 공통 스킬, 동적 역할 생성, Claude/Codex native adapter, TOML/frontmatter, parity, DAG, resolver의 repository/ref 캐시 격리를 검증합니다. 마지막 명령은 실제 생성된 프로젝트를 검사합니다.
+저장소 검증은 plugin 0.2.0 manifest, 일곱 스킬, Claude·Codex·Gemini 어댑터, schema 1.1, parity, 결정적 trigger 정책을 확인합니다. 마지막 명령은 실제 대상 프로젝트의 생성물을 검사합니다.

@@ -1,38 +1,37 @@
-# JOURNAL FORMAT — journal.jsonl 라인 스키마
+# JOURNAL FORMAT — journal.jsonl
 
-`ledger/journal.jsonl`은 append-only다. 수정·삭제 금지. 잘못된 기록은 정정 라인을 추가한다.
+`ledger/journal.jsonl`은 append-only다. 잘못된 기록은 삭제하지 않고 정정 event를 추가한다.
 
-## 라인 스키마
-
-```json
-{"ts":"<ISO8601>", "event":"<유형>", "unit":"<U-00N|null>", "detail":"<한 줄>", "verdict":"<pass|fail|null>", "evidence":"<판정 근거: 커맨드 출력 요약, 파일 경로 등>", "cost":"<선택: 소진 메모>"}
-```
-
-`fail` 이벤트는 두 필드를 추가로 갖는다:
+## 기본 라인
 
 ```json
-{"event":"fail", "key":"<분류:하위유형>", "grade":"<R|S>", ...}
+{"ts":"<ISO8601>","event":"<type>","unit":"<id|null>","detail":"<summary>","verdict":"<pass|fail|null>","evidence":"<raw evidence path>","cost":{"tokens":0,"seconds":0,"retries":0}}
 ```
 
-- `key` 규격은 `분류:하위유형` (예: `transient:npm-timeout`, `structural:any-남용`). 새 키 생성 전 기존 키 재사용을 먼저 검토한다 (RECOVERY-PLAYBOOK §계상 규칙).
-- `grade`: R(자동 회복 시도) / S(중지·사용자 피드백 대기). 승격 시 갱신된 등급으로 fail 라인을 추가한다 (append-only — 기존 라인 수정 금지). **승격으로 추가된 라인은 카운터에 재계상하지 않는다 — 계상은 사건당 최초 fail 기록 1회다.** 승격 라인에는 `"escalated":true`를 붙여 구분한다.
+기존 문자열 `cost`는 읽기 호환하되 신규 기록은 집계 가능한 객체를 권장한다. fail은 stable key와 대응 grade를 추가한다.
 
-## 기록 대상 이벤트 (수준: {{JOURNAL_LEVEL}})
+```json
+{"event":"fail","key":"<category:subtype>","grade":"R|S","escalated":false}
+```
 
-| event | 시점 | 필수 필드 |
-|---|---|---|
-| `session_start` / `session_end` | 세션 경계 | ts, detail |
-| `unit_start` / `unit_done` | 작업 단위 경계 | ts, unit |
-| `eval` | 모든 평가 판정 | ts, unit, verdict, evidence |
-| `fail` | 실패 발생 (등급 승격 포함) | ts, unit, key, grade, evidence |
-| `recovery` / `recovery_exhausted` | 회복 시도·포기 | ts, unit, detail |
-| `feedback` | 등급 S 중지에 대한 사용자 피드백 수신 | ts, unit, detail(피드백 요지·재개 방향) |
-| `checkpoint` | 체크포인트 | ts, detail |
-| `decision` | DECISIONS.md 추가 시 포인터 | ts, detail(D-번호) |
-| `retro` | 보완 루프 회고 수행 | ts, detail(안건 요약) |
+같은 사건의 승격 라인은 다시 계상하지 않는다.
+
+## event
+
+| event | 시점 |
+|---|---|
+| `session_start`, `session_end` | 세션 경계 |
+| `unit_start`, `unit_done` | 작업 단위 경계 |
+| `eval` | task evaluator 판정 |
+| `fail`, `recovery`, `recovery_exhausted` | 실패·회복 |
+| `checkpoint`, `decision`, `feedback` | 상태·결정 경계 |
+| `trigger_check` | deterministic `none|targeted|full` 결정 |
+| `harness_eval` | baseline/control/treatment report |
+| `improve_proposed`, `improve_accepted`, `improve_rejected` | 하네스 후보 생명주기 |
 
 ## 규칙
 
-- 기록되지 않은 평가는 수행되지 않은 것이다 (원칙 1).
-- 집계·추출은 스크립트로 한다 (원칙 3). 예: `grep '"event":"fail"' journal.jsonl | tail -20`
-- 이 파일(journal.jsonl)을 통째로 컨텍스트에 읽어들이지 않는다. 필요한 구간만 추출한다 (원칙 2).
+- 기록되지 않은 평가는 수행되지 않은 것이다.
+- 집계는 script가 수행하고 전체 journal을 LLM context에 넣지 않는다.
+- operation cost와 harness evaluation cost를 분리한다.
+- 하네스 운영 이력은 이 프로젝트 밖으로 자동 전송하지 않는다.

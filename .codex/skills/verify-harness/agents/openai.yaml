@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Harness"
+  short_description: "Verify harness structure and provider adapter parity"
+  default_prompt: "Use $verify-harness to validate structure and adapter parity."
