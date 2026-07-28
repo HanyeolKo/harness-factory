@@ -1,35 +1,34 @@
-# 원칙 4 — 실패 회복은 설계에 내장된다
+# Principle 4 — Recovery Is Designed In
 
-## 선언
+## Statement
 
-LLM 기반 장기 작업에서 실패·중단은 예외가 아니라 정상 운영의 일부다.
-따라서 회복은 사고 후 대응이 아니라 **뼈대에 미리 설치된 설계**여야 한다.
-"실패하면 그때 생각하자"는 하네스에서 금지어다.
+Failure and interruption are normal in long-running agent work. Recovery is part of the harness structure, not an improvised response after an incident.
 
-## 규칙
+## Rules
 
-1. **체크포인트 우선**: 파괴적이거나 되돌리기 어려운 단계, 그리고 예산 80% 도달 시점에는 반드시 체크포인트(`state/state.json` 갱신 + 필요 시 커밋)를 먼저 찍는다.
-2. **실패는 분류·등급 판정 후 대응**: 모든 실패는 원인 분류(아래 표)와 대응 등급을 함께 받는다. 등급은 2단계 — **R(재시도): 하네스가 자동 회복을 시도할 수 있다 / S(중지): 자동 회복 금지, 즉시 체크포인트 후 사용자 피드백을 받아야 재개할 수 있다.** R도 상한 도달 시 S로 승격되며, 분류를 판정할 수 없는 실패는 S다. 분류 없이 무한 재시도하는 것은 예산을 태우는 가장 흔한 경로다.
-3. **재시도에는 상한이 있다**: 유형별 재시도 상한과 백오프를 `RECOVERY-PLAYBOOK.md`에 수치로 박는다. 상한 도달 시의 다음 행동(우회/에스컬레이션)도 수치와 함께 정의한다.
-4. **재개는 파일에서 시작한다**: 회복된 세션은 기억이 아니라 `state.json`과 `journal.jsonl`에서 상태를 복원한다. 재개 절차는 `CHECKPOINT.md`에 단계로 명시한다.
-5. **회복 이벤트는 평가 신호다**: 같은 실패 키가 반복되면 (기본: 3회, 회복 성공 건 포함) mandatory full 하네스 평가로 올린다. full 평가가 하네스 원인을 확인한 뒤에만 개선 안건이 된다. 회복은 증상 처치, 개선은 입증된 원인 제거다.
+1. **Checkpoint first** — Before destructive or hard-to-reverse steps, and at 80% of a context budget, update `state/state.json` and create a recoverable checkpoint when appropriate.
+2. **Classify before acting** — Every failure receives a stable class and one of two responses: `R` permits bounded automated recovery; `S` stops automation, checkpoints, and waits for user input or approval. Unknown failures are `S`. Exhausted `R` attempts become `S`.
+3. **Bound every retry** — Record retry limits, backoff, and the next action after exhaustion in `recovery/RECOVERY-PLAYBOOK.md`.
+4. **Resume from files** — A recovered session restores state from `state/state.json`, `ledger/journal.jsonl`, and `recovery/CHECKPOINT.md`, never from assumed conversation memory.
+5. **Treat recurrence as evidence** — Count every occurrence of the same failure key, including recovered attempts. Three occurrences by default create a mandatory full harness-evaluation signal. Improvement is allowed only after the full experiment attributes the cause to the harness.
 
-## 표준 실패 분류표 (분류 → 기본 등급)
+## Standard classes
 
-| 분류 | 정의 | 등급 | 기본 대응 |
+| Class | Meaning | Grade | Default response |
 |---|---|---|---|
-| 일시적 (transient) | 네트워크, 타임아웃, 일시적 자원 부족 | R | 백오프 재시도 (기본 3회: 2s/4s/8s) |
-| 구조적 (structural) | 코드·설정·환경의 실제 결함 | R | 재시도 금지. 진단 → 수정 → evaluator 재실행 (수정 시도 상한 후 S) |
-| 스코프 (scope) | 작업 정의 자체가 틀렸거나 권한·정보 부족 | **S** | 즉시 중지, 체크포인트, 사용자 피드백 대기 |
-| 예산 (budget) | 컨텍스트/코스트 예산 초과 | R | 체크포인트 후 분할 또는 세션 교체 (→ 원칙 2). 총예산 소진은 S |
-| 게이트 (gate) | 인간 승인 지점 도달 | **S** | 실패가 아닌 설계된 중지점 — 승인 요청 후 대기 |
+| `transient` | Network errors, timeouts, temporary resource pressure | `R` | Backoff retry, default 3 attempts at 2s, 4s, and 8s |
+| `structural` | A real defect in code, configuration, or environment | `R` | Do not repeat unchanged work; diagnose, modify, and rerun the evaluator, then escalate at the fix-attempt limit |
+| `scope` | Incorrect task definition, insufficient authority, or missing information | `S` | Checkpoint and request user direction |
+| `budget` | Context or cost allowance exceeded | `R` | Checkpoint and split or replace the session; total-budget exhaustion is `S` |
+| `gate` | A human approval boundary was reached | `S` | Wait for approval; this is a designed stop, not a task failure |
 
-## 실패 키와 계상
+## Failure keys
 
-- 모든 fail은 실패 키 `분류:하위유형`(예: `structural:any-남용`)으로 기록하며, **회복 성공 여부와 무관하게** 키 카운터에 계상한다.
-- 새 키를 만들기 전에 기존 키 재사용을 먼저 검토한다 — 키가 분산되면 반복 실패가 보완 문턱에 도달하지 못한다.
+- Record each failure as `<class>:<subtype>`, for example `structural:unsafe-any`.
+- Reuse an existing stable key before creating a new one. Fragmented keys hide recurrence.
+- Never lower counters or erase evidence because a later retry succeeded.
 
-## 구성자에게
+## Constructor requirements
 
-- 인터뷰에서 파악한 "실패 허용도"에 따라 재시도 상한과 R→S 승격 문턱을 조절하라. 무인 운영(크론)일수록 승격 문턱을 낮게(보수적으로).
-- 대상 작업에 파괴적 단계(배포, 삭제, 외부 발신)가 있으면 해당 단계를 `RECOVERY-PLAYBOOK.md`의 **게이트 목록**에 반드시 등재하라. 게이트는 재시도 대상이 아니라 인간 승인 대상이다.
+- Adjust retry limits and `R` to `S` escalation using the user's operating mode and failure tolerance. Unattended operation should escalate more conservatively.
+- List release, deletion, external communication, migration execution, and other irreversible steps as approval gates. Gates are never retry targets.

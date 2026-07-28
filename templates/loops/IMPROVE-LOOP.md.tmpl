@@ -1,37 +1,42 @@
-# IMPROVE LOOP — 증거 기반 하네스 개선
+# IMPROVE LOOP — Evidence-backed harness improvement
 
-개선 상태와 이력은 이 프로젝트 안에 남는다. harness-factory는 설치된 하네스의 state·journal·evaluation run을 중앙으로 흡수하지 않는다.
+Keep improvement state and history in this project. Harness Factory never absorbs an installed harness's state, journal, or evaluation runs.
 
-## 진입 조건
+## Entry conditions
 
-다음 중 하나가 있어야 한다.
+Require one of the following:
 
-- `HARNESS-EVAL-LOOP` full report가 `regressed` 또는 하네스 원인을 확인함
-- 사용자가 full report 등 effect evidence와 함께 명시적으로 개선을 요청함
+- A full `HARNESS-EVAL-LOOP` report is `regressed` or identifies a harness cause.
+- The user explicitly requests improvement and provides effect evidence such as a full report.
 
-input-invalid, unresolved parity/cold-start, 정기 간격, deterministic sample, 단일 약한 신호, checker의 `targeted`만으로는 진입하지 않는다. 구조 오류는 먼저 결정적 verify/recovery로 복구한다. checker는 `improve`를 반환하지 않는다.
+Do not enter on invalid input, unresolved parity or cold start, an interval, a deterministic sample, one weak signal, or checker `targeted`. Repair structural errors through deterministic verification and recovery first. The checker never returns `improve`.
 
-## 절차
+## Procedure
 
 ```text
-1. FREEZE    원 report, suite, metric, 현재 spec/adapter hash, 기준선과 preservation manifest를 `maintenance/runs/<change-id>/preservation-before.json`에 고정한다.
-2. ATTRIBUTE 제품 결함과 하네스 결함을 분리한다. 하네스 원인이 아니면 RECOVERY로 돌린다.
-3. PROPOSE   한 가설과 1~2개 변경만 `unchanged|add|modify-proposed|conflict|approval-required`로 분류해 `maintenance/runs/<change-id>/delta-plan.json`에 예상 metric·원복 조건과 함께 적는다.
-4. STAGE     공통 spec과 delta의 canonical component를 먼저 바꾸고 선택 adapter를 동기화한다. 지속 메모리 생성·이동·대체·보관은 `memory/INDEX.md`와 원자적으로 처리한다.
-5. VERIFY    영향 범위 구조 검증, memory index, full parity, cold-start, 원 task evaluator를 실행하고 `preservation-after.json`과 before를 비교한다.
-6. EVALUATE 동일 fixture·환경으로 full baseline/control/treatment 비교를 다시 수행한다.
-7. DECIDE    improved 또는 승인된 neutral만 채택한다. regressed/inconclusive이면 후보를 원복한다.
-8. RECORD    DECISIONS, append-only journal, evaluation report에 채택·거절 근거를 기록한다.
-9. RESET     채택 시 겨냥한 실패 키와 관련 cooldown만 갱신한다. 다른 이력은 보존한다.
+1. FREEZE    Store the source report, suite, metric, current spec/adapter hashes, baseline, and preservation
+              manifest in maintenance/runs/<change-id>/preservation-before.json.
+2. ATTRIBUTE Separate product defects from harness defects. Route non-harness causes to RECOVERY.
+3. PROPOSE   Choose one hypothesis and at most two changes. Classify each as
+              unchanged|add|modify-proposed|conflict|approval-required in delta-plan.json,
+              with the expected metric and rollback condition.
+4. STAGE     Change the common spec and canonical component first, then sync selected adapters.
+              Update durable-memory lifecycle changes atomically with memory/INDEX.md.
+5. VERIFY    Run affected structural checks, memory-index validation, full parity, cold start, and the
+              original task evaluator. Compare preservation-after.json with the before manifest.
+6. EVALUATE Repeat full baseline/control/treatment comparison with the same fixture and environment.
+7. DECIDE    Accept improved or explicitly approved neutral. Revert regressed or inconclusive candidates.
+8. RECORD    Record acceptance or rejection in DECISIONS, the append-only journal, and the evaluation report.
+9. RESET     After acceptance, update only targeted failure keys and related cooldown. Preserve all other history.
 ```
 
-## 쓰기 주체와 원자성
+## Writer and atomicity
 
-- improvement owner는 읽기 전용 분석과 proposal을 담당하고 메인 orchestrator가 유일한 적용 주체다.
-- agent 변경은 build-agent, skill 변경은 build-skill, evaluator 변경은 build-evaluator의 원자적 계약을 따른다.
-- 공통 spec, canonical file, delta의 선택 adapter, memory index, 결정 기록은 한 candidate transaction이다.
-- evaluator를 변경할 때 효과 판정에는 변경 전 동결 evaluator 또는 독립된 기준을 사용한다.
+- The improvement owner performs read-only analysis and proposal work; the main orchestrator is the sole applier.
+- Agent, skill, and evaluator changes follow the atomic contracts of build-agent, build-skill, and build-evaluator.
+- Treat the common spec, canonical files, selected adapter delta, memory index, and decision record as one candidate transaction.
+- When changing an evaluator, judge the effect with the frozen prior evaluator or an independent standard.
 
-## 금지
+## Prohibited
 
-사용자 구성·메모리의 승인 없는 삭제나 전면 덮어쓰기, 게이트 우회, evaluator 약화, fail 은폐, provider 한쪽만의 의미 변경, 여러 가설의 동시 대량 변경을 개선으로 인정하지 않는다.
+Never count unapproved deletion or wholesale overwrite of user configuration or memory, gate bypass, evaluator weakening, hidden failures, one-provider semantic drift, or simultaneous bulk hypotheses as improvement.

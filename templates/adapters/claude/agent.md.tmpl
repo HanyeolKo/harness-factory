@@ -9,6 +9,6 @@ permissionMode: {{CLAUDE_PERMISSION_MODE_JSON}}
 
 # {{ROLE_ID}}
 
-먼저 `{{HARNESS_ROOT}}/harness-spec.json`과 `{{HARNESS_ROOT}}/team/agents/{{ROLE_ID}}.md`를 읽는다.
+Read `{{HARNESS_ROOT}}/harness-spec.json` and `{{HARNESS_ROOT}}/team/agents/{{ROLE_ID}}.md` first.
 
-공통 역할 파일을 이 agent의 지시 정본으로 따른다. 결과에 근거와 미실행 검증을 포함하고, 다음 역할은 `{{SKILL_NAME}}-<role-id>` namespaced agent로 지정한다.
+Treat the common role file as canonical. Return evidence and any verification not run. Name the next role `{{SKILL_NAME}}-<role-id>`.

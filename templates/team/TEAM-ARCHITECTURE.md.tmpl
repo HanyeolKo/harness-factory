@@ -1,38 +1,38 @@
 # TEAM ARCHITECTURE — {{TARGET}}
 
-`../harness-spec.json`이 역할·skill·handoff의 정본이며 이 문서는 사람이 빠르게 읽는 투영이다.
+`../harness-spec.json` is canonical for roles, skills, and handoffs. This file is a concise human-readable projection.
 
-## 도메인 경계
+## Domain boundaries
 
 {{DOMAIN_TABLE}}
 
-## 에이전트 팀
+## Agent team
 
 {{AGENT_TABLE}}
 
-역할 수는 고정하지 않는다. routing, execution, verification, verdict, defect-counting, improvement capability의 합집합은 유지하되 작은 프로젝트는 한 역할에 병합할 수 있다.
+Role count is not fixed. Preserve the combined routing, execution, verification, verdict, defect-counting, and improvement capabilities; a small project may combine them in fewer roles.
 
-## 오케스트레이션
+## Orchestration
 
 ```text
 {{ORCHESTRATION_GRAPH}}
 ```
 
-## Handoff 계약
+## Handoff contract
 
 {{HANDOFF_TABLE}}
 
-## 평가 책임
+## Evaluation ownership
 
 {{EVALUATION_TABLE}}
 
-- task evaluator runner가 증거를 만들고 owner가 pass condition과 대조한다.
-- harness evaluator는 baseline/control/treatment 효과만 비교하며 task verdict와 섞지 않는다.
-- 반복 실패·비용·cold-start·parity 사건은 rolling state에 기록하고 checker가 `none|targeted|full`을 결정한다.
-- improvement owner는 full 근거가 하네스 원인을 확인했거나 사용자가 evidence-backed 개선을 명시한 뒤에만 proposal을 만든다. 사용자 요청 경로도 후보 적용 전 baseline/full evidence를 확보한다.
+- The task evaluator runner creates raw evidence; its owner checks the pass condition.
+- The harness evaluator compares baseline, control, and treatment effects without reusing the task verdict.
+- Record repeated failures, cost, cold-start, and parity incidents in rolling state; the checker returns `none|targeted|full`.
+- The improvement owner proposes a change only after full evidence identifies a harness cause or the user makes an evidence-backed request. The request path must establish baseline and full evidence before applying a candidate.
 
-## 런타임 투영
+## Runtime projections
 
 {{RUNTIME_ADAPTER_TABLE}}
 
-Claude, Codex, Gemini adapter는 같은 agent/skill 의미를 노출한다. provider가 subagent를 지원하지 못하면 메인 orchestrator가 공통 역할 정의를 인라인 수행하고 사유를 기록한다. Gemini에서는 subagent 간 재귀 위임 대신 메인 orchestrator가 DAG를 소유한다.
+Claude, Codex, and Gemini adapters expose the same agent and skill semantics. If a provider lacks subagents, the main orchestrator performs the common role inline and records why. In Gemini, the main orchestrator owns the DAG; subagents do not delegate recursively.

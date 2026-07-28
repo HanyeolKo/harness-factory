@@ -1,169 +1,182 @@
-# 인터뷰 질문 은행 — Phase 1 질의 프로토콜
+# INTERVIEW QUESTION BANK — Phase 1
 
-구성자가 사용자에게 던질 질문의 은행입니다. 목적은 심문이 아니라 **빠른 프로젝트 소유 하네스 구성**입니다.
+Use this bank to configure a project-owned harness quickly. Inspect first; ask only for decisions that cannot be established safely from the repository or an approved prior decision.
 
-## 운영 규칙
+## Operating rules
 
-1. **최대 2회 배치**: 1차는 핵심 Q1~Q4, 2차는 필요한 분기만 최대 4문항.
-2. **묻기 전에 조사**: README/docs, 빌드·테스트·CI, 기존 규칙·하네스·state를 조사해 확인 가능한 질문을 소거한다.
-3. **확인된 결정 재사용**: 기존 spec·D-001에서 사용자가 확정한 목적은 재질문하지 않는다. 신규·상충·범위 변경일 때만 Q1로 확정한다.
-4. **“알아서” 처리**: 아래 기본값을 적용하고 인도 보고에 명시한다.
-5. **선택지 우선**: 자유 서술보다 선택지와 짧은 보완 입력을 사용한다.
-6. **결정 기록**: 답변과 적용 기본값을 `ledger/DECISIONS.md` D-001에 기록한다.
-7. **프로젝트 소유권**: 기존 하네스를 factory package로 옮길지 묻지 않는다. 기본은 대상 프로젝트 안에서 보존·점진 개선이다.
-8. **설계 오버라이드**: 사용자 방향이 우선하지만 evaluator 없는 pass, 승인 gate 우회, evidence 삭제, provider 의미 불일치는 허용하지 않는다.
+1. **At most two batches** — Batch one contains core Q1–Q4. Batch two contains at most four relevant conditional questions.
+2. **Inspect before asking** — Read root rules, README and docs, build/test/lint/CI, existing harness files, state, evaluators, and memory index.
+3. **Reuse approved decisions** — Do not repeat an unchanged purpose or boundary already recorded in the spec or D-001.
+4. **Apply disclosed defaults** — If the user delegates a choice, use the defaults below and list them in the delivery report.
+5. **Prefer bounded choices** — Offer concise options plus a short free-text correction.
+6. **Record decisions** — Write answers and applied defaults to `ledger/DECISIONS.md` D-001.
+7. **Keep project ownership fixed** — Do not ask whether to move an installed harness into the factory. Preserve and improve it inside the target project.
+8. **Protect invariants** — User direction may change design choices, but never permits evidence-free pass, evaluator removal, gate bypass, evidence deletion, or provider semantic drift.
+9. **Separate artifacts from presentation** — Internal canonical prose is concise English. Report language and terminology affect user-facing narrative only; technical tokens are never translated.
 
-## 1차 배치 — 핵심 4문항
+## Core batch — four questions
 
-### Q1. 대상·목적·산출물
+### Q1. Target, purpose, and deliverable
 
-> 수집한 자료로는 이 하네스가 `<목적 가설>`을 위해 프로젝트 전체 또는 `<범위>`를 관리하는 것으로 보입니다. 맞나요? 주 산출물은 코드, 문서, 데이터, 혼합 중 무엇인가요?
+> The repository suggests that this harness should manage `<scope>` for `<purpose hypothesis>`. Is that correct, and is the main deliverable code, documentation, data, or a mix?
 
-- **기본값**: 대상은 현재 repository. 기존 spec·D-001의 확정 목적이 일치하면 재사용하고, 신규·상충·미확정 목적만 사용자 입력이 필요하다.
-- **매핑**: `harness.id`, `harness.purpose`, domain graph, task evaluator 후보.
+- **Default** — Current repository. Reuse a matching approved purpose; require input only for a new, conflicting, or unresolved purpose.
+- **Maps to** — `harness.id`, `harness.purpose`, domain graph, task evaluator candidates.
 
-### Q2. Task 완료 판정
+### Q2. Task completion
 
-> 개별 작업이 “제대로 됐다”는 무엇으로 판정할까요? (a) 기존 테스트/빌드/린트 (b) 새 결정적 검증 스크립트 (c) 루브릭 기반 판정 (d) 인간 최종 승인과 a~c 중 하나
+> What proves that one task is complete? (a) existing tests/build/lint, (b) a new deterministic validation script, (c) a stored rubric, or (d) one of a–c plus human approval?
 
-- **기본값**: 발견된 결정적 수단. 없으면 검증 스크립트를 첫 backlog로 두고 임시 rubric을 사용.
-- **매핑**: `evaluators[].scope: task`, command, pass condition, runner, owner와 entry/evaluation/verification/domain `skills[].evaluator`.
-- **주의**: 인간 확인은 approval gate이며 evaluator를 대체하지 않는다.
+- **Default** — The best discovered deterministic check. If none exists, create a validation-script backlog item and use an explicit temporary rubric.
+- **Maps to** — `evaluators[].scope: task`, command, pass condition, runner, owner, and evaluator links for `entry|evaluation|verification|domain` skills.
+- **Guard** — Human approval is an `approval_gate`, not an evaluator substitute.
 
-### Q3. 운영 방식
+### Q3. Operating mode
 
-> 하네스는 어떻게 운영되나요? (a) 사용자 상주 세션 (b) 장시간 자율 실행 (c) cron/event 기반 무인 반복
+> How will the harness run? (a) attended user sessions, (b) long autonomous sessions, or (c) unattended cron/event execution?
 
-- **기본값**: (a)
-- **매핑**: recovery escalation, checkpoint 빈도, self-evaluation full interval/cooldown.
+- **Default** — (a) attended sessions.
+- **Maps to** — Recovery escalation, checkpoint frequency, full interval, cooldown, and approval boundaries.
 
-### Q4. 비용과 평가 강도
+### Q4. Cost and report presentation
 
-> 컨텍스트·토큰과 하네스 자체 평가 비용에 얼마나 민감한가요? (a) 타이트 (b) 보통 (c) 느슨
+> Choose cost sensitivity: (a) tight, (b) balanced, or (c) loose. Also choose the user-facing report language tag and terminology style: `technical-english` or `localized`.
 
-- **기본값**: (b)
-- **매핑**: 작업 budget, `self_evaluation.targeted_sample_rate`, `cooldown_units`, `budget_ratio`, `full_interval_units`.
-- **안내**: 매 작업 경계에는 결정적 checker만 실행한다. targeted는 고정 metric suite, full은 harness experiment이며 완료 뒤 recorder가 ACK한다. input-invalid와 미해결 parity는 effect evaluation/LLM으로 보내지 않는다.
+- **Defaults** — (b), `communication.report_language: en`, and `communication.terminology: technical-english`.
+- **Fixed contract** — `communication.artifact_language: en`; canonical skills, roles, memory, loops, and machine-readable prose remain concise English with no bilingual duplicate.
+- **`technical-english`** — Use the selected report language's grammar, but keep stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
+- **`localized`** — Translate explanatory technical nouns when a conventional local term exists. Use localized prose once, without a parallel bilingual copy.
+- **Maps to** — Work budget, `targeted_sample_rate`, `cooldown_units`, `budget_ratio`, `full_interval_units`, report presentation, and terminology.
+- **Guard** — Report language and terminology are excluded from the effect hash. IDs, paths, commands, evidence, JSON keys, status values, reasons, and verdicts remain exact.
+- **Cost note** — Each task boundary runs the deterministic checker. `targeted` uses fixed metrics; `full` uses the harness experiment and is ACKed. Invalid input and unresolved parity never enter effect evaluation.
 
-## 2차 배치 — 필요한 분기만
+## Conditional batch — ask at most four
 
-### Q5. [대형 작업] 작업 단위
+### Q5. Large-work unit
 
-> 파일, 모듈, 기능, 데이터 배치 중 어떤 단위가 자연스러우며 대략 몇 개인가요?
+> Which boundary is natural: file, module, feature, service, or data batch, and approximately how many units exist?
 
-- **기본값**: 조사에서 제안하고 확인만 받는다.
-- **매핑**: execution loop, state queue, evaluation sampling unit.
+- **Default** — Propose from discovery and ask only for correction.
+- **Maps to** — Execution loop, state queue, and evaluation sampling unit.
 
-### Q6. [파괴적 단계] 승인 gate
+### Q6. Destructive or external approval
 
-> 배포, 삭제, 외부 발신, 마이그레이션 실행처럼 인간 승인이 필요한 단계가 있나요?
+> Which release, deletion, external communication, migration, security, or cost steps require human approval?
 
-- **기본값**: 파괴적·외부 영향 단계 전부 gate.
-- **매핑**: `approval_gates`.
+- **Default** — Gate every destructive, irreversible, or externally visible step.
+- **Maps to** — `approval_gates`.
 
-### Q7. [자율/무인] 중단·연락 기준
+### Q7. Autonomous stop conditions
 
-> 어떤 상황이면 자동 처리를 멈추고 사용자에게 물어야 하나요? (scope 불명확 / retry 상한 / 예산 소진 / gate 도달)
+> When must automation stop and ask: unclear scope, retry exhaustion, budget exhaustion, gate reached, or another condition?
 
-- **기본값**: 네 경우 모두 중지·에스컬레이션.
-- **매핑**: recovery와 waiting 상태.
+- **Default** — Stop and escalate for all four listed conditions.
+- **Maps to** — Recovery and waiting state.
 
-### Q8. [루브릭] 품질 기준
+### Q8. Rubric quality
 
-> 산출물이 “좋다”의 기준 2~3가지는 무엇인가요? 예: 정확성, 근거, 분량, 성능.
+> Which two or three criteria define a good nondeterministic deliverable, such as accuracy, evidence, length, or performance?
 
-- **기본값**: 산출물 유형 표준 rubric 초안을 제안하고 확인.
-- **매핑**: task evaluator rubric.
+- **Default** — Propose a deliverable-specific rubric and request confirmation.
+- **Maps to** — Task evaluator rubric.
 
-### Q9. [기존 root 규칙] 통합 방식
+### Q9. Existing root rules
 
-> 기존 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`가 있습니다. 별도 `harness/` 정본을 두고 각 문서에 managed block만 추가해도 될까요?
+> Existing `CLAUDE.md`, `AGENTS.md`, or `GEMINI.md` files were found. May the harness keep its canonical files under `harness/` and upsert only namespaced managed blocks?
 
-- **기본값**: 예. 기존 사용자 본문 보존.
-- **매핑**: harness root와 provider managed block. `watched_paths`에는 선택 provider의 exact root guidance, spec skill projection, namespaced wrapper, 생성 config만 둔다.
+- **Default** — Yes; preserve all user content outside managed blocks.
+- **Maps to** — Harness root, provider managed blocks, and exact `watched_paths`.
 
-### Q10. [기록량] 기록 수준
+### Q10. Journal detail
 
-> 기록은 (a) 판정·실패·결정만 (b) unit 시작/종료 포함 (c) 최대 상세 중 어느 수준인가요?
+> Should the journal record (a) verdicts, failures, and decisions only, (b) unit start/end plus those records, or (c) maximum detail?
 
-- **기본값**: (b)
-- **매핑**: journal event와 evaluation report 상세도.
+- **Default** — (b).
+- **Maps to** — Journal events and report detail.
 
-### Q11. [복합 프로젝트] 팀과 provider
+### Q11. Complex topology and providers
 
-> domain별 coordinator·worker가 필요한가요? evidence runner와 verdict owner는 누가 맡고 Claude, Codex, Gemini 중 어떤 adapter가 필요한가요?
+> Does the project need domain coordinators or specialized workers, and which of Claude, Codex, and Gemini should receive adapters?
 
-- **기본값**: 역할 수는 고정하지 않고 routing, execution, verification, verdict, defect-counting, improvement capability를 배치한다. 경계면에서는 impact-analysis·coordination을 분리하고 세 provider를 모두 생성한다.
-- **매핑**: domains, agents, skills, orchestration, evaluators, runtime targets, provider adapters.
-- **주의**: 한 agent가 여러 역할을 맡더라도 산출물·evidence·verdict 단계는 분리한다.
+- **Default** — Derive dynamic roles that cover `routing`, `execution`, `verification`, `verdict`, `defect-counting`, and `improvement`; generate all three providers.
+- **Maps to** — Domains, agents, skills, orchestration, evaluators, runtime targets, and provider adapters.
+- **Guard** — Even when one agent fills several roles, separate deliverable, evidence, and verdict stages.
 
-### Q12. [기존 하네스 또는 효과 평가] baseline
+### Q12. Existing baseline
 
-> 최근 안정 구간에서 작업 성공률, 평균 비용, retry 수를 계산할 수 있나요? 새 하네스 변경이 유지해야 할 지표는 무엇인가요?
+> Can recent task records produce success rate, average cost, and retry count? Which metric must a harness change preserve or improve?
 
-- **기본값**: 최근 결정적 task evaluator 기록에서 가능한 지표를 계산. 자료가 없으면 baseline 수집 전 verdict를 `inconclusive`로 제한.
-- **매핑**: `scope: harness`, `type: experiment` evaluator와 harness-evaluation/improvement skill 링크, baseline, success/cost/retry threshold, minimum samples.
+- **Default** — Compute available metrics from deterministic task records. Without a comparable baseline, restrict the harness verdict to `inconclusive`.
+- **Maps to** — Harness experiment, baseline, thresholds, minimum samples, and harness-evaluation/improvement evaluator links.
 
-### Q13. [기존 하네스 충돌] 보존·융화 경계
+### Q13. Reconciliation conflict
 
-> 조사 결과 기존 하네스의 `<파일·규칙>`과 새 계약의 `<필드·경로>`가 충돌합니다. 기존 의미를 유지한 채 보강할까요, 별도 경로로 병존할까요?
+> Existing `<file or rule>` conflicts with proposed `<field or path>`. Should its meaning remain in place with an additive extension, or coexist at a separate path?
 
-- **기본값**: 충돌이 없으면 묻지 않고 `improve|reconcile` 모드에서 additive delta만 적용한다. 삭제·이름 변경·의미 대체가 필요한 충돌은 기본값 없이 사용자 확정을 받는다.
-- **매핑**: mode, baseline, file ownership, preservation manifest, `unchanged|add|modify-proposed|conflict|approval-required` delta plan.
-- **주의**: 기존 하네스를 factory package로 이동하거나 사용자 소유 memory를 자동 덮어쓰는 선택지는 제시하지 않는다.
+- **Default** — Apply additive `improve|reconcile` deltas when no conflict exists. A deletion, rename, move, split, merge, or semantic replacement has no default and requires explicit approval.
+- **Maps to** — Mode, ownership, preservation manifest, and `unchanged|add|modify-proposed|conflict|approval-required` delta plan.
+- **Guard** — Never offer centralization in the factory or automatic overwrite of user-owned memory.
 
-## 기본값 일괄표
+## Defaults
 
-| 필드 | 기본값 |
+| Field | Default |
 |---|---|
-| TARGET | 현재 repository |
-| HARNESS_OWNERSHIP | 대상 프로젝트가 정본·state·ledger·evidence 소유 |
-| EXISTING_HARNESS_MODE | 없음→create, 유효 spec→improve, 부분·레거시→reconcile |
-| CHANGE_POLICY | baseline + ownership + preservation manifest + 분류된 delta plan |
-| MEMORY_INDEX | `harness/memory/INDEX.md`; 필요한 항목만 읽고 state/ledger는 복제하지 않음 |
-| MEMORY_POLICY | `preserve-and-reconcile` |
-| MEMORY_MAX_DOCUMENT_LINES | 100 |
-| SCHEMA_VERSION | 1.1 |
-| TASK_EVALUATOR | 발견된 결정적 수단, 없으면 검증 스크립트 신설 |
-| HARNESS_EVALUATOR | `scope: harness`, `type: experiment`; harness-evaluation/improvement skill이 참조 |
-| PASS_CONDITION | command exit 0 또는 rubric 전 기준 pass |
-| OPERATION_MODE | 사용자 상주 세션 |
-| WORK_BUDGET | 80% 경고, 100% checkpoint 후 중지/교체 |
-| WORK_UNIT | 조사 기반 제안 |
-| PARALLELISM | 안전한 독립 경계만 병렬, spec limit 명시 |
-| DETERMINISTIC_BOUNDARY | 검증·집계·trigger는 스크립트, 의미 판단만 LLM |
-| GATES | 파괴적·외부 영향 단계 전부 |
-| JOURNAL_LEVEL | unit 시작/종료 + evidence + verdict + 결정 |
-| HARNESS_ROOT | `<대상>/harness/` |
-| SELF_EVALUATION_MODE | event-driven; input-invalid→verify/recovery, adapter/parity→verify-first |
-| TARGETED_SAMPLE_RATE | 0.05; 프로젝트 baseline으로 조정 |
-| TARGETED_SUITE | `self_evaluation.targeted_suite` 경로의 cost/retry/sample 결정적 metric |
-| EVALUATION_ACK | checker JSON을 run trigger.json에 동결하고 완료 targeted/full마다 recorder |
-| FULL_INTERVAL_UNITS | 10 units |
-| COOLDOWN_UNITS | 직전 평가 후 2 units |
-| EVALUATION_BUDGET_RATIO | 전체 작업 예산의 10% 이하 |
-| SUCCESS_RATE_DROP_POINTS | 5 percentage points |
-| COST_INCREASE_RATIO | 0.20 |
-| FAIL_THRESHOLD | 같은 failure key 3회 |
-| RETRY_THRESHOLD | unit당 3회 |
-| MINIMUM_SAMPLES | 5 units |
-| MANDATORY_EVENTS | canonical/agent/skill/evaluator/adapter 변경, cold-start/parity fail |
-| MEMORY_TRIGGER | 일반 내용·index 행→deterministic verify, 정책·라우팅→canonical full |
-| TEAM_ARCHITECTURE | capability backbone + 프로젝트 경계별 동적 역할 |
-| RUNTIME_TARGETS | Claude + Codex + Gemini, 사용자 명시 시 축소 |
-| WATCHED_PATHS | canonical은 별도 hash; 선택 provider exact managed artifact만 포함 |
+| `TARGET` | Current repository |
+| `HARNESS_OWNERSHIP` | Target project owns canonical files, state, ledger, memory, and evidence |
+| `EXISTING_HARNESS_MODE` | None → `create`; valid spec → `improve`; partial/legacy → `reconcile` |
+| `CHANGE_POLICY` | Baseline + ownership + preservation manifest + classified delta plan |
+| `SCHEMA_VERSION` | `1.1` |
+| `ARTIFACT_LANGUAGE` | `communication.artifact_language: en` |
+| `REPORT_LANGUAGE` | `communication.report_language: en` |
+| `REPORT_TERMINOLOGY` | `communication.terminology: technical-english` |
+| `COMMUNICATION_COMPATIBILITY` | Existing 1.0/1.1 may omit `communication`; use English defaults until additively configured |
+| `MAX_INSTRUCTION_LINES` | `limits.max_instruction_lines: 120` for new harnesses |
+| `MEMORY_INDEX` | `harness/memory/INDEX.md`; read selected entries only; do not duplicate state or events |
+| `MEMORY_POLICY` | `preserve-and-reconcile` |
+| `MEMORY_MAX_DOCUMENT_LINES` | `memory.max_document_lines: 80` for new harnesses |
+| `MEMORY_MAX_SUMMARY_CHARS` | `memory.max_summary_chars: 160` for new harnesses |
+| `READING_BUDGET_COMPATIBILITY` | Older specs may omit new fields; preserve content and add limits only through an explicit delta |
+| `TASK_EVALUATOR` | Best discovered deterministic check; otherwise add a validation script |
+| `HARNESS_EVALUATOR` | `scope: harness`, `type: experiment`; linked by harness-evaluation/improvement skills |
+| `PASS_CONDITION` | Command exit 0 or every rubric criterion passes |
+| `OPERATION_MODE` | Attended session |
+| `WORK_BUDGET` | Warn at 80%; checkpoint and stop or replace at 100% |
+| `WORK_UNIT` | Discovery-based proposal |
+| `PARALLELISM` | Safe independent boundaries only; declare limits in the spec |
+| `DETERMINISTIC_BOUNDARY` | Scripts validate, aggregate, and trigger; LLMs handle semantic judgment only |
+| `GATES` | Every destructive or externally visible step |
+| `JOURNAL_LEVEL` | Unit start/end + evidence + verdict + decision |
+| `HARNESS_ROOT` | `<target>/harness/` |
+| `SELF_EVALUATION_MODE` | `event-driven`; invalid input → verify/recovery; adapter/parity → verify first |
+| `TARGETED_SAMPLE_RATE` | `0.05`, adjusted from project evidence |
+| `TARGETED_SUITE` | Fixed cost/retry/sample deterministic metrics at `self_evaluation.targeted_suite` |
+| `EVALUATION_ACK` | Freeze checker JSON in run `trigger.json`; record every completed `targeted|full` |
+| `FULL_INTERVAL_UNITS` | `10` |
+| `COOLDOWN_UNITS` | `2` completed units after the last evaluation |
+| `EVALUATION_BUDGET_RATIO` | At most `0.10` of the total work budget |
+| `SUCCESS_RATE_DROP_POINTS` | `5` percentage points |
+| `COST_INCREASE_RATIO` | `0.20` |
+| `FAIL_THRESHOLD` | Three occurrences of one failure key |
+| `RETRY_THRESHOLD` | Three retries per unit |
+| `MINIMUM_SAMPLES` | Five units |
+| `MANDATORY_EVENTS` | Canonical/agent/skill/evaluator/adapter changes and cold-start/parity failures |
+| `MEMORY_TRIGGER` | Content/index row → deterministic verify; policy/routing → canonical full |
+| `PRESENTATION_TRIGGER` | Report language/terminology only → no harness-effect change |
+| `TEAM_ARCHITECTURE` | Capability backbone with roles derived from project boundaries |
+| `RUNTIME_TARGETS` | Claude + Codex + Gemini unless the user narrows them |
+| `WATCHED_PATHS` | Canonical hash plus exact selected-provider managed artifacts only |
 
-수치 기본값은 시작점입니다. 기존 기록이 충분하면 관측 baseline으로 조정하고 근거를 D-001에 남깁니다.
+Numeric defaults are starting points. When reliable historical evidence exists, adjust them and record the reason in D-001. A report-presentation preference never changes experiment thresholds.
 
-## 질문 없이 채우는 필드
+## Fields derived without asking
 
-| 필드 | 출처 |
+| Field | Source |
 |---|---|
-| BUILD/RUN/LINT/TEST command | repository 조사. 없으면 “없음”을 명시하고 backlog 생성 |
-| PROJECT_TREE / EXISTING_SCRIPTS / FORBIDDEN | repository, CI, root 규칙 조사 |
-| EXISTING_HARNESS_STATE | 대상 프로젝트의 현재 state/ledger. 보존 대상 |
-| PROVIDER_NATIVE_PATHS | `providers/<id>/contract.json` |
-| SKILL_EVALUATOR_LINKS | skill kind과 evaluator scope/type에서 결정 |
-| WATCHED_EXACT_ARTIFACTS | spec과 선택 provider projection에서 계산; 사용자 질문 불필요 |
-| CREATED_DATE | 생성 시점 |
-| INTERVIEW_SUMMARY / VERIFY_ROUND | 결정 기록 / 실제 검증 결과 |
+| Build/run/lint/test commands | Repository and CI; record absence and create backlog when missing |
+| Project tree, existing scripts, forbidden actions | Repository, CI, and root rules |
+| Existing harness state | Target state and ledger; preserve in place |
+| Provider-native paths | `providers/<id>/contract.json` |
+| Skill evaluator links | Skill kind and evaluator scope/type |
+| Exact watched artifacts | Spec and selected provider projections |
+| Created date | Construction time |
+| Interview summary and verify round | Recorded decisions and actual verification evidence |

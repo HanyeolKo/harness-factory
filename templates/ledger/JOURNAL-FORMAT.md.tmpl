@@ -1,37 +1,37 @@
 # JOURNAL FORMAT — journal.jsonl
 
-`ledger/journal.jsonl`은 append-only다. 잘못된 기록은 삭제하지 않고 정정 event를 추가한다.
+`ledger/journal.jsonl` is append-only. Correct a bad record with a new event; never delete history.
 
-## 기본 라인
+## Base record
 
 ```json
 {"ts":"<ISO8601>","event":"<type>","unit":"<id|null>","detail":"<summary>","verdict":"<pass|fail|null>","evidence":"<raw evidence path>","cost":{"tokens":0,"seconds":0,"retries":0}}
 ```
 
-기존 문자열 `cost`는 읽기 호환하되 신규 기록은 집계 가능한 객체를 권장한다. fail은 stable key와 대응 grade를 추가한다.
+Read legacy string `cost` values for compatibility, but write new cost as an aggregatable object. Add a stable key and response grade to failures.
 
 ```json
 {"event":"fail","key":"<category:subtype>","grade":"R|S","escalated":false}
 ```
 
-같은 사건의 승격 라인은 다시 계상하지 않는다.
+Do not count an escalation record as a second incident.
 
-## event
+## Events
 
-| event | 시점 |
+| Event | When |
 |---|---|
-| `session_start`, `session_end` | 세션 경계 |
-| `unit_start`, `unit_done` | 작업 단위 경계 |
-| `eval` | task evaluator 판정 |
-| `fail`, `recovery`, `recovery_exhausted` | 실패·회복 |
-| `checkpoint`, `decision`, `feedback` | 상태·결정 경계 |
-| `trigger_check` | deterministic `none|targeted|full` 결정 |
-| `harness_eval` | baseline/control/treatment report |
-| `improve_proposed`, `improve_accepted`, `improve_rejected` | 하네스 후보 생명주기 |
+| `session_start`, `session_end` | Session boundary |
+| `unit_start`, `unit_done` | Work-unit boundary |
+| `eval` | Task-evaluator verdict |
+| `fail`, `recovery`, `recovery_exhausted` | Failure and recovery |
+| `checkpoint`, `decision`, `feedback` | State or decision boundary |
+| `trigger_check` | Deterministic `none|targeted|full` decision |
+| `harness_eval` | Baseline/control/treatment report |
+| `improve_proposed`, `improve_accepted`, `improve_rejected` | Harness-candidate lifecycle |
 
-## 규칙
+## Rules
 
-- 기록되지 않은 평가는 수행되지 않은 것이다.
-- 집계는 script가 수행하고 전체 journal을 LLM context에 넣지 않는다.
-- operation cost와 harness evaluation cost를 분리한다.
-- 하네스 운영 이력은 이 프로젝트 밖으로 자동 전송하지 않는다.
+- An unrecorded evaluation did not happen.
+- Aggregate with scripts; do not load the full journal into LLM context.
+- Track operating cost separately from harness-evaluation cost.
+- Never send harness history outside this project automatically.

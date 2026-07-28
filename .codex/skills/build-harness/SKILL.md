@@ -1,94 +1,89 @@
 ---
 name: build-harness
-description: 대상 프로젝트를 분석해 런타임 중립 에이전트 팀·스킬·평가·점진 개선 하네스를 새로 만들거나 전체 마이그레이션하고 Claude, Codex, Gemini 어댑터를 생성한다. 최초 하네스 구축이나 전체 토폴로지 재설계에 사용하며 단일 구성요소 변경·검증·성과평가에는 전용 스킬을 사용한다.
+description: Build or migrate a project-owned runtime-neutral agent harness with concise English canonical artifacts, evidence-based evaluation, incremental improvement, and Claude, Codex, and Gemini adapters. Use for first setup or a full topology redesign; use the smaller build skills for one component.
 ---
 
 # build-harness
 
-대상 프로젝트 안에 스스로 상태·평가 증거·개선 이력을 소유하는 하네스를 새로 만들거나 제자리에서 융화·개선한다. 팩토리는 설치된 하네스를 중앙으로 수집하거나 운영 상태를 흡수하지 않는다.
+Create or reconcile a harness inside the target project. The project owns its spec, state, evidence, memory, and improvement history; the factory never absorbs them.
 
-## 범위
+## Use
 
-- `harness/`가 없으면 `create`, 유효한 runtime-neutral spec이 있으면 `improve`, 부분·레거시 구성이면 `reconcile` 모드로 분류한다.
-- 최초 구축과 전체 schema 1.1 마이그레이션·융화에 사용한다. 단일 agent·skill·evaluator에는 각각 `build-agent`, `build-skill`, `build-evaluator`를 사용한다.
-- 구조 확인은 `verify-harness`, 적용 성과 비교는 `evaluate-harness`, 증거 기반 개선은 `improve-harness`를 사용한다.
-- `improve|reconcile`은 기존 `state/`, append-only `ledger/`, `evaluation/`, evaluator·gate·사용자 규칙·지속 메모리를 보존한다.
+Classify the target as create|improve|reconcile:
 
-## 팩토리 확인
+- No `harness/`: `create`.
+- Valid runtime-neutral spec: `improve`.
+- Partial or legacy harness: `reconcile`.
+- Use `build-agent`, `build-skill`, or `build-evaluator` for one component.
+- Use `verify-harness` for structure, `evaluate-harness` for measured effect, and `improve-harness` for an attributed defect.
 
-1. `scripts/resolve_factory.py`를 실행한다. 이미 경로를 알면 `--factory-root <path>`, 오프라인이면 `--offline`을 사용한다.
-2. stdout의 절대 경로를 `FACTORY_ROOT`로 사용한다. 계약 검증 실패를 임의 템플릿으로 우회하지 않는다.
-3. `docs/CONSTRUCTOR-PROTOCOL.md`, `references/RUNTIME-CONTRACT.md`, `principles/`, `interview/QUESTION-BANK.md`, `CHECKLIST.md`를 읽는다.
-4. source URL·ref·commit은 대상 `ledger/DECISIONS.md`에 기록하되 로컬 경로와 자격증명은 제거한다.
+## Resolve the factory
 
-## 입력 해석
+1. Run `scripts/resolve_factory.py`; pass `--factory-root <path>` when known or `--offline` when required.
+2. Treat stdout as `FACTORY_ROOT`. Do not bypass a failed contract check with ad hoc templates.
+3. Read `docs/CONSTRUCTOR-PROTOCOL.md`, `references/RUNTIME-CONTRACT.md`, `principles/`, `interview/QUESTION-BANK.md`, and `CHECKLIST.md` progressively.
+4. Record source URL, ref, and commit in target D-001; omit local paths and credentials.
 
-- 첫 경로 인자는 대상 프로젝트이며 없으면 현재 디렉터리다.
-- 런타임이 없으면 Claude·Codex·Gemini를 모두 생성한다. 기존 하네스에서는 현재 `runtime_targets`를 상속한다.
-- 코드로 알 수 없는 목적, 위험한 승인 경계, 완료 기준만 질문한다.
+## Language and reading-cost contract
 
-## 생성 절차
+- New specs include `communication.artifact_language: en`.
+- During setup, let the user choose `communication.report_language` and `communication.terminology` (`technical-english|localized`). Default to `en` and `technical-english`.
+- `technical-english` uses report-language grammar while retaining stable English technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment`.
+- `localized` translates explanatory technical nouns when a conventional local term exists. Both modes preserve machine tokens and avoid parallel bilingual prose.
+- Write canonical skills, roles, memory, loops, and machine-readable prose in concise English. Normalize user prose into English without changing identifiers, commands, paths, evidence, JSON keys, status values, or verdicts.
+- Wrap an exact non-English project name or machine token in backticks and keep its surrounding canonical prose English.
+- Apply the report choice only to user-facing narrative. Never store parallel translations in canonical artifacts.
+- Use progressive disclosure: read indexes first, open only task-relevant files, and skip evaluation/improvement references on `none`.
+- New harnesses set instruction and memory budgets. Existing 1.0/1.1 specs without `communication` remain valid and default to English reports until additively configured; do not auto-translate existing project-owned content.
+- Report-only language or terminology changes do not constitute harness-effect changes. Artifact-language or instruction changes do.
 
-1. **DISCOVER** — root 규칙, README/docs, 모듈 경계, 빌드·테스트·CI, 기존 harness/skills/agents/hooks를 읽는다. 기존 하네스는 원 validator/evaluator 기준선, 파일 소유권, preservation manifest, 충돌, 메모리 후보를 먼저 inventory한다.
-2. **DESIGN** — `create|improve|reconcile` 모드와 `unchanged|add|modify-proposed|conflict|approval-required` delta plan을 `harness/maintenance/runs/<change-id>/`에 확정한다. improve/reconcile은 `preservation-before.json`을 먼저 만든다. 기존 역할·skill이 맞으면 재사용하고 부족한 capability만 추가하며, 새 항목에는 lower-kebab-case ID, lane, capability, domain, access, 추상 model tier, handoff를 부여한다.
-3. **SPECIFY** — schema 1.1 spec과 정상 DAG를 만든다. 모든 `skills[].evaluator`를 필수로 연결한다.
-   - entry/evaluation/verification/domain → `scope: task`
-   - harness-evaluation/improvement → `self_evaluation.evaluator`인 `scope: harness`, `type: experiment`
-4. **BUILD COMMON** — `create`는 HARNESS, team, canonical skills, loops, recovery, budget, append-only ledger, task/self-evaluation state와 `memory/INDEX.md`를 렌더링한다. `improve|reconcile`은 delta plan의 관리 파일만 갱신하고 나머지는 보존한다.
-5. **BUILD EVALUATION** — full baseline/control/treatment 계약과 `evaluation/suites/targeted.json`을 만들고 `self_evaluation.targeted_suite`가 이를 참조하게 한다. targeted suite는 `cost-regression`, `retry-pressure`, `deterministic-sample`을 고정 결정적 metric에만 매핑한다.
-6. **INSTALL TRIGGERS** — `check_self_evaluation.py`와 `record_self_evaluation.py`를 설치한다. checker만 task boundary에서 실행하며 `none|targeted|full`을 반환한다. recorder는 완료된 targeted/full을 ACK한다.
-7. **WATCH MANAGED ARTIFACTS** — canonical은 checker가 별도 hash한다. `self_evaluation.watched_paths`에는 선택 provider의 정확한 managed artifact만 넣는다: root guidance 파일, spec 각 skill projection, namespaced agent wrapper, 생성 provider config. provider root 디렉터리 전체나 unrelated user skill/agent는 넣지 않는다.
-8. **ADAPT PREFLIGHT** — provider adapter를 쓰기 전에 다음 명령을 실행하고 exit 0을 확인한다.
+## Workflow
+
+1. **Discover** — inspect root rules, README/docs, modules, build/test/CI, existing agents/skills/hooks, evaluator baselines, file ownership, preservation needs, and indexed memory. Ask only for unknown purpose, completion criteria, approval boundaries, provider scope, and report language/terminology.
+2. **Plan** — record mode and a `unchanged|add|modify-proposed|conflict|approval-required` delta plan under `harness/maintenance/runs/<change-id>/`. In `improve|reconcile`, write `preservation-before.json` first.
+3. **Specify** — create schema 1.1 with a valid DAG. Every skill links an evaluator: entry/evaluation/verification/domain to `scope: task`; harness-evaluation/improvement to the `self_evaluation.evaluator`, which is `scope: harness`, `type: experiment`.
+4. **Build common** — in `create`, render the spec, HARNESS, team, canonical skills, loops, recovery, budget, state, append-only ledger, evaluation contract, and `memory/INDEX.md`. In other modes, touch only delta-owned files.
+5. **Budget context** — use `limits.max_instruction_lines`, `memory.max_document_lines`, and `memory.max_summary_chars`; split references before exceeding a budget and retain only routing metadata in indexes.
+6. **Install evaluation** — create the full baseline/control/treatment contract and `evaluation/suites/targeted.json`. Map only `cost-regression`, `retry-pressure`, and `deterministic-sample` to fixed deterministic metrics.
+7. **Install triggers** — install the read-only checker and completed-run recorder. The checker alone runs at task boundaries and returns `none|targeted|full`.
+8. **Watch exact artifacts** — hash canonical effect-bearing files separately. List only selected providers' exact root guidance, skill projections, namespaced agent wrappers, and generated config in `self_evaluation.watched_paths`.
+9. **Preflight adapters** — before provider writes, require:
 
    ```text
    python <FACTORY_ROOT>/scripts/validate_runtime_neutral.py <target> --provider-path-preflight
    ```
 
-   preflight는 provider registry의 `root_guidance`, `skill_root`, `agent_root`, 선택적 `config`를 target 기준으로 resolve한다. 절대 경로, lexical traversal, symlink를 거쳐 target 밖으로 나가는 경로를 모두 거부한다. 실패하면 provider 디렉터리·파일을 생성·쓰기·이동하지 않고 우회 경로도 사용하지 않는다.
-9. **ADAPT** — provider registry를 따라 thin adapter를 만든다.
-   - Claude: `CLAUDE.md`, `.claude/skills`, `.claude/agents`
-   - Codex: `AGENTS.md`, `.agents/skills`, `.codex/agents`, `.codex/config.toml`
-   - Gemini: `GEMINI.md`, `.gemini/skills`, `.gemini/agents`
-10. **EXPOSE** — `<id>` 실행, 내부 task evaluation, `<id>-verify`, `<id>-evaluate`, `<id>-improve`를 만든다. 기존 `-eval`, `-retro`는 호환 alias로만 유지한다.
-11. **VALIDATE** — validator, memory index 무결성, 연결 evaluator를 실행하고 `preservation-after.json`과 before를 비교한다. baseline 실패와 신규 회귀를 구분한다. cold-start가 false→true이면 `coldstart-fail`, parity가 pass→fail이면 `parity-fail`을 pending events에 중복 없이 추가한다.
-12. **ROUTE** — checker reason이 `input-invalid:*`이면 effect evaluation/LLM을 열지 않고 `verify-harness`와 구조 복구 후 재실행한다. `adapter-change|parity-fail`은 parity pass 전 effect evaluation을 금지한다.
-13. **REPAIR** — 최대 3회 보완한다. 공통 정본을 먼저 바꾸고 모든 선택 adapter를 재생성한다. 잔여 fail은 숨기지 않는다.
+   On failure, do not create, write, move, or route around provider paths.
+10. **Project adapters** — preserve user text outside managed blocks and render Claude (`CLAUDE.md`, `.claude/skills`, `.claude/agents`), Codex (`AGENTS.md`, `.agents/skills`, `.codex/agents`, `.codex/config.toml`), and Gemini (`GEMINI.md`, `.gemini/skills`, `.gemini/agents`) as selected.
+11. **Expose workflows** — create `<id>`, `<id>-eval`, `<id>-verify`, `<id>-evaluate`, and `<id>-improve`; keep legacy `-retro` only as an alias.
+12. **Validate** — run the validator, memory/index checks, linked evaluators, provider parity, and cold-start test. Compare `preservation-after.json` with the baseline. Record new `coldstart-fail` or `parity-fail` transitions once.
+13. **Repair** — repair common canonical files first and reproject every selected adapter, for at most three rounds. Disclose residual failures.
 
-## 기존 하네스 융화 규칙
+## Preservation
 
-- 같은 호출을 다시 실행해도 하네스를 팩토리로 흡수하거나 전면 덮어쓰지 않는다. 현재 spec·state·ledger·평가 결과를 대상 프로젝트 안에서 기준선으로 사용한다.
-- 기존 ID와 사용자 소유·출처 불명 파일은 보존 우선이다. 삭제·이름 변경·의미 교체는 exact field/path와 선택지를 제시하고 명시 승인 전에는 수행하지 않는다.
-- namespace 관리 블록과 생성 adapter만 upsert한다. stale 후보는 검증 뒤 정리 목록으로 제시하고 자동 삭제하지 않는다.
-- 완료 조건은 새 계약 검증, 기존 evaluator 재실행, preservation manifest 전후 비교다.
+Preserve existing IDs, state, append-only ledger, evaluation runs, gates, evaluator semantics, user rules, unknown-ownership files, and durable memory. Deletion, rename, semantic replacement, split, or merge requires an exact field/path proposal and explicit approval. Upsert only namespaced managed blocks and generated adapters. Never move an installed harness into the factory package.
 
-## 메모리 인덱스 관리
+Memory uses `harness/memory/INDEX.md` with `preserve-and-reconcile`. Create, move, supersede, archive, and index updates are one transaction. Keep current state in `state.json` and events in `journal.jsonl`, not memory. Ordinary memory changes get deterministic verification; policy or routing changes are canonical effect changes.
 
-- schema 1.1의 `memory.index`는 `harness/memory/INDEX.md`, 정책은 `preserve-and-reconcile`이다. schema 1.0은 읽을 수 있고 개선 시 additive upgrade를 제안한다.
-- 인덱스는 `ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태`를 기록한다. 상태는 `active|superseded|archived|empty`다.
-- 메모리 생성·이동·대체·보관과 인덱스 갱신은 원자적이다. 상태·큐는 `state.json`, 사건은 `journal.jsonl`에 두고 메모리에 복제하지 않는다.
-- 일반 메모리 내용 변경은 결정적 `verify-harness`만 실행한다. memory 정책·라우팅의 정본은 spec과 `HARNESS.md`이며 이 정본의 의미 변경만 canonical contract change로 full 평가한다.
+## Evaluation and ACK
 
-## 평가·ACK 계약
-
-- task evaluator는 작업마다 수행한다. harness effect 평가는 유효한 targeted/full 또는 명시 요청에서만 수행한다.
-- targeted는 `targeted.json`의 reason 매핑만 실행하며 임의 LLM judge를 열지 않는다.
-- 완료된 targeted/full마다 다음 recorder를 호출한다.
+- Route `input-invalid:*` to verification and structural recovery without effect evaluation or an LLM.
+- Require provider parity before evaluating `adapter-change|parity-fail`.
+- On `none`, load no evaluation or improvement workflow.
+- On `targeted`, run only the fixed reason mapping. On `full`, run the linked experiment.
+- Freeze checker JSON in `evaluation/runs/<run-id>/trigger.json`. A user-requested full run must preserve the raw decision under `override.original` and use the structured override contract.
+- ACK every completed targeted/full run:
 
 ```text
 python <target>/harness/triggers/record_self_evaluation.py <target>/harness --decision <targeted|full> --decision-file <target>/harness/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
 ```
 
-- 평가 전에 checker JSON을 `<target>/harness/evaluation/runs/<run-id>/trigger.json`에 동결한다. 명시적 full 요청은 raw checker JSON 전체를 `override.original`에 보존하고, top-level effective `decision: full`, `mandatory: false`, `override.kind: explicit-user-request`, original reasons 뒤의 marker, 동일한 deferred reasons·hashes·`acknowledgement`를 기록한다. 단순 decision 변조나 구조화되지 않은 budget·cooldown 우회는 recorder가 거부한다. recorder는 frozen decision/reasons, managed hashes, failure snapshot을 검증한다. full은 처리한 pending-event/failure snapshot만 ACK하고 managed hashes·units·cooldown을 갱신한다. 평가 중 생긴 새 event·failure는 보존한다. targeted는 last decision·cooldown만 갱신한다.
-- full regression 또는 하네스 원인 확인 뒤에만 `improve-harness`를 연다. 한 가설·1~2개 변경과 동일 suite 재평가를 기본으로 한다.
+Open improvement only after a full regression or attributed harness defect. Change one hypothesis and at most two components, then rerun the frozen suite.
 
-## 인도
+## Delivery
 
-생성 트리, 적용 모드와 delta plan, 공통 역할·skill·evaluator, runtime별 호출명, 보존·융화·충돌 상태, memory index, trigger/ACK 정책, 검증 결과와 잔여 위험을 보고한다. 자동 commit하거나 대상 프로젝트 밖에 운영 상태를 기록하지 않는다.
+Report mode, delta, preservation, created/changed files, retained state, topology, providers, memory routing, trigger/ACK policy, checks, and residual risk using the configured report language and terminology. Keep technical tokens exact. Do not commit automatically.
 
-## 불변 조건
+## Invariants
 
-- 공통 spec·canonical skill이 정본이며 adapter는 파생물이다.
-- evaluator 원본 증거와 journal 기록 없는 pass는 없다.
-- 승인 gate 우회, evaluator 완화, provider 한쪽만의 의미 변경을 허용하지 않는다.
-- 팩토리는 설치된 하네스의 state·journal·평가 결과를 흡수하지 않는다.
-- 기존 사용자 구성과 지속 메모리를 승인 없이 삭제·덮어쓰기·이름 변경하지 않는다.
+Canonical spec and common files lead; adapters derive from them. No raw evidence means no pass. Do not bypass gates, weaken evaluators, drift one provider, centralize project state, or overwrite project-owned configuration or memory without approval.

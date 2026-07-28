@@ -1,32 +1,33 @@
-# 원칙 5 — 환경 가독성
+# Principle 5 — Environment Readability
 
-## 선언
+## Statement
 
-하네스의 소비자는 미래의 LLM 세션이다. 그 세션은 지금의 컨텍스트를 하나도 갖고 있지 않다.
-따라서 하네스는 **아무 맥락 없는 새 세션이 파일만 읽고 5분 안에
-(1) 현재 상태를 복원하고 (2) 다음 행동 하나를 결정할 수 있는 상태**를 항상 유지해야 한다.
-이것이 환경 가독성이며, 콜드스타트 테스트로 검증한다.
+A future session starts without the current conversation. The harness must let that session restore state and choose one next action from files within five minutes. This property is verified by a cold-start test.
 
-## 규칙
+## Rules
 
-1. **단일 진입점**: 읽기는 항상 `HARNESS.md`에서 시작한다. HARNESS.md는 "무엇을, 어떤 순서로 읽을지"를 상한과 함께 지시한다 (→ 원칙 2의 읽기 예산).
-2. **상태는 한 곳에**: "지금 어디까지 됐나"의 답은 `state/state.json` 한 곳에만 있다. 여러 파일에 분산된 상태는 반드시 어긋난다.
-3. **미사용도 명시**: 사용하지 않는 축·파일은 삭제하지 말고 파일 안에 "미사용 — 사유"를 남긴다. 침묵(파일 없음)은 새 세션에게 "누락인가 의도인가"라는 판단 비용을 발생시킨다.
-4. **명명은 계약**: §4(README) 산출물 계약의 파일명·위치를 유지한다. 변경 시 `DECISIONS.md` 기록 + `HARNESS.md` 파일 맵 갱신이 한 커밋에 함께 간다.
-5. **커맨드는 복사-실행 가능하게**: `ENVIRONMENT.md`의 모든 커맨드는 설명문이 아니라 그대로 실행 가능한 형태로 적는다. "테스트를 돌린다" (X) → `npm test` (O).
+1. **Use one entry point** — Reading starts at `HARNESS.md`, which gives an ordered, bounded route through the spec, state, indexes, and current-unit references.
+2. **Keep current state in one place** — `state/state.json` is the source of truth for phase, queue, current unit, and `next_action`.
+3. **Make non-use explicit** — When a standard axis or file is intentionally unused, record `unused` and a reason. Silence forces a cold session to guess whether something is missing.
+4. **Treat names as contracts** — Keep declared filenames and paths stable. A change updates `ledger/DECISIONS.md` and the `HARNESS.md` file map in the same transaction.
+5. **Make commands executable** — Commands in `ENVIRONMENT.md` are copy-ready. Write `npm test`, not “run the tests.”
+6. **Avoid conversation references** — Canonical artifacts must stand alone and use concise English. Remove phrases that depend on prior chat context.
 
-## 콜드스타트 테스트 절차
+## Cold-start test
 
-하네스 인도 전, 보완 루프의 매 개정 후 수행한다. 또한 **모든 새 세션의 시작 프로토콜이 이 테스트를 겸한다** — 시작 프로토콜에서 아래 3문항에 답하지 못하면 그것이 운영 중 콜드스타트 fail이며, state.json `improve.coldstart_fail = true`로 기록되어 mandatory full 하네스 평가 트리거가 된다. checker 결과만으로 개선을 시작하지 않는다.
+Run this before delivery, after an accepted harness improvement, and at every new session start.
 
-1. 컨텍스트를 비웠다고 가정하고 `HARNESS.md`부터 지시된 순서로만 읽는다.
-2. 다음 3문항에 파일 근거로 답할 수 있으면 pass:
-   - 이 하네스의 목적과 현재 진행 단계는 무엇인가?
-   - 지금 즉시 수행해야 할 다음 행동 하나는 무엇인가?
-   - 그 행동의 완료는 무엇으로 판정하는가?
-3. 하나라도 답이 안 나오면 fail — 부족한 정보를 하네스 문서에 보강한 뒤 재시도한다.
+1. Assume an empty context and begin only with `HARNESS.md`.
+2. Follow its declared read order and budgets.
+3. Answer from file evidence:
+   - What is the harness purpose and current phase?
+   - What single action should run next?
+   - Which task evaluator decides whether that action is complete?
+4. Confirm the pending self-evaluation events, last harness verdict, and only the memory entries required by the action.
 
-## 구성자에게
+If any answer is unavailable, the test fails. Record the false-to-true `coldstart_fail` transition in `harness/state/self-evaluation.json` and add `coldstart-fail` once to `pending_events`. The deterministic trigger routes evaluation; it never authorizes automatic improvement by itself.
 
-- CHECKLIST.md의 콜드스타트 테스트는 형식적으로 넘기지 마라. 실제로 HARNESS.md만 열고 위 3문항에 답해보라.
-- 생성 문서에서 "이 대화에서 논의했듯" 류의 표현이 남아 있으면 전부 제거하라. 미래 세션에게 그 대화는 존재하지 않는다.
+## Constructor requirements
+
+- Perform the test from the generated files rather than from construction-session memory.
+- A blank `state.next_action`, missing evaluator link, unbounded read route, or required prior conversation is a failure.

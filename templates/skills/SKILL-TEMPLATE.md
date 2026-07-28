@@ -1,13 +1,13 @@
 # Generated skill surface
 
-신규 생성은 `templates/adapters/shared/SKILL-TEMPLATE.md`와 schema 1.1 spec을 사용한다. 이 파일은 호출명 참고용이다. 생성 skill은 `memory.index`에서 현재 unit에 필요한 지속 메모리만 선택하고, memory 변경 시 index와 원자적으로 갱신한다.
+Use `templates/adapters/shared/SKILL-TEMPLATE.md` and a schema 1.1 spec for new harnesses. This file is only a call-surface reference. A generated skill selects only durable memory needed for the current unit through `memory.index` and updates the memory and index atomically.
 
-| skill | 역할 | 자동 로드 |
+| Skill | Responsibility | Load when |
 |---|---|---|
-| `<id>` | 작업 실행과 task evaluator 인계 | 사용자 작업 요청 시 |
-| `<id>-eval` | 개별 작업 pass/fail (호환/내부) | 작업 직후 |
-| `<id>-verify` | schema·adapter parity·cold-start | 구성 변경 후 |
-| `<id>-evaluate` | baseline/control/treatment 효과 비교 | 명시 요청 또는 targeted/full trigger |
-| `<id>-improve` | 증거 기반 점진 개선 | full regression/하네스 결함 확인 후 |
+| `<id>` | Execute work and hand off to the task evaluator | User requests work |
+| `<id>-eval` | Judge one task as pass or fail; internal compatibility surface | After the task |
+| `<id>-verify` | Check schema, adapter parity, and cold start | After configuration changes |
+| `<id>-evaluate` | Compare baseline, control, and treatment | Explicit request or targeted/full trigger |
+| `<id>-improve` | Make evidence-backed incremental improvements | Full regression or attributed harness defect |
 
-Canonical skill은 `harness/skills/<skill-id>/SKILL.md`이며 Claude `.claude/skills`, Codex `.agents/skills`, Gemini `.gemini/skills` 투영본은 byte-identical해야 한다. 기존 `<id>-retro`는 `<id>-improve` 호환 alias로만 유지한다.
+The canonical skill is `harness/skills/<skill-id>/SKILL.md`. Claude `.claude/skills`, Codex `.agents/skills`, and Gemini `.gemini/skills` projections must be byte-identical. Keep an existing `<id>-retro` only as a compatibility alias for `<id>-improve`.

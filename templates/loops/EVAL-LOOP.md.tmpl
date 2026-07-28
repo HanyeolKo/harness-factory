@@ -1,42 +1,42 @@
-# EVAL LOOP — 작업 산출물 평가
+# EVAL LOOP — Task evaluation
 
-이 루프는 하네스 자체의 효과가 아니라 한 작업 단위의 완료 여부를 판정한다. 하네스 적용 전후 비교는 `HARNESS-EVAL-LOOP.md`가 담당한다.
+This loop judges one work unit, not the effect of the harness. `HARNESS-EVAL-LOOP.md` owns before-and-after harness comparison.
 
-## 주 evaluator
+## Primary evaluator
 
-- 유형: {{EVALUATOR_TYPE}}
-- 수단: {{EVALUATOR_PRIMARY}}
-- 실행: `{{EVALUATOR_COMMANDS}}`
-- pass 조건: {{PASS_CONDITION}}
+- Type: {{EVALUATOR_TYPE}}
+- Method: {{EVALUATOR_PRIMARY}}
+- Run: `{{EVALUATOR_COMMANDS}}`
+- Pass condition: {{PASS_CONDITION}}
 
-## 평가 레인
+## Evaluation lane
 
-| 책임 | spec 연결 |
+| Responsibility | Spec link |
 |---|---|
-| 원본 증거 생성 | evaluator `runner` |
-| pass 조건 대조·최종 verdict | evaluator `owner` |
-| 실패 키 집계 | `defect-counting` capability agent |
+| Produce raw evidence | evaluator `runner` |
+| Check the pass condition and issue the verdict | evaluator `owner` |
+| Count stable failure keys | agent with `defect-counting` capability |
 
-## 절차
+## Procedure
 
 ```text
-1. ASSIGN  unit의 scope=task evaluator와 pass condition을 확인한다.
-2. RUN     runner가 명령·cwd·exit code·원본 출력을 보존한다.
-3. JUDGE   owner가 증거와 pass condition을 대조한다. 실행자의 자기 판정으로 대체하지 않는다.
-4. RECORD  journal에 eval, evidence, verdict, evaluator version을 기록한다.
-5. COUNT   fail이면 사건당 정확히 한 번 실패 키를 갱신한다.
-6. SIGNAL  rolling 성공률·비용·재시도와 cold-start/parity 사건만 self-evaluation state에 기록한다.
+1. ASSIGN  Resolve the unit's scope=task evaluator and pass condition.
+2. RUN     The runner preserves the command, cwd, exit code, and raw output.
+3. JUDGE   The owner compares evidence with the pass condition; the executor does not self-approve.
+4. RECORD  Append evaluator version, evidence, and verdict to the journal.
+5. COUNT   On fail, update one stable failure key exactly once per incident.
+6. SIGNAL  Write only rolling success, cost, retries, and cold-start/parity incidents to self-evaluation state.
 ```
 
-반복 실패나 평가 공백은 full 평가 신호일 수 있지만 이 루프가 직접 improvement를 개시하지 않는다. task boundary checker가 범위를 결정하고, full 하네스 효과 평가가 원인을 확인한 뒤에만 개선 후보가 된다.
+Repeated failures or evaluation gaps may signal full evaluation, but this loop never starts improvement. The task-boundary checker chooses the scope; only full harness-effect evidence can establish an improvement candidate.
 
-## 루브릭
+## Rubric
 
 {{RUBRIC}}
 
-## 금지
+## Prohibited
 
-- 원본 실행 증거 없는 pass
-- 결정적 집계 대신 LLM에게 세기를 맡기는 것
-- 결과를 통과시키기 위한 evaluator 완화
-- task verdict를 하네스 효과 verdict로 재사용하는 것
+- Passing without raw execution evidence
+- Asking an LLM to replace deterministic counting
+- Weakening an evaluator to obtain a pass
+- Reusing a task verdict as a harness-effect verdict

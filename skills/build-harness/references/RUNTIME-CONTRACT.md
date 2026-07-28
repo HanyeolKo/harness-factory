@@ -1,94 +1,108 @@
 # Runtime-neutral contract
 
-정본과 운영 상태는 생성 프로젝트의 `harness/` 아래에 있다. 팩토리는 제작 도구이며 Claude, Codex, Gemini 파일은 발견·위임용 adapter다.
+The target project's `harness/` directory owns canonical meaning and operational state. Harness Factory is a construction tool; Claude, Codex, and Gemini files are discovery and delegation adapters.
 
-## 정본 계층
+## Canonical layers
 
-1. schema 1.1 `harness/harness-spec.json`이 provider, 역할, skill, DAG, evaluator, gate, limits, memory index, self-evaluation을 정의한다.
-2. `harness/team/agents/<role-id>.md`와 `harness/skills/<skill-id>/SKILL.md`가 provider-neutral 의미를 보유한다.
-3. `harness/loops/`는 task evaluation, harness effect evaluation, improvement를 분리한다.
-4. `harness/state/`, append-only `harness/ledger/`, `harness/evaluation/`은 대상 프로젝트가 소유하며 팩토리로 전송하지 않는다.
-5. `harness/memory/INDEX.md`는 지속 메모리의 경로·요약·출처·상태를 색인한다. 현재 상태와 사건은 state/ledger가 정본이다.
-6. `providers/<id>/contract.json`이 provider 투영 위치와 capability를 선언한다.
+1. Schema 1.1 `harness/harness-spec.json` defines providers, communication, limits, domains, roles, skills, DAG, evaluators, gates, memory, loops, and self-evaluation.
+2. `team/agents/<role-id>.md` and `skills/<skill-id>/SKILL.md` hold provider-neutral meaning.
+3. `loops/` separates execution, task evaluation, harness-effect evaluation, and improvement.
+4. `state/`, append-only `ledger/`, `evaluation/`, and `memory/` remain in the target project and are never sent to the factory.
+5. `providers/<id>/contract.json` declares native projection paths and capabilities.
 
-## 공통 의미
+## Language and context
 
-- ID는 lower-kebab-case이고 agent model은 `fast|balanced|deep` 추상 tier다.
-- 정상 orchestration graph는 DAG다. retry와 improvement feedback은 DAG 밖 loop 계약이다.
-- schema 1.1의 모든 `skills[].evaluator`는 존재하는 evaluator를 참조한다.
-  - entry/evaluation/verification/domain → `scope: task`; verification은 구조 validator
+- New canonical artifacts use concise English: `communication.artifact_language: en`.
+- `communication.report_language` is a language tag chosen during setup; default `en`.
+- `communication.terminology` is `technical-english|localized`; default `technical-english`.
+- `technical-english` uses `report_language` grammar but keeps stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
+- `localized` translates explanatory technical nouns when a conventional local term exists. Both modes preserve machine tokens and stored verdicts such as `pass|fail` exactly, and neither mode duplicates bilingual prose.
+- These presentation fields affect only user-facing narrative. IDs, commands, paths, evidence, JSON keys, reason/status/verdict values, and stored machine reports stay exact.
+- Do not duplicate bilingual prose in canonical files. Normalize user prose into concise English for canonical artifacts.
+- Wrap an exact non-English project name or machine token in backticks and keep its surrounding canonical prose English.
+- Existing 1.0/1.1 specs without `communication` remain valid and use the English defaults until additively configured.
+- Presentation-only report language and terminology are excluded from the harness-effect canonical hash. Artifact language and instructions remain effect-bearing.
+- `limits.max_instruction_lines`, `memory.max_document_lines`, and `memory.max_summary_chars` bound reading cost when present. Read an index first, then only relevant documents. On `none`, do not load evaluation or improvement references.
+
+## Common semantics
+
+- IDs are lower-kebab-case. Agent models use abstract `fast|balanced|deep` tiers.
+- Normal handoffs form a DAG; retries and improvement feedback live in loop contracts.
+- Every schema 1.1 skill links an evaluator:
+  - entry/evaluation/verification/domain → `scope: task`
   - harness-evaluation/improvement → `self_evaluation.evaluator`, `scope: harness`, `type: experiment`
-- 인간 승인은 evaluator가 아니라 stable ID approval gate다.
-- 의미 변경은 공통 spec을 먼저 바꾸고 선택 adapter 전체를 다시 투영한다.
+- Human approval is a stable-ID gate, not an evaluator.
+- Change the common spec and canonical file before every selected adapter.
 
-## 기존 하네스 융화
+## Existing harnesses
 
-- `harness/`가 없으면 create, 유효한 runtime-neutral spec이면 improve, 부분·레거시 구성이면 reconcile 모드다.
-- improve/reconcile은 원 validator와 evaluator 기준선, 파일 소유권, preservation manifest를 먼저 기록하고 delta plan만 적용한다.
-- 기존 ID, state, append-only ledger, evaluator, gate, root 규칙, 사용자 소유·출처 불명 파일과 지속 메모리는 승인 없는 의미 교체·삭제·이름 변경을 금지한다.
-- namespace 관리 블록과 생성 adapter만 upsert한다. 완료는 새 계약, 기존 evaluator, 전후 preservation manifest가 모두 통과해야 한다.
+Classify no harness as `create`, a valid runtime-neutral spec as `improve`, and a partial/legacy harness as `reconcile`. Before `improve|reconcile`, freeze original validator/evaluator results, ownership, and `preservation-before.json`; apply only a classified `unchanged|add|modify-proposed|conflict|approval-required` delta.
 
-## Memory index
+Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, and durable memory. Deletion, rename, semantic replacement, split, or merge needs explicit approval. Upsert only namespaced managed blocks and generated adapters. Completion requires the new contract, original evaluators, and preservation comparison to pass.
 
-- schema 1.1은 `memory.index: harness/memory/INDEX.md`, `policy: preserve-and-reconcile`, 양의 `max_document_lines`를 요구한다.
-- 필수 열은 `ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태`이고 상태는 `active|superseded|archived|empty`다.
-- active 경로는 target 안에 존재해야 하며 ID/path 중복, state/ledger 복제, line budget 초과를 결정적으로 거부한다.
-- 메모리 생성·이동·이름 변경·대체·보관과 index 갱신은 같은 transaction이다. 일반 memory 내용은 canonical full-trigger hash에서 제외하고 `verify-harness`로 검사한다. 정책·라우팅의 정본은 spec과 `HARNESS.md`이며 이 정본의 의미 변경은 canonical contract change다.
+## Memory
 
-## Provider adapter
-| Provider | root guidance | skill projection | agent projection |
+Schema 1.1 memory uses `harness/memory/INDEX.md` with `preserve-and-reconcile`. New indexes use:
+
+```text
+ID | Path | Summary | Read when | Source | Last verified | Status
+```
+
+Statuses are `active|superseded|archived|empty`. Active paths must exist inside the target. IDs and paths are unique; memory must not duplicate task state or event history. Summaries and documents obey configured budgets.
+
+Create, move, rename, supersede, archive, and index updates are one transaction. Ordinary memory content and index rows are excluded from the full-trigger hash and get deterministic verification. Memory policy and routing in the spec or `HARNESS.md` are effect-bearing canonical changes.
+
+## Provider adapters
+
+| Provider | Root guidance | Skill projection | Agent projection |
 |---|---|---|---|
 | Claude | `CLAUDE.md` managed block | `.claude/skills/<skill-id>/SKILL.md` | `.claude/agents/<namespace>-<role-id>.md` |
 | Codex | `AGENTS.md` managed block | `.agents/skills/<skill-id>/SKILL.md` | `.codex/agents/<namespace>-<role-id>.toml` |
 | Gemini | `GEMINI.md` managed block | `.gemini/skills/<skill-id>/SKILL.md` | `.gemini/agents/<namespace>-<role-id>.md` |
 
-skill projection은 canonical과 byte-identical하다. Agent wrapper는 최소 도구와 공통 역할 경로만 담는다. Gemini main orchestrator가 DAG 순서를 소유하며 subagent 간 재귀 위임을 전제하지 않는다.
+Skills are byte-identical to canonical files. Agent wrappers contain only minimal native metadata and the common role path. The Gemini main orchestrator owns DAG sequencing; Gemini subagents do not recursively delegate.
 
-## Watched artifact
+Before any provider write, require provider-path preflight. Reject absolute paths, lexical traversal, and symlink escape. On failure, do not create, write, move, or bypass the provider path.
 
-checker는 `harness/` canonical을 별도 hash한다. `self_evaluation.watched_paths`는 선택 provider의 다음 exact managed artifact만 나열한다.
+## Watched artifacts
 
-- 선택 provider의 root guidance 파일
-- spec의 각 skill에 대응하는 projection 파일
-- spec의 각 role에 대응하는 namespaced agent wrapper
-- factory가 생성·관리한 provider config
+The checker hashes effect-bearing `harness/` canonical files separately. `self_evaluation.watched_paths` lists only selected providers' exact:
 
-provider 디렉터리 전체, unrelated user skill/agent, 선택하지 않은 provider, factory 저장소는 감시하지 않는다. 이 계약은 adapter 삭제·drift를 검출하면서 무관한 사용자 변경이 full 평가를 여는 것을 막는다.
+- root guidance file;
+- projection for every spec skill;
+- namespaced wrapper for every spec role;
+- generated provider config.
 
-## 이벤트 기반 self-evaluation
+Never watch a provider directory, unrelated user skill/agent, unselected provider, or the factory repository.
 
-1. task boundary에서는 읽기 전용 `check_self_evaluation.py`만 실행한다. 출력은 compact JSON `none|targeted|full`이며 LLM 호출·state write·`improve` 반환을 금지한다.
-2. `input-invalid:*`는 평가 요청이 아니다. effect evaluation/LLM을 열지 않고 `verify-harness`·구조 복구 후 checker를 다시 실행한다.
-3. `adapter-change|parity-fail`은 parity verify pass 전 effect evaluation을 금지한다. cold-start가 false→true이면 `coldstart-fail`, parity가 pass→fail이면 `parity-fail`을 pending events에 중복 없이 추가한다.
-4. targeted는 `self_evaluation.targeted_suite`가 가리키는 `evaluation/suites/targeted.json`의 reason 매핑만 실행한다.
-   - `cost-regression` → 고정 cost metric
-   - `retry-pressure` → 고정 retry metric
-   - `deterministic-sample` → 고정 sample fixture/metric
-   모호한 임의 LLM targeted 평가는 금지한다.
-5. full은 `scope: harness`, `type: experiment` evaluator로 baseline/control/treatment를 같은 조건에서 비교한다.
-6. `minimum_samples`는 success/cost 비교에만 적용한다. `targeted_sample_rate`는 독립적인 결정적 sample 신호를 만들고 budget·cooldown은 모든 비필수 신호를 유예한다. canonical/agent/skill/evaluator/adapter 변경, cold-start/parity fail, 반복 failure는 mandatory full이다.
+## Event-driven self-evaluation
 
-## Recorder와 ACK
+1. At a task boundary, run only the read-only deterministic checker. It returns compact JSON `none|targeted|full`, never writes state, calls an LLM, or returns `improve`.
+2. `input-invalid:*` is not effect evidence. Run `verify-harness`, recover structure, and recheck without an LLM evaluator.
+3. `adapter-change|parity-fail` requires provider parity before effect evaluation. Record cold-start false→true and parity pass→fail transitions once.
+4. `targeted` runs only the declared deterministic suite mapping:
+   - `cost-regression` → fixed cost metric;
+   - `retry-pressure` → fixed retry metric;
+   - `deterministic-sample` → fixed sample fixture/metric.
+5. `full` runs the linked experiment under identical baseline/control/treatment conditions.
+6. `minimum_samples` applies to success/cost comparisons only. Sampling is independent. Budget and cooldown defer every non-mandatory signal; canonical/agent/skill/evaluator/adapter changes, cold-start/parity incidents, and repeated failures are mandatory.
 
-완료된 targeted/full 뒤에 반드시 실행한다.
+## Recorder and ACK
+
+Freeze checker JSON before evaluation, then ACK each completed targeted/full run:
 
 ```text
 python harness/triggers/record_self_evaluation.py harness --decision <targeted|full> --decision-file harness/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
 ```
 
-평가 전에 checker JSON을 `harness/evaluation/runs/<run-id>/trigger.json`에 동결한다. 명시적 full 요청은 raw checker JSON 전체를 `override.original`에 보존한다. top-level은 evaluator와 recorder가 공유하는 effective `decision: full`, `mandatory: false`이고, `override.kind: explicit-user-request`, original reasons 뒤의 marker, 동일한 deferred reasons·managed hashes·`acknowledgement`를 기록한다. raw checker full은 wrapper 없이 허용하지만 단순 decision 변조나 구조화되지 않은 budget·cooldown 우회는 거부한다. recorder는 frozen decision/reasons, managed hashes, failure snapshot이 유효한지 확인한 뒤 원자 갱신한다. ACK decision/reasons는 평가 중 바뀐 rolling-metric decision으로 대체하지 않는다.
+An explicit full request preserves raw checker JSON under `override.original` and uses the structured override shared by evaluator and recorder. Direct decision mutation or unstructured budget/cooldown bypass is invalid.
 
-- full: 처리 시작 때의 pending-event/reason과 frozen `acknowledgement` failure snapshot만 ACK하고 canonical/provider hashes, units-since-full, cooldown, last decision/verdict를 갱신한다.
-- targeted: last decision/verdict와 cooldown만 갱신하고 mandatory event를 소비하지 않는다.
-- 평가 중 들어온 새 pending event와 failure incident는 보존한다.
-- 미완료·중단·stale run은 ACK하지 않는다.
+The recorder verifies frozen decision/reasons, current managed hashes, and the acknowledgement failure snapshot. Full ACK consumes only the processed pending/reason and frozen failure snapshots, then refreshes canonical/provider hashes, units, cooldown, and verdict. Targeted ACK updates last decision/verdict and cooldown without consuming mandatory events. Preserve incidents created during evaluation. Never ACK incomplete, stale, or mismatched runs.
 
-따라서 이미 처리한 mandatory signal은 다음 checker에서 반복되지 않고, ACK 이후 새 cold-start/parity incident는 transition event로 다시 검출된다.
+## Improvement
 
-## 개선 원자성
+Open a candidate only after a full regression or attributed harness defect, or an explicit evidence-backed user request. Freeze baseline and preservation evidence; change one hypothesis and at most two components; update common spec/canonical files, selected adapters, memory index, and decision record atomically. Run structural/task verification, parity, cold-start, and the same full suite. Accept `improved` or explicitly approved `neutral`; revert `regressed|inconclusive` while retaining evidence.
 
-full 평가가 regression 또는 하네스 원인을 확인한 경우에만 improvement 후보를 만든다. 기존 하네스는 기준선·파일 소유권을 먼저 확인하고 `maintenance/runs/<change-id>/`에 preservation-before·delta-plan·preservation-after를 남긴다. 공통 spec·canonical component·선택 adapter·memory index·결정 기록을 한 transaction으로 바꾸고 `verify targeted → verify full → 동일 full suite`로 확인한다. improved 또는 명시적으로 허용한 neutral만 채택하며 state, ledger, evaluation run을 보존한다.
+## Compatibility
 
-## 호환성
-
-validator는 schema 1.0과 1.1을 읽는다. 1.0 하네스는 migration 전까지 memory index, self-evaluation 파일, skill evaluator link를 강제하지 않는다. 신규 생성은 memory와 self-evaluation을 모두 갖춘 1.1을 사용한다.
+The validator reads schema 1.0 and 1.1. Version 1.0 does not require memory, self-evaluation files, skill evaluator links, or communication. Existing 1.1 specs may omit communication and new reading-cost fields. New harnesses include memory, event-driven self-evaluation, concise-English artifacts, selectable report presentation, and explicit instruction/memory budgets.

@@ -41,7 +41,23 @@
       "required": ["max_parallelism", "max_delegation_depth"],
       "properties": {
         "max_parallelism": {"type": "integer", "minimum": 1},
-        "max_delegation_depth": {"type": "integer", "minimum": 1}
+        "max_delegation_depth": {"type": "integer", "minimum": 1},
+        "max_instruction_lines": {"type": "integer", "minimum": 1}
+      }
+    },
+    "communication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_language", "report_language", "terminology"],
+      "properties": {
+        "artifact_language": {"const": "en", "description": "Language of canonical generated prose. Fixed to concise English to minimize runtime reading cost."},
+        "report_language": {"$ref": "#/$defs/languageTag", "description": "Language tag that controls the grammar of user-facing reports only."},
+        "terminology": {"enum": ["technical-english", "localized"], "description": "technical-english uses report_language grammar but preserves stable English technical nouns; localized translates explanatory technical nouns when a conventional local term exists. Both modes preserve identifiers, commands, paths, evidence, JSON keys, reasons, status values, and verdicts exactly."}
+      },
+      "default": {
+        "artifact_language": "en",
+        "report_language": "en",
+        "terminology": "technical-english"
       }
     },
     "domains": {
@@ -156,7 +172,8 @@
       "properties": {
         "index": {"$ref": "#/$defs/relativePath"},
         "policy": {"const": "preserve-and-reconcile"},
-        "max_document_lines": {"type": "integer", "minimum": 1}
+        "max_document_lines": {"type": "integer", "minimum": 1},
+        "max_summary_chars": {"type": "integer", "minimum": 1}
       }
     },
     "loops": {
@@ -229,6 +246,10 @@
   ],
   "$defs": {
     "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "languageTag": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
     "relativePath": {
       "type": "string",
       "minLength": 1,

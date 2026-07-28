@@ -1,36 +1,36 @@
 # ENVIRONMENT — {{TARGET}}
 
-> 모든 커맨드는 복사해서 그대로 실행 가능해야 한다. 설명문으로 적지 않는다.
+> Every command must be ready to copy and run. Do not replace a command with prose.
 
-## 실행 커맨드
+## Run commands
 
-| 목적 | 커맨드 | 비고 |
+| Purpose | Command | Notes |
 |---|---|---|
-| 빌드 | `{{BUILD_COMMAND}}` | |
-| 실행 | `{{RUN_COMMAND}}` | |
+| Build | `{{BUILD_COMMAND}}` | |
+| Run | `{{RUN_COMMAND}}` | |
 
-## 검증 커맨드 (evaluator — EVAL-LOOP에서 참조)
+## Verification commands
 
-| 목적 | 커맨드 | pass 조건 |
+| Purpose | Command | Pass condition |
 |---|---|---|
-| 주 검증 | `{{EVALUATOR_COMMANDS}}` | exit 0 |
-| 정적 검사 | `{{LINT_COMMAND}}` | exit 0 |
-| self-evaluation trigger | `python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}` | exit 0, compact `none|targeted|full` JSON |
+| Primary evaluator | `{{EVALUATOR_COMMANDS}}` | exit 0 |
+| Static checks | `{{LINT_COMMAND}}` | exit 0 |
+| Self-evaluation trigger | `python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}` | exit 0; compact `none|targeted|full` JSON |
 
-## 디렉토리 맵 (대상 프로젝트)
+## Target project map
 
 ```
 {{PROJECT_TREE}}
 ```
 
-## 기존 오프로딩 자산 (재발명 금지 — 원칙 3)
+## Existing offloading assets
 
-| 자산 | 위치 | 용도 |
+| Asset | Location | Use |
 |---|---|---|
 | {{EXISTING_SCRIPTS}} | | |
 
-## 금지사항
+## Restrictions
 
 - {{FORBIDDEN}}
-<!-- 예: "main 브랜치 직접 push 금지", "prod 환경변수 파일 수정 금지" -->
-- 게이트 대상 단계({{GATES}})는 인간 승인 없이 수행 금지
+<!-- Example: "Do not push directly to main" or "Do not edit production environment files." -->
+- Never perform gated steps ({{GATES}}) without human approval.

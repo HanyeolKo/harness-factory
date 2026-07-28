@@ -1,26 +1,26 @@
 # MEMORY INDEX — {{TARGET}}
 
-이 파일은 하네스의 지속 메모리를 찾기 위한 정본 인덱스다. 메모리 본문을 먼저 훑지 말고 이 표에서 현재 작업에 필요한 항목만 선택한다.
+This is the canonical index for durable harness memory. Do not scan every memory file; select only entries needed for the current task.
 
-## 인덱스
+## Index
 
-| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |
+| ID | Path | Summary | Read when | Source | Last verified | Status |
 |---|---|---|---|---|---|---|
-| - | - | 등록된 지속 메모리 없음 | - | - | {{CREATED_DATE}} | empty |
+| - | - | No durable memory registered | - | - | {{CREATED_DATE}} | empty |
 
-상태는 `active`, `superseded`, `archived`, `empty` 중 하나를 사용한다. `active` 경로는 실제 파일이어야 하며, 동일 경로를 둘 이상의 ID로 등록하지 않는다.
+Status is one of `active`, `superseded`, `archived`, or `empty`. Every `active` path must exist, and one path must not appear under multiple IDs.
 
-## 갱신 계약
+## Update contract
 
-1. 쓰기 전 이 인덱스와 대상 경로를 검색해 중복·충돌·기존 출처를 확인한다.
-2. 메모리 생성·이동·이름 변경·대체·보관과 대응 index 행 변경은 같은 transaction에서 수행한다. 본문은 spec의 line budget 이내로 유지한다.
-3. 이동·이름 변경 시 경로와 참조를 함께 갱신한다. 이전 항목은 이력이 필요하면 `superseded`로 남기고 후속 ID를 요약에 연결한다.
-4. 삭제보다 `archived` 또는 `superseded`를 우선한다. 기존 사용자 메모리와 출처 불명 항목은 명시적 승인 없이 덮어쓰기·삭제·이름 변경하지 않는다.
-5. 세션 종료와 하네스 보완 후 `active` 경로 존재, 중복 ID·경로, 고아 문서, 마지막 검증일을 확인한다.
-6. index는 탐색 데이터다. 보존 정책·읽기 라우팅의 정본은 `harness-spec.json`과 `HARNESS.md`이며, 정본 변경은 `ledger/DECISIONS.md`와 `ledger/journal.jsonl`에 근거를 남긴다.
+1. Before writing, search this index and the target path for duplicates, conflicts, and prior sources.
+2. Create, move, rename, supersede, or archive memory in the same transaction as its index-row update. Keep each document within the spec line budget.
+3. Update paths and references together. When history matters, keep the prior entry as `superseded` and link its successor in the summary.
+4. Prefer `archived` or `superseded` to deletion. Do not overwrite, delete, or rename user-owned or unknown-source memory without explicit approval.
+5. At session end and after harness maintenance, verify active paths, duplicate IDs or paths, orphaned documents, and last-verified dates.
+6. The index is discovery data. `harness-spec.json` and `HARNESS.md` are canonical for preservation policy and read routing; record canonical changes in `ledger/DECISIONS.md` and `ledger/journal.jsonl`.
 
-## 분류 기준
+## Inclusion rules
 
-- 지속 메모리만 등재한다. 현재 진행 상태는 `state/state.json`, 실행 사건은 append-only `ledger/journal.jsonl`이 정본이다.
-- 원문 덤프 대신 요약과 출처 경로를 기록한다. 비밀·자격증명·개인정보는 메모리에 복제하지 않는다.
-- 기존 프로젝트 문서는 이동하지 않고 원래 경로를 인덱싱할 수 있다. 하네스가 소유하지 않은 파일임을 출처에 명시한다.
+- Index durable memory only. Current progress belongs in `state/state.json`; execution events belong in append-only `ledger/journal.jsonl`.
+- Store a concise summary and source path instead of a raw dump. Never copy secrets, credentials, or personal data into memory.
+- Existing project documents may remain in place. Index their original paths and identify external ownership in the source field.

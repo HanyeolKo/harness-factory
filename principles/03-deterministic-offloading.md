@@ -1,30 +1,27 @@
-# 원칙 3 — 결정적 오프로딩 규율
+# Principle 3 — Deterministic Offloading
 
-## 선언
+## Statement
 
-LLM 추론은 비싸고 비결정적이다. 스크립트와 파일은 싸고 결정적이다.
-따라서 **기계적으로 반복 가능한 모든 것은 LLM 밖으로 내린다(offload).**
-LLM은 판단이 필요한 지점에만 쓰고, 판단의 결과는 즉시 파일로 굳혀
-다음번에는 판단 없이 재사용한다.
+LLM reasoning is costly and nondeterministic; scripts and files are cheap and repeatable. Offload every mechanical operation that is likely to recur. Use an LLM for judgment, then persist the decision so later runs can reuse it without reconstructing context.
 
-## 규칙
+## Rules
 
-1. **2회 반복 = 스크립트화 후보**: 같은 성격의 조작을 두 번째 수행하는 순간, 스크립트로 내릴 수 있는지 판정한다. 세 번째 수동 수행은 규율 위반이다.
-2. **상태는 파일에 산다**: 진행 상황, 작업 큐, 중간 산출물, 조사 결과의 원본(source of truth)은 항상 파일이다. 컨텍스트 안의 기억은 캐시일 뿐이며, 파일과 다르면 파일이 옳다.
-3. **오프로드 산출물도 평가 대상**: 내려진 스크립트는 결정적 evaluator를 겸한다. 스크립트가 하는 검증을 LLM이 중복 수행하지 않는다.
-4. **결정적 경계 명시**: 각 루프 문서에는 "이 단계는 스크립트가 한다 / 이 단계는 LLM이 판단한다"의 경계를 명시한다. 경계가 불분명한 단계는 LLM이 전부 떠안게 되고, 예산이 샌다.
-5. **멱등성**: 오프로드된 스크립트는 재실행 안전(멱등)해야 한다. 회복 루프가 아무 지점에서나 재실행할 수 있어야 하기 때문이다.
+1. **The second repetition is a script candidate** — When an operation recurs, decide whether to automate it. A third manual repetition requires an explicit reason.
+2. **Files own durable state** — Queue state, progress, source evidence, research, and intermediate artifacts live in files. In-context memory is only a cache; canonical files win on disagreement.
+3. **Evaluate offloaded work** — A script must expose deterministic output and exit behavior. Do not ask an LLM to repeat checks already performed by the script.
+4. **Declare the boundary** — Every loop states which steps are deterministic and which require judgment. An ambiguous boundary leaks cost into the LLM path.
+5. **Require safe replay** — Offloaded operations used by recovery are idempotent or explicitly guarded against duplicate effects.
 
-## 오프로딩 판정표
+## Decision table
 
-| 신호 | 행동 |
+| Signal | Action |
 |---|---|
-| 같은 커맨드 조합을 반복 실행 중 | 스크립트로 묶어 `scripts/` 또는 하네스 인접 위치에 저장 |
-| 긴 목록/표를 컨텍스트로 들고 다님 | 파일로 내리고 경로만 유지 |
-| "지난번에 어떻게 했더라" 가 발생 | 절차를 하네스 문서에 굳힐 후보로 기록하고 효과 평가 후 채택 |
-| LLM이 형식 변환·집계·카운팅을 수행 중 | 즉시 스크립트로 대체 — LLM 산수는 evaluator가 될 수 없다 |
+| The same command sequence recurs | Put it in `scripts/` or beside the harness component that owns it |
+| A long list or table stays in context | Persist it and retain only its path and short routing metadata |
+| A prior procedure must be rediscovered | Record it as a candidate; adopt it only after effect evaluation when it changes the harness |
+| The LLM performs conversion, aggregation, counting, or hashing | Replace that step with deterministic code; LLM arithmetic is not an evaluator |
 
-## 구성자에게
+## Constructor requirements
 
-- 하네스 생성 시점에 대상 프로젝트의 기존 스크립트·Makefile·CI 설정을 `ENVIRONMENT.md`에 등재해서, 첫 세션부터 오프로딩 자산을 재발명하지 않게 하라.
-- 오프로딩은 규율이지 목표가 아니다. 한 번 쓰고 버릴 조작을 스크립트화하는 것은 그 자체가 예산 낭비다.
+- Inventory existing scripts, Makefiles, task runners, and CI commands in `ENVIRONMENT.md` so a cold session does not reinvent them.
+- Offloading is a discipline, not a target. Do not automate a one-off operation when the automation costs more than the saved work.
