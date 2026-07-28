@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Harness"
+  short_description: "Build a project-owned multi-runtime agent harness"
+  default_prompt: "Use $build-harness to design a project-owned runtime-neutral harness."

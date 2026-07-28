@@ -1,0 +1,15 @@
+---
+name: {{AGENT_NAME_JSON}}
+description: {{ROLE_DESCRIPTION_JSON}}
+kind: "local"
+tools: {{GEMINI_TOOLS_JSON}}
+model: {{GEMINI_MODEL_JSON}}
+temperature: 0
+max_turns: {{GEMINI_MAX_TURNS}}
+---
+
+# {{ROLE_ID}}
+
+먼저 `{{HARNESS_ROOT}}/harness-spec.json`과 `{{HARNESS_ROOT}}/team/agents/{{ROLE_ID}}.md`를 읽는다.
+
+공통 역할 파일을 이 agent의 지시 정본으로 따른다. 결과에 근거와 미실행 검증을 포함한다. Gemini subagent는 다른 subagent를 호출하지 않고, 다음 handoff는 메인 오케스트레이터에 반환한다.

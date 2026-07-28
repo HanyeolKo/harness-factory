@@ -7,19 +7,29 @@
 ```
 ## D-00N — <제목> (<날짜>)
 - 결정: <무엇을>
-- 근거: <왜 — journal 이벤트, 인터뷰 답변, 회고 안건 등 출처 명시>
+- 근거: <왜 — journal 이벤트, 인터뷰 답변, evaluation report 등 출처 명시>
 - 영향: <바뀐 파일·정책>
 ```
 
 ---
+
+> `create`에서는 아래 D-001을 렌더링한다. `improve|reconcile`에서는 기존 D-001과 모든 이력을 그대로 두고 다음 D 번호를 append한다. 기존 파일을 이 템플릿으로 덮어쓰지 않는다.
 
 ## D-001 — 하네스 초기 구성 ({{CREATED_DATE}})
 
 - 결정: harness-factory로 하네스 뼈대 생성. 설계 방향 = {{DESIGN_ORIENTATION}} (기본형과 다르면 오버라이드 근거 명시)
 - 근거: 인터뷰 결과 — {{INTERVIEW_SUMMARY}}
   <!-- Q1~Q4 답변과, 적용한 기본값 목록을 여기 남긴다 -->
-- 영향: {{HARNESS_ROOT}} 이하 전체 생성. 주 evaluator = {{EVALUATOR_PRIMARY}}, 예산 정책 = {{BUDGET_POLICY}}, 운영 모드 = {{OPERATION_MODE}}.
+- 영향: create 모드에서 {{HARNESS_ROOT}} 이하 초기 관리 파일 생성. 주 evaluator = {{EVALUATOR_PRIMARY}}, 예산 정책 = {{BUDGET_POLICY}}, 운영 모드 = {{OPERATION_MODE}}.
 - 검증·보완 루프 기록 (최대 3회):
   - 1회전: {{VERIFY_ROUND_1}} <!-- fail 항목과 보완 내용. pass면 "전 항목 pass" -->
   - 2회전: <!-- 수행 시 기록, 미수행이면 "미수행" -->
   - 3회전: <!-- 수행 시 기록. 잔여 fail은 인도 보고에도 명시 -->
+
+## improve/reconcile append 항목
+
+- 모드와 change ID
+- 원 validator/evaluator baseline
+- 파일 소유권과 `maintenance/runs/<change-id>/preservation-before.json`
+- `delta-plan.json`의 분류·충돌·승인 결과
+- `preservation-after.json` 비교와 task/harness evaluation 결과

@@ -1,0 +1,35 @@
+# EVALUATION CONTRACT — {{TARGET}}
+
+`../harness-spec.json`의 `self_evaluation`이 정책 정본이다. 하네스 효과 evaluator는 `scope: harness`, `type: experiment`이며 이를 호출하는 harness-evaluation/improvement skill의 `evaluator` 링크와 일치한다.
+
+## 저장 구조
+
+```text
+evaluation/
+├── EVALUATION-CONTRACT.md
+├── suites/
+│   └── targeted.json      # reason → 결정적 metric 목록
+├── baselines/             # 승인된 기준선과 환경 hash
+├── runs/                  # arm별 원본 출력·비용, 불변 기록
+└── reports/               # 비교 verdict와 근거 경로
+```
+
+`targeted.json`은 `cost-regression`, `retry-pressure`, `deterministic-sample` 각각의 고정 결정적 metric 목록을 정의한다. 기존 task evidence와 rolling state에서 해당 metric만 계산하며 임의 LLM targeted 평가를 추가하지 않는다.
+
+## 라우팅·상태 전이
+
+- 평가 전에 checker JSON을 `runs/<run-id>/trigger.json`에 동결하고 report가 이 파일을 참조한다.
+
+- `input-invalid:*`는 effect evaluation 입력이 아니다. `verify-harness`와 구조 복구 후 checker를 다시 실행한다.
+- `adapter-change|parity-fail`은 선택 provider parity 검증이 pass한 뒤에만 평가한다. 새 parity fail은 `pending_events`에 기록한다.
+- 완료된 targeted/full만 recorder로 ACK한다. recorder는 frozen `trigger.json`의 decision/reasons, managed hashes, `acknowledgement` failure snapshot을 확인한다.
+- full ACK는 처리한 pending event와 frozen failure snapshot만 ACK하고 canonical/provider hash, units, cooldown, reason snapshot을 원자 갱신한다. 평가 중 생긴 새 event·failure는 보존한다.
+- targeted ACK는 last decision과 cooldown만 갱신하며 mandatory event를 소비하지 않는다.
+
+## 불변조건
+
+- baseline/control/treatment의 commit, fixture, 모델/version, 권한, 도구, 예산을 같게 유지한다.
+- 작업 품질은 연결된 task evaluator로 판정하고 harness evaluator가 결과를 비교한다.
+- 측정 오버헤드는 운영 비용과 분리하고 treatment 주입 비용은 treatment에 포함한다.
+- 부분 실행과 판정 불가는 개선으로 처리하지 않는다.
+- evaluate 단계와 recorder는 공통 spec이나 adapter 의미를 수정하지 않는다.

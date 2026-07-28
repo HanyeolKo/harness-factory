@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "current_unit": null,
+  "units_since_full": 0,
+  "last_full_at": null,
+  "cooldown_remaining_units": 0,
+  "pending_events": ["canonical-contract-change"],
+  "baseline": {
+    "success_rate": null,
+    "cost_per_unit": null
+  },
+  "recent": {
+    "samples": 0,
+    "success_rate": null,
+    "cost_per_unit": null
+  },
+  "rolling": {
+    "window_units": 10,
+    "passed": 0,
+    "failed": 0,
+    "retries": 0,
+    "operation_cost": 0,
+    "evaluation_cost": 0
+  },
+  "hashes": {
+    "canonical": "",
+    "adapters": ""
+  },
+  "acknowledged": {
+    "coldstart_fail": false,
+    "fail_counts": {}
+  },
+  "last_decision": {
+    "decision": "none",
+    "reasons": [],
+    "verdict": null
+  }
+}

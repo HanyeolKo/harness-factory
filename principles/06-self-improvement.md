@@ -1,29 +1,66 @@
-# 원칙 6 — 점진적 자기 보완
+# 원칙 6 — 증거 기반 점진 개선
 
 ## 선언
 
-팩토리가 생성하는 것은 완성품이 아니라 **스스로를 개정하며 성장하는 기초 틀**이다.
-평가 루프의 실패 판정과 회복 루프의 이벤트가 누적되면, 그것은 개별 작업의 문제가 아니라
-하네스 자체의 결함 신호다. 보완 루프는 그 신호를 받아 하네스를 개정한다.
+팩토리는 프로젝트가 소유하는 틀을 만들고 수정합니다. 생성 하네스는 대상 프로젝트 안의 evidence로 성장하며 factory가 여러 프로젝트의 state를 중앙에 흡수하지 않습니다.
+
+자기검증에서 항상 실행해도 되는 것은 결정적 checker뿐입니다. effect evaluator와 개선 에이전트는 유효한 신호와 검증된 입력에서만 로드합니다.
 
 ## 규칙
 
-1. **트리거는 수치, 검사는 매 태스크 경계**: 발동 조건 기본값 — (a) 같은 실패 키 3회 누적, (b) 작업 단위 N개 완료마다 정기 회고 (기본 N=10), (c) 콜드스타트 fail (새 세션이 시작 프로토콜의 3문항에 답하지 못한 경우 포함). 트리거 검사는 메인 루프가 **매 태스크(작업 단위) 착수 전** state.json 결정적 조회로 수행한다 — 검사에 에이전트나 추론을 쓰지 않는다.
-1-1. **회고는 별개 에이전트, 쓰기는 메인만**: 트리거 발동 시 회고(분석·안건 제안)는 메인 컨텍스트와 별개의 에이전트에 맡겨 제안서(`ledger/retro-<N>.md`)로 받는다 — 메인 루프는 차단되지 않는다. 개정 적용·검증·리셋은 메인 루프만 수행한다 (하네스 문서·state.json의 쓰기 주체는 항상 1개). 에이전트 불가 환경은 인라인 폴백.
-2. **개정은 결정 기록과 함께**: 하네스 문서의 모든 개정은 `DECISIONS.md`에 "무엇을, 왜, 어떤 이벤트를 근거로" 바꿨는지 남긴다. 근거 없는 개정은 되돌릴 기준도 없다.
-3. **한 번에 하나**: 회고 1회에 개정 1~2건으로 제한한다. 대규모 동시 개정은 어떤 변경이 효과였는지 평가할 수 없게 만든다 (평가 1급 원칙의 적용 대상은 하네스 자신도 포함된다).
-4. **개정 후 콜드스타트 재검증**: 하네스 문서를 고쳤으면 원칙 5의 콜드스타트 테스트를 다시 통과해야 개정 완료다.
-5. **팩토리로의 환류 (선택)**: 여러 프로젝트에서 반복 확인된 개선은 이 팩토리 레포의 템플릿·원칙에 반영할 후보다. 하네스의 `IMPROVE-LOOP.md`에 환류 후보 섹션을 두고 표기해 둔다.
+1. **작업과 하네스를 분리한다** — task evaluator는 산출물 완료, harness experiment는 하네스 효과를 판정한다.
+2. **모든 skill에 evaluator를 연결한다** — schema 1.1 entry/evaluation/verification/domain은 task, harness-evaluation/improvement는 harness experiment를 참조한다.
+3. **checker는 읽기 전용이다** — `none|targeted|full`만 반환하고 LLM 호출·state write·improve 지시를 하지 않는다.
+4. **손상 입력은 평가하지 않는다** — `input-invalid:*`는 verify/structural recovery 후 recheck한다. effect evaluation과 LLM을 열지 않는다.
+5. **adapter 문제는 verify-first다** — `adapter-change|parity-fail`은 parity pass 전 effect evaluation을 금지한다.
+6. **targeted 범위를 고정한다** — `cost-regression|retry-pressure|deterministic-sample`은 `evaluation/suites/targeted.json`의 결정적 metric으로만 평가한다.
+7. **managed artifact만 감시한다** — canonical과 선택 provider의 exact root guidance, spec skill projection, namespaced wrapper, 생성 config를 hash한다. unrelated user 파일은 제외한다.
+8. **incident 전환을 기록한다** — cold-start false→true와 parity pass→fail은 pending event를 추가한다.
+9. **완료 평가는 ACK한다** — targeted/full 뒤 recorder를 호출해 같은 mandatory 신호 반복을 막는다.
+10. **평가는 같은 조건의 실험이다** — full은 동일 evaluator로 baseline/control/treatment를 비교한다.
+11. **개선은 귀속 evidence 뒤에만 한다** — full regression 또는 하네스 원인 확인 뒤 1~2개를 바꾼다.
+12. **수용 기준을 고정한다** — improved 또는 사전 허용 neutral만 수용하고 evaluator 완화·gate 우회·evidence 삭제를 금지한다.
 
-## 회고 표준 절차 (IMPROVE-LOOP 기본형)
+## Trigger 라우팅
 
-1. **직전 개정의 효과부터 확인한다**: 직전 회고가 겨냥한 실패 키(state.json `last_retro_targets`)가 재발했는지 검사. 재발이면 그 개정은 효과 없음 — 같은 접근을 반복하지 말고 다른 접근을 안건으로 올린다. 결과를 DECISIONS.md에 추기.
-2. `journal.jsonl`에서 직전 회고 이후의 fail·recovery 항목을 추출한다 (스크립트로 — 원칙 3).
-3. 패턴을 분류한다: 반복 실패 키 / R→S 승격 빈발 / 예산 초과 지점 / 오프로딩 후보 / 문서 결손.
-4. 개정 안건을 1~2건 선정하고 예상 효과와 겨냥하는 실패 키를 적는다.
-5. 개정 → `DECISIONS.md` 기록 → 콜드스타트 재검증 → 리셋: **겨냥한 키의 카운터만 0으로**(효과를 0부터 재계상하기 위해), 겨냥하지 않은 키는 유지. `last_retro_targets`·정기 회고 카운터·coldstart_fail을 갱신한다.
+```text
+checker
+├─ input-invalid:* ─────→ verify + structural recovery → recheck
+├─ adapter/parity ──────→ parity verify → recheck/pass
+├─ none ────────────────→ stop
+├─ targeted ────────────→ fixed deterministic suite → recorder ACK
+└─ full ────────────────→ harness experiment → recorder ACK
+                                      └─ attributed regression → improve
+```
 
-## 구성자에게
+mandatory는 canonical/agent/skill/evaluator/adapter change, cold-start/parity incident, 반복 failure입니다. `minimum_samples`는 success/cost 비교에만 적용하고, `targeted_sample_rate`는 독립적인 결정적 sample 신호를 만듭니다. budget·cooldown만 모든 비필수 cost/retry/sample/interval 신호를 유예합니다.
 
-- 보완 루프는 생성 시점에 가장 비어 보이는 축이지만, 생략하면 하네스는 생성일의 품질에서 성장하지 않는다. 트리거 수치만이라도 반드시 확정해서 심어라.
-- 사용자가 하네스 운영 주체(본인 상주 / 무인)를 어떻게 답했는지에 따라 회고 주기 N을 조절하라. 무인일수록 짧게.
+## ACK 상태 전이
+
+완료 run마다 실행합니다.
+
+```text
+python harness/triggers/record_self_evaluation.py harness --decision <targeted|full> --decision-file harness/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
+```
+
+평가 전에 checker JSON을 `harness/evaluation/runs/<run-id>/trigger.json`에 동결합니다. recorder는 frozen decision/reasons, current managed hashes, `acknowledgement` failure snapshot을 검증합니다. ACK decision/reasons는 frozen file을 사용하며 변화한 rolling-metric decision으로 대체하지 않습니다.
+
+- full은 처리 시작 pending snapshot과 frozen failure snapshot만 ACK하고 managed hashes, units, cooldown, last verdict를 갱신합니다.
+- targeted는 last decision/verdict와 cooldown만 갱신하며 mandatory event를 소비하지 않습니다.
+- 평가 중 생긴 새 event·failure는 보존합니다.
+- 미완료·stale run은 ACK하지 않습니다.
+
+이 때문에 처리한 mandatory signal은 반복되지 않고 ACK 뒤 새 incident는 transition event로 다시 검출됩니다.
+
+## 표준 개선 절차
+
+1. 완료·ACK된 full report와 하네스 귀속 확인
+2. 변경 1~2개와 rollback 조건 선택
+3. spec·canonical component 선변경
+4. 선택 provider exact managed artifact 전체 재투영
+5. structural/task evaluator와 cold-start 실행
+6. parity pass 뒤 동일 full experiment 실행
+7. recorder ACK
+8. 수용 또는 rollback 후 DECISIONS와 journal에 append
+
+사용자 비용 민감도에 따라 sampling, interval, cooldown, budget을 조정하되 mandatory 사건은 숨기지 않습니다. 기존 하네스는 factory로 가져오지 않고 그 프로젝트 안에서 원자적으로 개선합니다.

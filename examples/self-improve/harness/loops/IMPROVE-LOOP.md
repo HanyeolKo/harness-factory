@@ -1,44 +1,34 @@
-# IMPROVE LOOP — 보완 루프 (하네스 자기 개정)
+# IMPROVE LOOP — 증거 기반 점진 개선
 
-이 하네스는 완성품이 아니라 스스로를 개정하며 성장하는 틀이다 (원칙 6).
+이 하네스는 대상 프로젝트가 소유한다. 팩토리는 상태를 흡수하지 않으며, 개선도 프로젝트 안에서 작은 변경으로 수행한다.
 
-## 트리거 (수치 — state.json의 `improve` 카운터로 추적)
+## 진입 조건
 
-| 트리거 | 조건 |
-|---|---|
-| 반복 실패 | 같은 실패 키(`분류:하위유형`) 3회 누적 (회복 성공 건 포함 계상) |
-| 정기 회고 | 작업 단위 10개 완료마다 |
-| 가독성 붕괴 | 콜드스타트 fail 즉시 (`coldstart_fail = true`) |
+다음 조건을 모두 만족해야 한다.
 
-## 실행 방식 — 검사는 결정적으로, 회고는 별개 에이전트로 (기본값)
+1. `full` harness effect evaluation이 완료됐다.
+2. verdict가 `regressed`이거나 원본 증거가 하네스 결함을 가리킨다.
+3. task 실패, 환경 실패, 모델 변동만으로 설명되지 않는다.
+4. 변경 전 baseline과 재평가 suite가 고정돼 있다.
 
-- **트리거 검사**: 메인 루프가 매 태스크 경계(EXECUTION-LOOP RETRO-CHECK)에서 state.json 조회로 수행. 에이전트 불사용.
-- **회고 수행 (1~4단계)**: 발동 시 별개 에이전트 생성. 입력: journal.jsonl·state.json·하네스 문서 (읽기 전용).
-  산출: 제안서 `ledger/retro-<N>.md` — 안건 1~2건, 근거 journal 라인, 겨냥 실패 키, 예상 효과.
-- **개정 적용 (5~7단계)**: 메인 루프만 수행 — 쓰기 주체는 항상 메인 1개.
-- **폴백**: 에이전트 불가 환경은 메인이 인라인 수행 (다음 단위 착수 전).
+정기 주기, targeted 결과, 단일 task fail만으로는 진입하지 않는다.
 
-## 회고 절차
+## 절차
 
-```
-[1~4: 회고 에이전트 (또는 인라인 폴백)]
-1. AUDIT    직전 개정 효과 확인: `improve.last_retro_targets`의 키가 리셋 후 재계상됐는지 검사 (스크립트로).
-            재발이면 그 개정은 효과 없음 — 같은 접근 반복 금지, 다른 접근을 안건 후보로.
-2. EXTRACT  journal.jsonl에서 직전 회고 이후의 fail·recovery·feedback 항목 추출 (스크립트로).
-3. CLASSIFY 패턴 분류: 반복 실패 키 / R→S 승격 빈발 / 예산 초과 지점 / 오프로딩 후보 / 문서 결손.
-4. SELECT   개정 안건 1~2건만 선정 → 제안서 ledger/retro-<N>.md 산출 (AUDIT 결과 포함).
-
-[5~7: 메인 루프 — 유일한 쓰기 주체]
-5. AMEND    제안서 검토 후 하네스 문서 개정 → DECISIONS.md에 근거와 AUDIT 결과를 기록.
-6. VERIFY   콜드스타트 테스트 재통과 (principles/05 절차). fail이면 개정 미완.
-7. RESET    겨냥한 키의 fail_counts만 0으로, 나머지 유지. units_since_retro = 0,
-            coldstart_fail = false, last_retro_targets = 이번 겨냥 키.
+```text
+1. ATTRIBUTE  실패가 agent·skill·evaluator·adapter·orchestration 중 어디서 생겼는지 증거로 한정한다.
+2. PROPOSE    서로 독립적인 변경 1~2개만 선택하고 예상 효과·회귀 위험을 기록한다.
+3. AMEND      프로젝트의 canonical 계약을 먼저 수정하고 runtime adapter를 동기화한다.
+4. VERIFY     schema·참조·DAG·권한·adapter parity·coldstart를 결정적으로 검증한다.
+5. RE-RUN     같은 full suite와 조건으로 baseline/control/treatment를 다시 비교한다.
+6. DECIDE     improved면 채택한다. 정책상 허용된 neutral만 명시적 근거와 함께 채택한다.
+              regressed 또는 inconclusive면 변경을 채택하지 않고 증거를 보존한다.
+7. RECORD     변경, verdict, 원본 evidence 경로, 다음 관찰 조건을 프로젝트 ledger에 기록한다.
 ```
 
-## 팩토리 환류 후보
+## 불변조건
 
-이 하네스의 대상이 팩토리 자체이므로, 여기서 확인된 개선은 곧바로 팩토리 개정 안건이다 (환류 단계 생략).
-
-| 날짜 | 개선 내용 | 근거 결정 |
-|---|---|---|
-| | | |
+- evaluator와 pass 조건을 변경해 성능 향상처럼 보이게 하지 않는다.
+- 여러 원인을 한 번에 바꾸지 않는다.
+- improvement 수행 여부를 checker가 직접 결정하지 않는다.
+- 프로젝트 밖 팩토리 저장소로 상태·로그·결과를 자동 환류하지 않는다.

@@ -1,7 +1,7 @@
 {
   "name": "harness-factory",
-  "version": "0.1.0",
-  "description": "Build a project-specific, runtime-neutral agent-team harness and render native Claude and Codex adapters.",
+  "version": "0.2.0",
+  "description": "Build and incrementally improve project-owned agent harnesses for Claude, Codex, and Gemini.",
   "author": {
     "name": "HanyeolKo",
     "url": "https://github.com/HanyeolKo"
@@ -12,7 +12,9 @@
     "agent-team",
     "claude-code",
     "codex",
+    "gemini",
     "evaluation",
+    "self-improvement",
     "harness"
   ]
 }
