@@ -1,17 +1,17 @@
 # COMPONENT MUTATION PROTOCOL — {{TARGET}}
 
-생성된 하네스의 점진 개선은 이 프로젝트 안에서 수행한다. 팩토리는 state, ledger, evaluation run을 가져가지 않는다.
+Improve a generated harness incrementally inside its project. The factory never takes its state, ledger, or evaluation runs.
 
-## 공통 transaction
+## Common transaction
 
-1. 현재 spec hash, 선택 provider, 원 validator/evaluator baseline, 파일 소유권을 고정하고 `maintenance/runs/<change-id>/preservation-before.json`을 만든다.
-2. agent, skill, evaluator 중 한 component ID만 후보로 삼고 `delta-plan.json`에 `unchanged|add|modify-proposed|conflict|approval-required`로 분류한다.
-3. 공통 `harness-spec.json`과 canonical file을 먼저 갱신한다.
-4. 선택된 모든 provider adapter를 같은 후보에서 투영한다.
-5. 영향 범위 구조 검증과 full parity를 통과시킨다.
-6. 관련 task evaluator와 동결된 harness evaluation suite로 효과를 확인한다.
-7. `preservation-after.json`을 만들고 before와 비교한다. 개선된 후보만 승격하고 실패 후보는 rejected evidence로 보존한다.
+1. Freeze the current spec hash, selected providers, original validator/evaluator baseline, and file ownership in `maintenance/runs/<change-id>/preservation-before.json`.
+2. Select one agent, skill, or evaluator component ID. Classify its delta as `unchanged|add|modify-proposed|conflict|approval-required` in `delta-plan.json`.
+3. Update the common `harness-spec.json` and canonical file first.
+4. Project the same candidate to every selected provider adapter.
+5. Pass affected structural checks and full parity.
+6. Measure the result with the related task evaluator and frozen harness-evaluation suite.
+7. Write `preservation-after.json` and compare it with the before manifest. Promote only an improved candidate; preserve a failed candidate as rejected evidence.
 
-## 보존 대상
+## Preserve
 
-`state/`, append-only `ledger/`, `evaluation/runs/`, 기존 evaluator·gate·사용자 규칙·memory·출처 불명 파일, root managed block 밖 사용자 내용, unrelated provider 설정은 덮어쓰지 않는다. 삭제·rename·의미 교체·split·merge는 `approval-required`이며 명시 승인 없이는 수행하지 않는다.
+Do not overwrite `state/`, append-only `ledger/`, `evaluation/runs/`, existing evaluators or gates, user rules, memory, unknown-source files, user content outside root managed blocks, or unrelated provider settings. Deletion, rename, semantic replacement, split, or merge is `approval-required` and must not proceed without explicit approval.

@@ -9,23 +9,23 @@ access: {{ROLE_ACCESS}}
 
 {{ROLE_DESCRIPTION}}
 
-## 범위
+## Scope
 
-- 담당 도메인: {{ROLE_DOMAINS}}
-- 역량: {{ROLE_CAPABILITIES}}
-- 읽기 범위: {{ROLE_READ_SCOPE}}
-- 쓰기 범위: {{ROLE_WRITE_SCOPE}}
+- Domains: {{ROLE_DOMAINS}}
+- Capabilities: {{ROLE_CAPABILITIES}}
+- Read scope: {{ROLE_READ_SCOPE}}
+- Write scope: {{ROLE_WRITE_SCOPE}}
 
-## 입력 계약
+## Input contract
 
 {{ROLE_INPUT_CONTRACT}}
 
-## 출력 계약
+## Output contract
 
 {{ROLE_OUTPUT_CONTRACT}}
 
-## 수행 규칙
+## Rules
 
 {{ROLE_INSTRUCTIONS}}
 
-결과에는 확인한 근거, 수행하지 못한 검증, 다음 handoff 대상을 포함한다. 권한 범위 밖 변경과 인간 승인 게이트는 직접 통과하지 않는다.
+Return verified evidence, any checks not run, and the next handoff. Do not change anything outside the declared access scope or cross a human approval gate.

@@ -1,170 +1,203 @@
-# CHECKLIST — schema 1.1 인도 전 검증
+# CHECKLIST — Schema 1.1 Delivery
 
-전 항목 pass가 원칙입니다. 최대 3회 보완 후에도 fail이 남으면 숨기지 말고 잔여 항목과 사유를 인도 보고에 명시합니다.
+Every applicable item should pass. Make at most three correction rounds. If a failure remains, disclose the item, evidence, and reason in the delivery report.
 
-## 0. 소유권과 보존
+## 0. Ownership and preservation
 
-- [ ] 하네스 정본, state, ledger, evaluation report가 대상 프로젝트 안에 있다.
-- [ ] factory 저장소나 plugin package에 프로젝트별 state/evidence를 복사하지 않았다.
-- [ ] 기존 queue, `next_action`, state counter, append-only journal을 보존했다.
-- [ ] `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` 관리 블록 밖 사용자 내용을 보존했다.
-- [ ] 현재 상태를 `create|improve|reconcile`로 분류하고 변경 전 baseline·파일 소유권·preservation manifest를 기록했다.
-- [ ] 변경안을 `unchanged|add|modify-proposed|conflict|approval-required`로 분류하고 `maintenance/runs/<change-id>/`에 보존했다.
-- [ ] 승인 없는 삭제·이름 변경·의미 대체·사용자 memory 덮어쓰기가 없다.
-- [ ] 원자적 변경이면 전체 하네스를 재초기화하지 않고 가장 작은 build 스킬을 사용했다.
+- [ ] Canonical harness files, state, append-only ledger, memory, evaluation evidence, and reports remain in the target project.
+- [ ] No project-specific state or evidence was copied into the factory repository or plugin package.
+- [ ] Existing queue, `next_action`, counters, journal, and evaluation runs were preserved.
+- [ ] User content outside managed blocks in `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` was preserved.
+- [ ] The target was classified as `create|improve|reconcile`; baseline, file ownership, and preservation manifest were recorded first.
+- [ ] The delta uses `unchanged|add|modify-proposed|conflict|approval-required` and is stored under `maintenance/runs/<change-id>/`.
+- [ ] No unapproved delete, rename, move, split, merge, semantic replacement, translation, or overwrite of user-owned memory occurred.
+- [ ] An atomic request used the smallest build skill rather than reinitializing the full harness.
 
-## 1. 공통 구조
+## 1. Common contract
 
-- [ ] `harness/harness-spec.json`의 `schema_version`이 `1.1`이다.
-- [ ] spec이 중첩 required/unsupported key, ID 유일성, 상대경로, 참조 무결성, DAG, limits 계약을 통과한다.
-- [ ] domain마다 경로와 coordinator가 있고 agent·skill·evaluator 참조가 모두 존재한다.
-- [ ] 모든 `skills[].evaluator`가 kind 계약과 일치한다: entry/evaluation/verification/domain→task, harness-evaluation/improvement→harness experiment.
-- [ ] capability 합집합에 routing, execution, verification, verdict, defect-counting, improvement가 있다.
-- [ ] spec agent마다 `harness/team/agents/<role-id>.md`가 있다.
-- [ ] spec skill마다 `harness/skills/<skill-id>/SKILL.md`가 있다.
-- [ ] execution, task evaluation, harness evaluation, improvement loop가 구분된다.
-- [ ] `harness/evaluation/EVALUATION-CONTRACT.md`가 있다.
-- [ ] `harness/triggers/check_self_evaluation.py`와 `record_self_evaluation.py`가 있다.
-- [ ] `harness/evaluation/suites/targeted.json`이 세 targeted reason을 결정적 metric에 매핑한다.
-- [ ] `harness/state/state.json`과 `harness/state/self-evaluation.json`이 있다.
-- [ ] `memory.index`가 `harness/memory/INDEX.md`를 가리키고 정책이 `preserve-and-reconcile`이다.
-- [ ] memory index가 7열, 허용 상태, active 경로, ID·경로 중복, 고아 문서, line budget 검사를 통과한다.
-- [ ] 진행 상태와 사건을 memory에 복제하지 않고 각각 state와 append-only journal에 둔다.
-- [ ] recovery, budget, ledger 파일과 최초 journal event가 있다.
-- [ ] 미치환 `{{...}}` placeholder와 세션 의존 표현이 없다.
-- [ ] 템플릿 source/ref/commit과 초기 결정이 D-001에 기록됐다.
+- [ ] `harness/harness-spec.json` uses `schema_version: 1.1` for a new harness.
+- [ ] The spec passes nested required/unsupported-key checks, unique IDs, safe relative paths, references, DAG, and limits.
+- [ ] Every domain has a path and coordinator; all agent, skill, evaluator, and gate references resolve.
+- [ ] The capability union includes `routing`, `execution`, `verification`, `verdict`, `defect-counting`, and `improvement`.
+- [ ] Every agent has `harness/team/agents/<role-id>.md` and every skill has `harness/skills/<skill-id>/SKILL.md`.
+- [ ] Execution, task evaluation, harness evaluation, recovery, and improvement loops are distinct.
+- [ ] `harness/evaluation/EVALUATION-CONTRACT.md`, both trigger scripts, the targeted suite, state files, recovery files, budget files, ledger files, and the initial journal event exist.
+- [ ] Every `skills[].evaluator` follows the kind contract: `entry|evaluation|verification|domain` → task; `harness-evaluation|improvement` → harness experiment.
+- [ ] `evaluation/suites/targeted.json` maps exactly `cost-regression|retry-pressure|deterministic-sample` to deterministic metrics.
+- [ ] No unresolved `{{...}}` placeholder or construction-session reference remains.
+- [ ] Factory source path or repository/ref/commit and initial decisions are recorded in D-001.
 
-## 2. 일곱 factory 스킬
+### Communication
 
-- [ ] `build-harness`가 전체 bootstrap과 schema 1.1 baseline을 만든다.
-- [ ] `build-agent`가 canonical agent와 provider wrapper를 원자적으로 변경한다.
-- [ ] `build-skill`이 canonical SKILL과 provider별 byte-identical copy를 만든다.
-- [ ] `build-evaluator`가 `task|harness` scope를 명시한다.
-- [ ] `verify-harness`가 구조만 결정적으로 검사하고 개선을 자동 수행하지 않는다.
-- [ ] `evaluate-harness`가 checker의 `none|targeted|full`을 따른다.
-- [ ] `improve-harness`가 completed full 귀속 근거 또는 명시적 evidence-backed 사용자 요청 없이는 시작하지 않는다.
-- [ ] 각 build 스킬이 알맞은 mandatory change event를 기록한다.
+- [ ] A new harness includes `communication.artifact_language: en`.
+- [ ] A new harness includes a valid BCP-47-style `communication.report_language`; the default is `en`.
+- [ ] `communication.terminology` is `technical-english|localized`; the default is `technical-english`.
+- [ ] `technical-english` uses report-language grammar while retaining stable English technical nouns.
+- [ ] `localized` uses conventional local explanatory nouns without duplicating bilingual prose.
+- [ ] Existing schema 1.0/1.1 without `communication` remains valid and uses English defaults until additively configured.
+- [ ] Canonical skills, roles, memory, loops, and machine-readable prose use concise English with no bilingual duplicate.
+- [ ] Existing user-owned content was not auto-translated.
+- [ ] User-facing narrative follows report settings, while IDs, paths, commands, evidence, JSON keys, status values, trigger reasons, and verdicts remain exact.
+- [ ] `communication.report_language` and `communication.terminology` are excluded from the harness-effect canonical hash.
+- [ ] Artifact language and effect-bearing instruction changes remain included in the canonical hash.
 
-## 3. Provider adapter
+### Reading budgets and memory
+
+- [ ] A new harness sets `limits.max_instruction_lines: 120`.
+- [ ] Canonical skill files fit that limit or carry `<!-- instruction-budget exception: ... -->` with a valid reason.
+- [ ] `memory.index` is `harness/memory/INDEX.md` and `memory.policy` is `preserve-and-reconcile`.
+- [ ] A new harness sets `memory.max_document_lines: 80` and `memory.max_summary_chars: 160`.
+- [ ] Older specs may omit the new reading fields without invalidation or automatic rewrite.
+- [ ] The memory index uses seven English columns, valid statuses, existing active paths, unique IDs and paths, and summaries within budget.
+- [ ] Memory files fit the line limit or carry `<!-- reading-budget exception: ... -->` with a valid reason recorded in the index.
+- [ ] State and event history are not duplicated in memory; their sources remain `state/state.json` and `ledger/journal.jsonl`.
+- [ ] Create, move, supersede, archive, and index changes were atomic; no orphan active entry remains.
+- [ ] `HARNESS.md` provides an ordered, bounded read route and progressive disclosure loads only relevant references.
+
+## 2. Seven factory skills
+
+- [ ] `build-harness` creates or reconciles the complete schema 1.1 baseline without centralizing project state.
+- [ ] `build-agent` changes the canonical role, team projection, and every selected provider wrapper atomically.
+- [ ] `build-skill` creates a concise English canonical skill and byte-identical selected-provider copies.
+- [ ] `build-evaluator` records `scope: task|harness`, evidence runner, verdict owner, and pass conditions.
+- [ ] `verify-harness` is deterministic and does not improve the harness automatically.
+- [ ] `evaluate-harness` follows only a valid `none|targeted|full` decision or structured user override.
+- [ ] `improve-harness` requires completed full attribution or an explicit evidence-backed user request.
+- [ ] Each build skill records the correct mandatory event only when an effect-bearing component changed.
+- [ ] A report-language or terminology-only change creates no harness-effect event.
+
+## 3. Provider adapters
 
 ### Claude
 
-- [ ] 선택 시 `.claude/skills/<skill-id>/SKILL.md`가 canonical과 byte-identical하다.
-- [ ] `.claude/agents/<namespace>-<role-id>.md`의 이름, 설명, 권한이 spec과 일치한다.
-- [ ] read-only agent가 쓰기·shell 도구를 허용하지 않는다.
-- [ ] `CLAUDE.md` managed block이 정확히 하나다.
+- [ ] `.claude/skills/<skill-id>/SKILL.md` is byte-identical to its canonical skill.
+- [ ] `.claude/agents/<namespace>-<role-id>.md` matches spec name, role, access, and meaning.
+- [ ] A `read-only` agent has no write or shell capability.
+- [ ] `CLAUDE.md` contains exactly one namespaced managed block.
 
 ### Codex
 
-- [ ] 선택 시 `.agents/skills/<skill-id>/SKILL.md`가 canonical과 byte-identical하다.
-- [ ] `.codex/agents/<namespace>-<role-id>.toml`이 파싱되고 name/description/instructions가 spec과 일치한다.
-- [ ] `.codex/config.toml` limits가 spec 이상이며 unrelated 설정을 보존한다.
-- [ ] `AGENTS.md` managed block이 정확히 하나다.
+- [ ] `.agents/skills/<skill-id>/SKILL.md` is byte-identical to its canonical skill.
+- [ ] `.codex/agents/<namespace>-<role-id>.toml` parses and matches spec name, description, and instructions.
+- [ ] `.codex/config.toml` limits meet the spec and unrelated settings are preserved.
+- [ ] `AGENTS.md` contains exactly one namespaced managed block.
 
 ### Gemini
 
-- [ ] 선택 시 `.gemini/skills/<skill-id>/SKILL.md`가 canonical과 byte-identical하다.
-- [ ] `.gemini/agents/<namespace>-<role-id>.md`가 파싱되고 역할·권한 의미가 spec과 일치한다.
-- [ ] entry/main orchestrator가 DAG sequencing을 소유한다.
-- [ ] `GEMINI.md` managed block이 정확히 하나다.
+- [ ] `.gemini/skills/<skill-id>/SKILL.md` is byte-identical to its canonical skill.
+- [ ] `.gemini/agents/<namespace>-<role-id>.md` parses and preserves role and access meaning.
+- [ ] The entry or main orchestrator owns DAG sequencing; wrappers do not call another subagent.
+- [ ] `GEMINI.md` contains exactly one namespaced managed block.
 
-### Parity
+### Parity and watched scope
 
-- [ ] 선택된 모든 provider의 agent/skill/evaluator/gate ID 집합과 handoff 의미가 같다.
-- [ ] adapter는 thin wrapper이며 공통 역할 의미를 별도 정본으로 복제하지 않는다.
-- [ ] `watched_paths`가 선택 provider의 exact root guidance, spec skill projection, namespaced agent wrapper, 생성 config만 포함한다.
-- [ ] unrelated user skill/agent와 선택하지 않은 provider 변경은 watched hash를 바꾸지 않는다.
-- [ ] 한 provider만 변경된 상태가 없다.
+- [ ] Every selected provider exposes equivalent agent, skill, evaluator, gate, and handoff meaning.
+- [ ] Adapters are thin wrappers and do not become another canonical source.
+- [ ] `watched_paths` contains only exact selected-provider root guidance, spec skill projections, namespaced agent wrappers, and generated config.
+- [ ] Unrelated user files and unselected providers do not change watched hashes.
+- [ ] No selected provider remains partially projected or semantically stale.
 
 ## 4. Task evaluation
 
-- [ ] 모든 실행 unit에 task evaluator가 있다.
-- [ ] evaluator runner가 원본 evidence를 만들고 verdict owner가 pass condition과 대조한다.
-- [ ] evaluator command 또는 rubric을 실제로 1회 실행했다.
-- [ ] evidence와 journal event 없는 pass가 없다.
-- [ ] fail 사건을 중복 계상하지 않는다.
-- [ ] 인간 승인은 gate이며 task evaluator를 대체하지 않는다.
+- [ ] Every executable unit has a task evaluator.
+- [ ] An evidence runner creates raw evidence and a verdict owner compares it with the stored pass condition.
+- [ ] Every evaluator command or rubric was run at least once where applicable.
+- [ ] No pass exists without raw evidence and a journal event.
+- [ ] One failure incident is not counted twice.
+- [ ] An unavailable evaluator is `fail|blocked`, never pass.
+- [ ] Human approval is a gate and does not replace task evaluation.
 
 ## 5. Harness-effect evaluation
 
-- [ ] task evaluator와 별도 `scope: harness`, `type: experiment` evaluator가 있다.
-- [ ] baseline/control/treatment가 같은 evaluator와 지표를 사용한다.
-- [ ] verdict가 `improved|neutral|regressed|inconclusive` 중 하나다.
-- [ ] checker의 `minimum_samples`는 success/cost 회귀 비교에만 적용하며 retry·deterministic sample 신호를 막지 않는다.
-- [ ] full experiment 자체의 표본이 부족하면 `inconclusive`로 처리한다.
-- [ ] task 실패를 자동으로 하네스 결함에 귀속하지 않는다.
-- [ ] task pass를 자동으로 하네스 improved로 처리하지 않는다.
-- [ ] 평가 기준을 완화해 treatment를 통과시키지 않는다.
+- [ ] A separate evaluator has `scope: harness` and `type: experiment`.
+- [ ] Baseline, control, and treatment use the same evaluator, metrics, pass rules, and comparable arm conditions.
+- [ ] The verdict is exactly `improved|neutral|regressed|inconclusive`.
+- [ ] `minimum_samples` gates success-rate and cost comparisons only; it does not suppress retry or deterministic-sample signals.
+- [ ] Insufficient full-experiment samples, mismatched arms, or checks not run yield `inconclusive`.
+- [ ] A task failure is not automatically attributed to the harness.
+- [ ] A task pass is not automatically `improved`.
+- [ ] Treatment did not pass through weaker criteria, deleted evidence, or a bypassed gate.
+- [ ] Report presentation is not an experiment variable unless the evaluation explicitly studies presentation quality.
 
 ## 6. Event-driven trigger
 
-- [ ] `self_evaluation.mode`가 `event-driven`이다.
-- [ ] checker, recorder, state, evaluation loop, harness evaluator, targeted suite 참조가 유효하다.
-- [ ] sample rate, full interval, cooldown, budget ratio, 성공률·비용·retry 임계값, minimum sample이 확정됐다.
-- [ ] mandatory event 목록에 canonical, agent, skill, evaluator, adapter 변경과 cold-start/parity fail이 포함된다.
-- [ ] checker는 읽기 전용 결정적 프로그램이며 LLM을 호출하지 않는다.
-- [ ] checker stdout은 compact JSON이고 결과가 `none|targeted|full`뿐이다.
-- [ ] checker가 `improve`를 반환하거나 파일을 수정하지 않는다.
-- [ ] 동일 입력은 동일 결과를 낸다.
-- [ ] malformed input은 fail-closed `full`, mandatory이지만 effect evaluation/LLM이 아니라 verify/recovery로 라우팅한다.
-- [ ] `adapter-change|parity-fail`은 parity verify pass 전 effect evaluation을 열지 않는다.
-- [ ] cold-start false→true와 parity pass→fail 전환이 pending event를 중복 없이 추가한다.
-- [ ] targeted는 `targeted.json` reason 매핑만 실행하며 임의 LLM judge를 열지 않는다.
-- [ ] 일반 memory 내용·index 행 변경은 canonical hash를 바꾸지 않고 결정적 `verify-harness`만 실행한다.
-- [ ] memory schema·정책·라우팅 의미 변경은 `canonical-contract-change`로 full 평가한다.
+- [ ] `self_evaluation.mode` is `event-driven` and all checker, recorder, state, loop, evaluator, and targeted-suite references resolve.
+- [ ] Sample rate, full interval, cooldown, budget ratio, success/cost/retry thresholds, and minimum samples are explicit.
+- [ ] Mandatory events include canonical, agent, skill, evaluator, and adapter changes plus cold-start, parity, and repeated-failure incidents.
+- [ ] The checker is read-only, deterministic, makes no LLM call, and returns compact JSON with only `none|targeted|full`.
+- [ ] The checker never returns `improve` or writes files.
+- [ ] Identical valid input produces identical output.
+- [ ] Malformed input fails closed as mandatory `full` but routes to verify/recovery rather than effect evaluation or an LLM.
+- [ ] `adapter-change|parity-fail` blocks effect evaluation until provider parity passes.
+- [ ] Cold-start false-to-true and parity pass-to-fail add one pending event per transition.
+- [ ] `targeted` runs only the exact reason mapping in `targeted.json`; it never opens an ad hoc LLM judge.
+- [ ] Ordinary memory content and index-row changes leave the canonical hash unchanged and receive deterministic verification.
+- [ ] Memory schema, policy, or routing meaning changes create `canonical-contract-change`.
+- [ ] Report language and terminology changes leave the effect hash unchanged.
+- [ ] Completed-task accounting updates `current_unit`, increments `units_since_full` once, decrements cooldown once, and records raw rolling evidence once.
 
-### Trigger fixture
+### Structured explicit-full override
 
-- [ ] 신호 없음 → `none`
-- [ ] deterministic sample 또는 제한 지표 회귀 → `targeted`
-- [ ] full interval 도달 → `full`
-- [ ] canonical hash 또는 mandatory event → `full`, mandatory
-- [ ] 반복 failure threshold → `full`, mandatory
-- [ ] non-mandatory + budget 초과 → `none` + deferred reason
-- [ ] non-mandatory + cooldown → `none` + deferred reason
-- [ ] mandatory event가 budget/cooldown 때문에 누락되지 않음
+- [ ] The complete raw checker output is preserved in `override.original`.
+- [ ] Top-level effective values are `decision: full`, `mandatory: false`, and `override.kind: explicit-user-request`.
+- [ ] Original reasons remain first, followed by the override marker; deferred reasons, hashes, and `acknowledgement` remain unchanged.
+- [ ] Only budget and cooldown may be bypassed; invalid input and parity checks remain blocking.
 
-### Recorder/ACK fixture
+### Trigger fixtures
 
-- [ ] 완료된 targeted/full마다 recorder를 호출한다.
-- [ ] checker JSON을 평가 전에 run의 `trigger.json`에 동결한다.
-- [ ] malformed decision file, decision mismatch, stale managed hash는 ACK를 거부한다.
-- [ ] full ACK가 처리 시작 pending event와 frozen failure snapshot만 ACK하고 평가 중 생긴 새 event·failure를 보존한다.
-- [ ] full ACK가 canonical/provider managed hashes, units, cooldown, verdict를 갱신한다.
-- [ ] targeted ACK는 last decision/cooldown만 갱신하고 mandatory event를 소비하지 않는다.
-- [ ] full ACK 직후 같은 mandatory 신호가 반복 평가되지 않는다.
-- [ ] ACK 이후 새 cold-start/parity incident가 다시 검출된다.
-- [ ] 미완료 run은 state를 변경하지 않는다.
+- [ ] No signal → `none`.
+- [ ] Deterministic sample or bounded metric regression → `targeted`.
+- [ ] Full interval reached → `full`.
+- [ ] Canonical hash change or mandatory event → mandatory `full`.
+- [ ] Repeated failure threshold → mandatory `full`.
+- [ ] Non-mandatory signal over budget → `none` plus deferred reason.
+- [ ] Non-mandatory signal during cooldown → `none` plus deferred reason.
+- [ ] Budget or cooldown never hides a mandatory event.
+- [ ] Presentation-only changes produce no full signal.
 
-## 7. 개선 gate
+### Recorder and ACK fixtures
 
-- [ ] completed full 평가가 regression을 하네스에 귀속했거나 사용자가 evidence-backed 개선을 명시했다.
-- [ ] 개선 안건이 1~2개이고 예상 효과와 rollback 조건이 있다.
-- [ ] delta plan 밖 기존 파일과 사용자 소유 memory를 변경하지 않았다.
-- [ ] spec과 공통 파일을 adapter보다 먼저 변경했다.
-- [ ] 모든 선택 provider를 재투영했다.
-- [ ] verify, cold-start, 원 task evaluator, full effect evaluation을 재실행했다.
-- [ ] improved 또는 사전 허용된 neutral만 수용했다.
-- [ ] regression이면 안전한 rollback과 근거 기록을 수행했다.
-- [ ] 승인 gate 우회, evidence 삭제, 평가 기준 완화를 개선으로 취급하지 않았다.
+- [ ] Checker JSON is frozen in the run's `trigger.json` before evaluation.
+- [ ] The recorder is called after every completed `targeted|full` run.
+- [ ] Malformed decision file, decision mismatch, or stale managed hash rejects ACK.
+- [ ] Full ACK consumes only the pending-event and failure snapshots frozen at evaluation start.
+- [ ] Incidents created during evaluation remain pending.
+- [ ] Full ACK updates canonical/provider hashes, units, cooldown, and verdict.
+- [ ] Targeted ACK updates its last decision, verdict, and cooldown but consumes no mandatory event.
+- [ ] The same mandatory signal does not immediately repeat after full ACK.
+- [ ] A later cold-start or parity transition is detected again.
+- [ ] An incomplete or stale run changes no state.
 
-## 8. 콜드스타트
+## 7. Improvement gate
 
-컨텍스트 없는 세션이 다음을 파일 근거로 답해야 합니다.
+- [ ] A completed full evaluation attributes a regression or defect to the harness, or the user made an explicit evidence-backed request.
+- [ ] The candidate contains one hypothesis, at most two component changes, an expected metric effect, and rollback conditions.
+- [ ] Files outside the delta and user-owned memory remain untouched.
+- [ ] The spec and canonical files changed before adapters.
+- [ ] Every selected provider was reprojected.
+- [ ] `verify-harness`, budgets, parity, cold-start, the original task evaluator, and the same full experiment were rerun.
+- [ ] Only `improved` or explicitly pre-approved `neutral` was accepted.
+- [ ] `regressed|inconclusive` was safely rolled back with evidence retained.
+- [ ] Gate bypass, evidence deletion, evaluator weakening, hidden failure, and unrelated state reset were not treated as improvement.
 
-- [ ] 하네스 목적과 현재 phase
-- [ ] 지금 즉시 수행할 다음 행동
-- [ ] 그 행동의 task evaluator
-- [ ] domain별 실행 순서와 handoff
-- [ ] pending self-evaluation event와 마지막 harness verdict
-- [ ] `memory.index`에서 현재 작업에 필요한 지속 메모리만 선택하는 방법
-- [ ] 개선이 허용되는 조건
+## 8. Cold-start
 
-대화 기억이 필요하거나 `next_action`이 비어 있으면 fail입니다. `coldstart_fail` false→true 전환은 `coldstart-fail` pending event를 추가합니다.
+A context-free session can answer from files:
 
-## 9. 저장소·대상 검증
+- [ ] Harness purpose and current phase.
+- [ ] The single immediate next action.
+- [ ] The linked task evaluator and pass condition.
+- [ ] Domain execution order and handoff.
+- [ ] Pending self-evaluation events and last harness verdict.
+- [ ] Which indexed memory entries to read for the current action.
+- [ ] When improvement is permitted.
+- [ ] Which report language and terminology to use for user-facing output.
 
-팩토리 저장소:
+The test fails if it needs conversation memory, exceeds declared read budgets, or finds a blank `next_action`. A `coldstart_fail` false-to-true transition adds `coldstart-fail` once.
+
+## 9. Repository and target checks
+
+Factory repository:
 
 ```powershell
 python scripts\test_runtime_neutral_contract.py
@@ -172,24 +205,24 @@ python scripts\test_self_evaluation_trigger.py
 python scripts\skill_smoke_build_harness.py
 ```
 
-대상 프로젝트:
+Target project:
 
 ```powershell
 python scripts\validate_runtime_neutral.py <target-project>
 python <target-project>\harness\triggers\check_self_evaluation.py <target-project>\harness
 ```
 
-- [ ] 모든 명령의 실제 결과를 기록했다.
-- [ ] 미실행 명령은 pass로 표기하지 않았다.
+- [ ] Actual command results and evidence paths were recorded.
+- [ ] A command not run was not reported as pass.
 
-## 10. 인도 보고
+## 10. Delivery report
 
-- [ ] 생성·수정 파일과 보존한 state/ledger를 요약했다.
-- [ ] 적용 모드, baseline, preservation manifest, delta 분류와 보존·융화·충돌 상태를 요약했다.
-- [ ] memory index와 progressive disclosure 규칙을 안내했다.
-- [ ] domain/agent/skill/evaluator topology와 provider를 요약했다.
-- [ ] task eval과 harness eval의 차이와 호출법을 안내했다.
-- [ ] sampling, cooldown, budget, mandatory event 값을 안내했다.
-- [ ] 검증·보완 회전 수와 각 변경을 기록했다.
-- [ ] 잔여 fail이 없으면 “없음”, 있으면 항목과 사유를 명시했다.
-- [ ] 첫 실행과 rollback 방법을 안내했다.
+- [ ] The report uses `communication.report_language` and `communication.terminology` while keeping technical tokens exact.
+- [ ] It summarizes mode, baseline, preservation manifest, delta classification, conflicts, files changed, and retained state/ledger.
+- [ ] It explains canonical English artifacts, reading budgets, memory index, and progressive disclosure.
+- [ ] It summarizes domain, agent, skill, evaluator topology, providers, and model-tier mapping.
+- [ ] It distinguishes task evaluation from harness-effect evaluation and gives exact invocation commands.
+- [ ] It lists sampling, cooldown, budget, thresholds, mandatory events, and ACK behavior.
+- [ ] It records verification rounds, each correction, raw evidence, and checks not run.
+- [ ] Residual failures are either explicitly `none` or listed with reasons.
+- [ ] It gives first-run, recovery, and rollback instructions.

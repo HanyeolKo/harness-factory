@@ -1,34 +1,34 @@
-# CHECKPOINT — 체크포인트 규격
+# CHECKPOINT — Resume contract
 
-재개는 기억이 아니라 프로젝트 파일에서 시작한다.
+Resume from project files, not conversational memory.
 
-## 시점
+## Checkpoint when
 
-- 작업 unit 판정 직후
-- 파괴적·비가역 단계 직전
-- 예산 80% 도달, 세션 종료, escalation 직전
+- A work-unit verdict is recorded
+- Before a destructive or irreversible step
+- Budget reaches 80%, or before session end or escalation
 
-## state.json 최소 계약
+## Minimum state.json contract
 
 ```json
 {
   "updated": "<ISO8601>",
-  "phase": "<현재 단계>",
+  "phase": "<current phase>",
   "queue": [{"id":"U-001","desc":"...","evaluator":"...","status":"todo|in-progress|done|blocked"}],
-  "current": {"id":"U-001","step":"<loop 단계>","refs":[]},
-  "next_action": "<즉시 수행할 행동>",
+  "current": {"id":"U-001","step":"<loop step>","refs":[]},
+  "next_action": "<immediate next action>",
   "improve": {"fail_counts":{},"coldstart_fail":false},
   "budget": {"units_done":0,"note":"..."}
 }
 ```
 
-self-evaluation의 sample, cooldown, hash, rolling metric은 별도 `state/self-evaluation.json`이 소유한다. task state와 평가 정책을 중복 저장하지 않는다.
+Keep self-evaluation samples, cooldown, hashes, and rolling metrics in the separate `state/self-evaluation.json`. Do not duplicate task state or evaluation policy.
 
-## 절차
+## Procedure
 
-1. `state/state.json`을 갱신한다.
-2. `ledger/journal.jsonl`에 checkpoint를 append한다.
-3. task boundary에서 deterministic checker를 실행한다.
-4. decision이 `none`이면 평가·개선 문서를 읽지 않고 재개 또는 종료한다.
+1. Update `state/state.json`.
+2. Append the checkpoint to `ledger/journal.jsonl`.
+3. Run the deterministic checker at the task boundary.
+4. On `none`, resume or stop without reading evaluation or improvement documents.
 
-`next_action`은 비워둘 수 없다. 재개 시 현재 산출물을 task evaluator로 확인하고 기억에 의존하지 않는다.
+`next_action` must never be empty. On resume, verify the current artifact with its task evaluator instead of relying on memory.

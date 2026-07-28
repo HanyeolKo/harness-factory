@@ -1,28 +1,29 @@
-# CONTEXT BUDGET — 예산과 평가 오버헤드
+# CONTEXT BUDGET — Budget and evaluation overhead
 
-## 운영 정책: {{BUDGET_POLICY}}
+## Policy: {{BUDGET_POLICY}}
 
-| 항목 | 값 |
+| Item | Value |
 |---|---|
-| 예산 단위 | {{BUDGET_UNIT}} |
-| 작업 단위 예산 | {{UNIT_BUDGET}} |
-| 80% | 현재 단위 마무리·checkpoint, 신규 착수 금지 |
-| 100% | 즉시 checkpoint 후 세션 종료·교체 |
-| 시작 읽기 상한 | HARNESS.md, spec, task/self-evaluation state, memory index, 선택 memory/current refs |
+| Budget unit | {{BUDGET_UNIT}} |
+| Work-unit budget | {{UNIT_BUDGET}} |
+| At 80% | Finish the current unit, checkpoint, and start nothing new |
+| At 100% | Checkpoint immediately, then end or replace the session |
+| Startup read limit | HARNESS.md, spec, task/self-evaluation state, memory index, selected memory and current refs |
 
-## 하네스 효과 평가 예산
+## Harness-effect evaluation budget
 
-- `harness-spec.json self_evaluation.budget_ratio`가 운영 비용 대비 평가 비용 상한이다.
-- budget·cooldown은 비필수 정기·표본 평가를 유예한다. canonical 변경, parity/cold-start 실패 같은 mandatory full은 유예하지 않는다.
-- `decision=none`이면 harness evaluation과 improvement 문서를 읽지 않는다.
-- task evaluator 비용과 harness effect evaluation 비용을 별도 집계한다.
+- `harness-spec.json self_evaluation.budget_ratio` caps evaluation cost relative to operating cost.
+- Budget and cooldown defer optional interval or sample evaluations. They never defer mandatory full evaluation for canonical changes or parity/cold-start failures.
+- On `decision=none`, do not read harness-evaluation or improvement documents.
+- Account for task-evaluator cost and harness-effect evaluation cost separately.
+- Enforce limits.max_instruction_lines, memory.max_document_lines, and memory.max_summary_chars; split optional detail into indexed references.
 
-## 오프로딩
+## Offloading
 
-긴 목록과 중간 결과는 파일로 내리고 필요한 구간만 읽는다. journal 전체를 context에 넣지 않고 결정적 script로 추출·집계한다.
+Write long lists and intermediate results to files, then read only the required sections. Use deterministic scripts to extract and aggregate journal data instead of loading the full journal into context.
 
-## 소진 장부
+## Usage ledger
 
-| 날짜 | 세션 | 완료 단위 | 운영 비용 | 평가 비용 | 비고 |
+| Date | Session | Units completed | Operating cost | Evaluation cost | Notes |
 |---|---|---|---|---|---|
 | | | | | | |

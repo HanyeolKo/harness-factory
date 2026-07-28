@@ -48,8 +48,30 @@ def nonnegative_counts(value: object, label: str) -> dict[str, int]:
     return result
 
 
+def canonical_file_bytes(relative: str, path: Path) -> bytes:
+    """Ignore presentation-only communication fields in the effect hash."""
+    data = path.read_bytes()
+    if relative != "harness-spec.json":
+        return data
+    value = json.loads(data.decode("utf-8"))
+    communication = value.get("communication")
+    if not isinstance(communication, dict):
+        return data
+    normalized = dict(value)
+    normalized_communication = dict(communication)
+    normalized_communication.pop("report_language", None)
+    normalized_communication.pop("terminology", None)
+    normalized["communication"] = normalized_communication
+    return json.dumps(
+        normalized,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
 def canonical_hash(harness_root: Path) -> str:
-    """Hash canonical harness files while excluding operationally-mutated state."""
+    """Hash effect-bearing canonical files, excluding operational state."""
     harness_root = harness_root.resolve()
     digest = hashlib.sha256()
     digest.update(b"harness-canonical-v1\0")
@@ -62,7 +84,7 @@ def canonical_hash(harness_root: Path) -> str:
             raise ValueError("canonical-path-escapes-harness")
         digest.update(relative.encode("utf-8"))
         digest.update(b"\0file\0")
-        digest.update(resolved.read_bytes())
+        digest.update(canonical_file_bytes(relative, resolved))
         digest.update(b"\0")
     return digest.hexdigest()
 

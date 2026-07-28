@@ -1,30 +1,30 @@
-# 원칙 1 — 평가 루프는 1급 구성요소다
+# Principle 1 — Evaluation Is a First-Class Component
 
-## 선언
+## Statement
 
-**완료 판정 기준(evaluator)이 정의되지 않은 작업 단위는 실행할 수 없다.**
-평가는 실행이 끝난 뒤 붙이는 확인 절차가 아니라, 실행보다 먼저 정의되는 하네스의 중심축이다.
-회복 루프는 task 평가의 실패 판정을 입력으로 받는다. 반복 실패는 self-evaluation 신호가 되며, full 효과 평가가 하네스 원인을 확인한 뒤에만 개선 루프의 입력이 된다.
-평가가 없으면 회복도 보완도 작동할 근거가 없다.
+A task unit without a defined evaluator must not run. Evaluation is specified before execution, not attached afterward as a confidence check.
 
-## 규칙
+Task evaluation and harness-effect evaluation are separate. Recovery consumes task failures. Repeated failures may trigger a full harness experiment, but improvement begins only after that experiment attributes the problem to the harness.
 
-1. **선(先)정의**: 작업 단위를 큐에 넣는 시점에 evaluator를 함께 기록한다. "하고 나서 확인하지" 는 금지.
-2. **결정적 우선**: evaluator는 가능한 한 결정적 수단(테스트, 빌드, 린트, diff 검사, 스키마 검증, 스크립트)으로 정의한다. LLM 판정은 결정적 수단이 존재할 수 없는 경우에만 쓴다.
-3. **루브릭 필수**: LLM 판정을 쓸 때는 반드시 루브릭(판정 기준 목록 + 각 기준의 pass 조건)을 먼저 파일로 적는다. 루브릭 없는 "잘 된 것 같음" 판정은 판정이 아니다.
-4. **판정은 기록된다**: 모든 평가 결과는 `ledger/journal.jsonl`에 pass/fail + 근거로 남는다. 기록되지 않은 평가는 수행되지 않은 것으로 간주한다.
-5. **판정 불가 = 실패**: evaluator를 실행할 수 없는 상태(테스트가 안 돎, 환경 깨짐)는 pass가 아니라 실패이며 회복 루프로 넘긴다.
+## Rules
 
-## evaluator 유형 분류
+1. **Define first** — Record the evaluator when a unit enters the queue. Do not defer the completion test until after implementation.
+2. **Prefer deterministic evidence** — Use tests, builds, linters, type checks, schema validation, diff checks, or scripts whenever possible. Use an LLM judge only when no deterministic evaluator can represent the requirement.
+3. **Require a rubric** — Before using an LLM judge, store explicit criteria and a pass condition for every criterion. An unrecorded impression is not a verdict.
+4. **Keep raw evidence** — The runner produces raw evidence. A verdict owner compares it with the pass condition. Record the result and evidence path in `ledger/journal.jsonl`.
+5. **Fail closed** — An evaluator that cannot run is never a pass. Record `fail` or `blocked` according to the contract and enter recovery.
+6. **Keep approval separate** — Human approval is an `approval_gate`, not a replacement for task evaluation.
 
-| 유형 | 예 | 신뢰도 | 사용 조건 |
-|---|---|---|---|
-| 결정적-자동 | 테스트 스위트, 빌드, 타입체크, 스키마 검증 | 최상 | 존재하면 무조건 이것 |
-| 결정적-수동정의 | 구성자가 작성한 검증 스크립트, golden file 비교 | 상 | 자동 수단이 없을 때 만들어서라도 확보 |
-| 루브릭-LLM | 문서 품질, 요약 정확성 등 비결정적 산출물 | 중 | 루브릭 파일 선행 작성 필수 |
-| 인간 승인 | 외부 공개, 파괴적 변경 | 게이트 | 판정이 아니라 게이트로만 사용 |
+## Evaluator classes
 
-## 구성자에게
+| Type | Examples | Use |
+|---|---|---|
+| Deterministic, existing | Test suite, build, lint, schema validation | Always prefer when available |
+| Deterministic, added | Purpose-built validation script, golden-file comparison | Add when the project lacks a suitable check |
+| Rubric-based LLM | Document quality, semantic accuracy | Only with a stored rubric and evidence |
+| Human approval | Release, deletion, external communication | Gate only; never the sole evaluator |
 
-- Phase 0에서 대상 프로젝트의 결정적 evaluator 후보(테스트 러너, CI 설정, 린터)를 먼저 찾아라. 인터뷰에서 물어볼 것이 줄어든다.
-- 결정적 수단이 전혀 없는 프로젝트라면, 하네스 생성과 함께 **최소 검증 스크립트 1개를 만드는 작업을 첫 백로그 항목**으로 `state/state.json`에 심어라.
+## Constructor requirements
+
+- During discovery, inspect test runners, CI, linters, build commands, and existing validators before asking the user.
+- If no deterministic evaluator exists, put creation of at least one minimal validation script at the top of `state/state.json` and use an explicit temporary rubric until it exists.

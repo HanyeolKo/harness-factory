@@ -1,35 +1,56 @@
-# 원칙 7 — 문서 규율: 인덱스 기반 100줄 기본값
+# Principle 7 — Index-First Document Discipline
 
-## 선언
+## Statement
 
-하네스에 추가되는 모든 메모리·설명·규칙 문서는 **성능 대상**이다.
-긴 문서는 읽기 예산(원칙 2)을 소진시키고, 읽히지 않는 문서는 존재하지 않는 문서다.
-따라서 하네스 문서는 **인덱스 기반, 개별 문서 100줄 내외**를 기본값으로 한다.
+Every runtime-facing instruction and memory document consumes reading budget. New harnesses therefore use concise English canonical prose, explicit line and summary limits, and index-first progressive disclosure. Do not store bilingual copies of internal content.
 
-## 규칙
+## Default budgets for new harnesses
 
-1. **100줄 기본값**: 하네스에 새로 추가되는 문서(메모리, 설명, 절차, 조사 결과)는 100줄 내외를 상한 기본값으로 한다. 초과가 예상되면 쓰기 전에 분할을 설계한다.
-2. **인덱스 우선 구조**: 분할된 문서군은 반드시 인덱스를 갖는다. 인덱스 형식 — 항목당 `경로 | 한 줄 요약 | 언제 읽나`. 읽는 세션은 인덱스를 먼저 읽고 필요한 하위 문서만 연다. 인덱스 자체도 100줄 규율을 따른다.
-3. **HARNESS.md의 파일 맵이 최상위 인덱스다**: 새 문서·문서군이 생기면 파일 맵(또는 파일 맵이 가리키는 하위 인덱스)에 등재해야 존재하는 것으로 친다.
-4. **지속 메모리는 전용 인덱스로 관리한다**: `memory/INDEX.md`를 정본으로 삼고 `경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태`를 기록한다. 현재 상태와 사건 이력은 각각 `state/state.json`, `ledger/journal.jsonl`이 정본이므로 메모리에 복제하지 않는다.
-5. **수명주기를 원자적으로 갱신한다**: 생성·이동·이름 변경·대체·보관과 인덱스 변경은 같은 작업 단위에서 수행한다. `active` 경로는 존재해야 하고 ID·경로 중복을 허용하지 않는다.
-6. **보존 우선**: 삭제보다 `superseded` 또는 `archived`를 우선한다. 기존 사용자 메모리와 출처 불명 문서는 명시적 승인 없이 덮어쓰기·삭제·이름 변경하지 않는다.
-
-## 예외 — 분할이 효율을 떨어뜨리는 경우
-
-다음은 100줄을 초과하는 전문(全文) 유지를 허용한다.
-
-| 예외 유형 | 예 | 근거 |
+| Content | Field | Default |
 |---|---|---|
-| 스킬 필수 구성요소 전문 | SKILL.md, 중단 없이 순서대로 수행해야 하는 절차문 | 절차가 파일 경계에서 끊기면 수행 누락이 발생한다 |
-| 프로젝트 특화 내용 전문 | 스키마 정의, API 계약, 판정 루브릭, 도메인 용어집 | 부분 읽기가 오독·오판정을 낳는다 |
-| 분할 오버헤드 > 절감 | 110~130줄처럼 경계선 문서, 상호참조가 조밀한 문서 | 인덱스 왕복 비용이 절감분을 초과한다 |
+| Canonical skill instructions | `limits.max_instruction_lines` | 120 lines |
+| Memory documents and `memory/INDEX.md` | `memory.max_document_lines` | 80 lines |
+| Memory index summary | `memory.max_summary_chars` | 160 characters |
 
-예외 처리 절차: 파일 머리에 `<!-- 문서규율 예외: <유형> — <사유> -->` 표기 + 인덱스에 "전문" 표시. 표기 없는 100줄 초과는 구조 검증 실패이며 mandatory full 평가 신호다. 개선은 하네스 원인이 확인된 뒤에만 시작한다.
+These fields are optional in existing schema 1.0 and 1.1 specs for backward compatibility. Missing fields do not invalidate or auto-translate project-owned content. New harnesses include them, and migrations add them only as an explicit, preservation-aware delta.
 
-## 구성자에게
+## Rules
 
-- 팩토리가 생성하는 템플릿 산출물 자체가 이 규율의 첫 적용 대상이다. 치환 결과가 100줄을 크게 초과하면 분할하거나 예외 표기하라.
-- Phase 0에서 수집한 조사 자료를 하네스에 남길 때도 동일하다: 원문 덤프가 아니라 인덱스 + 요약으로 남기고, 원문은 경로 참조로 대신한다.
-- 기존 하네스를 개선할 때 인덱스가 없으면 먼저 기존 메모리 후보를 inventory하고 `memory/INDEX.md`를 추가한다. 파일을 새 위치로 강제 이동하지 말고 원래 경로와 관리 주체를 출처에 기록한다.
-- 이 규율은 삭제 지침이 아니다. 내용을 줄이는 게 아니라 **읽기 단위를 쪼개는 것**이 목적이다.
+1. **Split before exceeding a limit** — Keep required procedure in the canonical file and move optional detail, examples, and variants into references loaded only when relevant.
+2. **Index every document set** — An index row records routing metadata, not a second copy of the document. Read the index first, then selected documents.
+3. **Use `HARNESS.md` as the top index** — Every generated document or sub-index appears in its file map.
+4. **Use one durable-memory index** — `memory/INDEX.md` uses `ID | Path | Summary | Read when | Source | Last verified | Status`. Current state and events remain in `state/state.json` and `ledger/journal.jsonl` rather than memory.
+5. **Update lifecycle atomically** — Create, move, rename, supersede, archive, and index updates occur in one transaction. Active paths exist; IDs and paths are unique.
+6. **Preserve before deleting** — Prefer `superseded` or `archived`. Do not overwrite, rename, move, or delete user-owned or unknown-origin memory without explicit approval.
+7. **Keep presentation separate** — `communication.report_language` and `communication.terminology` change user-facing narrative only. They do not create translated canonical copies and are excluded from the effect hash.
+
+## Budget exceptions
+
+Keep a document whole only when splitting would reduce correctness or cost more than it saves:
+
+| Exception | Examples | Reason |
+|---|---|---|
+| Required sequential instruction | A procedure that must be followed without a file boundary | Splitting risks skipped steps |
+| Atomic project contract | Schema, API contract, evaluation rubric, domain glossary | Partial reading risks a wrong verdict |
+| Higher routing overhead | A boundary-sized file with dense cross-references | Extra index reads cost more than they save |
+
+Mark an instruction exception at the top of the file:
+
+```text
+<!-- instruction-budget exception: <type> — <reason> -->
+```
+
+Mark a memory exception at the top of the file:
+
+```text
+<!-- reading-budget exception: <type> — <reason> -->
+```
+
+Record the exception in the relevant index. An over-budget file without the correct marker fails deterministic validation. The validator may continue to recognize legacy exception markers for compatibility; all new writes use the English markers above. A budget failure can create an evaluation signal, but improvement still requires attribution.
+
+## Constructor requirements
+
+- Apply these budgets to generated output after placeholder substitution, not only to templates.
+- Store discovery material as an index and concise summaries; reference large source material at its existing path.
+- When reconciling a legacy harness without an index, inventory memory in place before adding `memory/INDEX.md`. Do not move files merely to satisfy the new layout.
+- The goal is smaller reading units, not deletion of useful evidence or context.

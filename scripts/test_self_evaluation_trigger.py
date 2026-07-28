@@ -26,6 +26,12 @@ WATCHED_PATHS = [
     ".codex/skills/harness/SKILL.md",
     ".gemini/skills/harness/SKILL.md",
 ]
+ENGLISH_MEMORY_INDEX = (
+    "# Memory Index\n\n"
+    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
+    "|---|---|---|---|---|---|---|\n"
+    "| - | - | No durable memory registered | - | - | 2026-07-24 | empty |"
+)
 
 
 def load_checker():
@@ -142,22 +148,23 @@ def build_harness(target: Path) -> Path:
     spec = {
         "schema_version": "1.1",
         "harness": {"id": "trigger-fixture", "purpose": "test", "root": "harness"},
+        "limits": {"max_instruction_lines": 120},
+        "communication": {
+            "artifact_language": "en",
+            "report_language": "en",
+            "terminology": "technical-english",
+        },
         "loops": {"fail_threshold": 3},
         "memory": {
             "index": "harness/memory/INDEX.md",
             "policy": "preserve-and-reconcile",
-            "max_document_lines": 100,
+            "max_document_lines": 80,
+            "max_summary_chars": 160,
         },
         "self_evaluation": policy(),
     }
     write_json(harness / "harness-spec.json", spec)
-    write_text(
-        harness / "memory/INDEX.md",
-        "# Memory Index\n\n"
-        "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
-        "|---|---|---|---|---|---|---|\n"
-        "| - | - | 등록된 지속 메모리 없음 | - | - | 2026-07-24 | empty |",
-    )
+    write_text(harness / "memory/INDEX.md", ENGLISH_MEMORY_INDEX)
     write_json(harness / "state/state.json", main_state())
     write_json(harness / "state/self-evaluation.json", self_state())
     write_text(harness / "team/agents/router.md", "# router")
@@ -427,7 +434,7 @@ class SelfEvaluationTriggerTests(unittest.TestCase):
 
             spec_path = harness / "harness-spec.json"
             spec = read_json(spec_path)
-            spec["memory"]["max_document_lines"] = 80
+            spec["memory"]["max_document_lines"] = 79
             write_json(spec_path, spec)
             policy_changed, _ = run_checker(harness)
             self.assert_decision(policy_changed, "full")
@@ -450,6 +457,28 @@ class SelfEvaluationTriggerTests(unittest.TestCase):
             self.assertTrue(result["mandatory"])
             self.assertIn("canonical-contract-change", result["reasons"])
 
+    def test_presentation_preferences_do_not_change_effect_hash(self) -> None:
+        with WorkspaceDirectory() as target:
+            harness = build_harness(target)
+            spec_path = harness / "harness-spec.json"
+            baseline = CHECKER_MODULE.canonical_hash(harness)
+            spec = read_json(spec_path)
+            spec["communication"]["report_language"] = "ko"
+            spec["communication"]["terminology"] = "localized"
+            write_json(spec_path, spec)
+
+            self.assertEqual(baseline, CHECKER_MODULE.canonical_hash(harness))
+            presentation_only, _ = run_checker(harness)
+            self.assert_decision(presentation_only, "none")
+            self.assertEqual([], presentation_only["reasons"])
+
+            spec["limits"]["max_instruction_lines"] = 119
+            write_json(spec_path, spec)
+            self.assertNotEqual(baseline, CHECKER_MODULE.canonical_hash(harness))
+            effect_bearing, _ = run_checker(harness)
+            self.assert_decision(effect_bearing, "full")
+            self.assertTrue(effect_bearing["mandatory"])
+            self.assertIn("canonical-contract-change", effect_bearing["reasons"])
     def test_adapter_drift_and_deletion_are_mandatory_full(self) -> None:
         with WorkspaceDirectory() as target:
             harness = build_harness(target)

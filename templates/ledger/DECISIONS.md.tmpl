@@ -1,35 +1,35 @@
-# DECISIONS — 설계 결정 기록 (ADR-lite)
+# DECISIONS — Design record (ADR-lite)
 
-하네스 문서·구조·evaluator의 모든 변경은 여기 기록된다. 근거 없는 개정은 되돌릴 기준도 없다 (원칙 6).
+Record every harness-document, structure, and evaluator change here. A change without evidence has no reliable rollback point.
 
-## 형식
+## Format
 
 ```
-## D-00N — <제목> (<날짜>)
-- 결정: <무엇을>
-- 근거: <왜 — journal 이벤트, 인터뷰 답변, evaluation report 등 출처 명시>
-- 영향: <바뀐 파일·정책>
+## D-00N — <title> (<date>)
+- Decision: <what changed>
+- Evidence: <why; cite journal events, interview answers, or evaluation reports>
+- Impact: <files and policies changed>
 ```
 
 ---
 
-> `create`에서는 아래 D-001을 렌더링한다. `improve|reconcile`에서는 기존 D-001과 모든 이력을 그대로 두고 다음 D 번호를 append한다. 기존 파일을 이 템플릿으로 덮어쓰지 않는다.
+> In `create` mode, render D-001 below. In `improve|reconcile`, preserve D-001 and all history, then append the next decision number. Never overwrite an existing file with this template.
 
-## D-001 — 하네스 초기 구성 ({{CREATED_DATE}})
+## D-001 — Initial harness configuration ({{CREATED_DATE}})
 
-- 결정: harness-factory로 하네스 뼈대 생성. 설계 방향 = {{DESIGN_ORIENTATION}} (기본형과 다르면 오버라이드 근거 명시)
-- 근거: 인터뷰 결과 — {{INTERVIEW_SUMMARY}}
-  <!-- Q1~Q4 답변과, 적용한 기본값 목록을 여기 남긴다 -->
-- 영향: create 모드에서 {{HARNESS_ROOT}} 이하 초기 관리 파일 생성. 주 evaluator = {{EVALUATOR_PRIMARY}}, 예산 정책 = {{BUDGET_POLICY}}, 운영 모드 = {{OPERATION_MODE}}.
-- 검증·보완 루프 기록 (최대 3회):
-  - 1회전: {{VERIFY_ROUND_1}} <!-- fail 항목과 보완 내용. pass면 "전 항목 pass" -->
-  - 2회전: <!-- 수행 시 기록, 미수행이면 "미수행" -->
-  - 3회전: <!-- 수행 시 기록. 잔여 fail은 인도 보고에도 명시 -->
+- Decision: Scaffold the harness with Harness Factory. Design direction = {{DESIGN_ORIENTATION}}. Record evidence for any override from the default.
+- Evidence: Interview result — {{INTERVIEW_SUMMARY}}
+  <!-- Record Q1-Q4 answers and every applied default. -->
+- Impact: In create mode, initialize managed files under {{HARNESS_ROOT}}. Primary evaluator = {{EVALUATOR_PRIMARY}}, budget policy = {{BUDGET_POLICY}}, operation mode = {{OPERATION_MODE}}.
+- Verification and repair rounds (maximum 3):
+  - Round 1: {{VERIFY_ROUND_1}} <!-- Record failures and repairs; use "all checks passed" only when true. -->
+  - Round 2: <!-- Record results, or "not run". -->
+  - Round 3: <!-- Record results; include remaining failures in the delivery report. -->
 
-## improve/reconcile append 항목
+## Append for improve or reconcile
 
-- 모드와 change ID
-- 원 validator/evaluator baseline
-- 파일 소유권과 `maintenance/runs/<change-id>/preservation-before.json`
-- `delta-plan.json`의 분류·충돌·승인 결과
-- `preservation-after.json` 비교와 task/harness evaluation 결과
+- Mode and change ID
+- Original validator and evaluator baseline
+- File ownership and `maintenance/runs/<change-id>/preservation-before.json`
+- Classifications, conflicts, and approvals from `delta-plan.json`
+- `preservation-after.json` comparison and task/harness evaluation results

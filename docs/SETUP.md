@@ -9,7 +9,7 @@
 - Git
 - 사용할 런타임 중 하나 이상: Claude Code, Codex/ChatGPT 데스크톱, Gemini CLI
 - 대상 프로젝트 쓰기 권한
-- trigger checker와 validator를 실행할 Python 3
+- trigger checker와 validator를 실행할 Python 3.11 이상
 
 marketplace나 extension으로 설치한 사본은 캐시에서 로드될 수 있습니다. checkout 수정 사항을 바로 시험할 때는 아래 로컬 개발 방법을 사용합니다.
 

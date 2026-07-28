@@ -1,27 +1,25 @@
-# 원칙 6 — 증거 기반 점진 개선
+# Principle 6 — Evidence-Based Incremental Improvement
 
-## 선언
+## Statement
 
-팩토리는 프로젝트가 소유하는 틀을 만들고 수정합니다. 생성 하네스는 대상 프로젝트 안의 evidence로 성장하며 factory가 여러 프로젝트의 state를 중앙에 흡수하지 않습니다.
+The factory creates and changes project-owned harnesses. It does not centralize project state. Routine self-checking runs only a deterministic checker; harness-effect evaluation and improvement load only when valid evidence requires them.
 
-자기검증에서 항상 실행해도 되는 것은 결정적 checker뿐입니다. effect evaluator와 개선 에이전트는 유효한 신호와 검증된 입력에서만 로드합니다.
+## Rules
 
-## 규칙
+1. **Separate task and harness verdicts** — Task evaluators judge deliverables. A harness experiment judges whether the harness changed outcomes.
+2. **Link every skill** — In schema 1.1, `entry|evaluation|verification|domain` skills link to a `scope: task` evaluator. `harness-evaluation|improvement` skills link to `self_evaluation.evaluator` with `scope: harness` and `type: experiment`.
+3. **Keep the checker read-only** — It returns only `none|targeted|full`; it never calls an LLM, writes state, or returns `improve`.
+4. **Reject damaged inputs** — Route `input-invalid:*` to `verify-harness`, structural recovery, and recheck. Do not open effect evaluation or an LLM judge.
+5. **Verify adapters first** — `adapter-change|parity-fail` requires provider parity to pass before effect evaluation.
+6. **Fix targeted scope** — Only `cost-regression|retry-pressure|deterministic-sample` may select the deterministic metrics mapped in `evaluation/suites/targeted.json`. No ad hoc targeted LLM judge is allowed.
+7. **Watch exact managed artifacts** — Hash the canonical contract separately and watch only selected providers' root guidance, spec skill projections, namespaced agent wrappers, and generated config. Exclude unrelated user files.
+8. **Record incident transitions** — Add pending events once when cold-start changes false to true or parity changes pass to fail.
+9. **Acknowledge completed evaluation** — Run the recorder after every completed `targeted|full` evaluation so one incident is not evaluated repeatedly.
+10. **Use comparable experiments** — `full` compares baseline, control, and treatment with the same evaluator, conditions, metrics, and pass rules.
+11. **Improve only after attribution** — Change one hypothesis and at most two components after a completed full report attributes a regression or defect to the harness, or after an explicit evidence-backed user request.
+12. **Keep acceptance fixed** — Accept `improved` or explicitly pre-approved `neutral`. Never weaken an evaluator, bypass a gate, delete evidence, or hide a failure.
 
-1. **작업과 하네스를 분리한다** — task evaluator는 산출물 완료, harness experiment는 하네스 효과를 판정한다.
-2. **모든 skill에 evaluator를 연결한다** — schema 1.1 entry/evaluation/verification/domain은 task, harness-evaluation/improvement는 harness experiment를 참조한다.
-3. **checker는 읽기 전용이다** — `none|targeted|full`만 반환하고 LLM 호출·state write·improve 지시를 하지 않는다.
-4. **손상 입력은 평가하지 않는다** — `input-invalid:*`는 verify/structural recovery 후 recheck한다. effect evaluation과 LLM을 열지 않는다.
-5. **adapter 문제는 verify-first다** — `adapter-change|parity-fail`은 parity pass 전 effect evaluation을 금지한다.
-6. **targeted 범위를 고정한다** — `cost-regression|retry-pressure|deterministic-sample`은 `evaluation/suites/targeted.json`의 결정적 metric으로만 평가한다.
-7. **managed artifact만 감시한다** — canonical과 선택 provider의 exact root guidance, spec skill projection, namespaced wrapper, 생성 config를 hash한다. unrelated user 파일은 제외한다.
-8. **incident 전환을 기록한다** — cold-start false→true와 parity pass→fail은 pending event를 추가한다.
-9. **완료 평가는 ACK한다** — targeted/full 뒤 recorder를 호출해 같은 mandatory 신호 반복을 막는다.
-10. **평가는 같은 조건의 실험이다** — full은 동일 evaluator로 baseline/control/treatment를 비교한다.
-11. **개선은 귀속 evidence 뒤에만 한다** — full regression 또는 하네스 원인 확인 뒤 1~2개를 바꾼다.
-12. **수용 기준을 고정한다** — improved 또는 사전 허용 neutral만 수용하고 evaluator 완화·gate 우회·evidence 삭제를 금지한다.
-
-## Trigger 라우팅
+## Routing
 
 ```text
 checker
@@ -33,34 +31,33 @@ checker
                                       └─ attributed regression → improve
 ```
 
-mandatory는 canonical/agent/skill/evaluator/adapter change, cold-start/parity incident, 반복 failure입니다. `minimum_samples`는 success/cost 비교에만 적용하고, `targeted_sample_rate`는 독립적인 결정적 sample 신호를 만듭니다. budget·cooldown만 모든 비필수 cost/retry/sample/interval 신호를 유예합니다.
+Mandatory full signals include canonical, agent, skill, evaluator, and adapter changes; cold-start and parity incidents; and repeated failure keys. `minimum_samples` gates success-rate and cost comparisons only. `targeted_sample_rate` creates an independent deterministic sample. Budget and cooldown defer every non-mandatory cost, retry, sample, and interval signal but never a mandatory signal.
 
-## ACK 상태 전이
+An explicit user-requested full evaluation uses the structured override contract, preserves the original checker output, and does not bypass `input-invalid:*` or provider parity.
 
-완료 run마다 실행합니다.
+## Effect-hash boundary
+
+- Canonical instructions and `communication.artifact_language` are effect-bearing.
+- `communication.report_language` and `communication.terminology` affect presentation only and are excluded from the harness-effect canonical hash.
+- Reports may localize narrative, but IDs, paths, commands, evidence, JSON keys, status values, trigger reasons, and verdicts are never translated.
+- Ordinary memory content and index-row changes use deterministic verification. Memory policy or routing changes are canonical effect changes.
+
+## ACK transition
+
+Freeze checker JSON at `harness/evaluation/runs/<run-id>/trigger.json` before evaluation, then run:
 
 ```text
 python harness/triggers/record_self_evaluation.py harness --decision <targeted|full> --decision-file harness/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
 ```
 
-평가 전에 checker JSON을 `harness/evaluation/runs/<run-id>/trigger.json`에 동결합니다. recorder는 frozen decision/reasons, current managed hashes, `acknowledgement` failure snapshot을 검증합니다. ACK decision/reasons는 frozen file을 사용하며 변화한 rolling-metric decision으로 대체하지 않습니다.
+The recorder validates the frozen decision and reasons, current managed hashes, and the frozen failure acknowledgement. A full ACK consumes only the pending events and failures captured at evaluation start, then updates managed hashes, units, cooldown, and verdict. A targeted ACK updates its decision, verdict, and cooldown but does not consume mandatory events. New incidents that arise during evaluation remain pending. Never ACK an incomplete or stale run.
 
-- full은 처리 시작 pending snapshot과 frozen failure snapshot만 ACK하고 managed hashes, units, cooldown, last verdict를 갱신합니다.
-- targeted는 last decision/verdict와 cooldown만 갱신하며 mandatory event를 소비하지 않습니다.
-- 평가 중 생긴 새 event·failure는 보존합니다.
-- 미완료·stale run은 ACK하지 않습니다.
+## Standard improvement transaction
 
-이 때문에 처리한 mandatory signal은 반복되지 않고 ACK 뒤 새 incident는 transition event로 다시 검출됩니다.
-
-## 표준 개선 절차
-
-1. 완료·ACK된 full report와 하네스 귀속 확인
-2. 변경 1~2개와 rollback 조건 선택
-3. spec·canonical component 선변경
-4. 선택 provider exact managed artifact 전체 재투영
-5. structural/task evaluator와 cold-start 실행
-6. parity pass 뒤 동일 full experiment 실행
-7. recorder ACK
-8. 수용 또는 rollback 후 DECISIONS와 journal에 append
-
-사용자 비용 민감도에 따라 sampling, interval, cooldown, budget을 조정하되 mandatory 사건은 숨기지 않습니다. 기존 하네스는 factory로 가져오지 않고 그 프로젝트 안에서 원자적으로 개선합니다.
+1. Confirm a completed full report and harness attribution, or an explicit evidence-backed request.
+2. Freeze baseline, preservation evidence, the intended metric, and rollback conditions.
+3. Select one hypothesis and at most two component changes.
+4. Update the spec and canonical components first; reproject every selected provider's exact managed artifacts.
+5. Run structural verification, provider parity, cold-start, and the original task evaluator.
+6. Repeat the same full harness experiment and ACK it.
+7. Accept or roll back, then append the decision and evidence to the ledger.

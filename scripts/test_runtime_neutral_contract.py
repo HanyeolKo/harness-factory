@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -48,6 +49,24 @@ FACTORY_SKILLS = (
     "verify-harness",
     "evaluate-harness",
     "improve-harness",
+)
+HANGUL_RE = re.compile(r"[\uac00-\ud7a3]")
+DEFAULT_COMMUNICATION = {
+    "artifact_language": "en",
+    "report_language": "en",
+    "terminology": "technical-english",
+}
+ENGLISH_MEMORY_INDEX = (
+    "# Memory Index\n\n"
+    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
+    "|---|---|---|---|---|---|---|\n"
+    "| - | - | No durable memory registered | - | - | 2026-07-24 | empty |"
+)
+LEGACY_KOREAN_MEMORY_INDEX = (
+    "# Memory Index\n\n"
+    "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
+    "|---|---|---|---|---|---|---|\n"
+    "| - | - | 등록된 지속 메모리 없음 | - | - | 2026-07-24 | empty |"
 )
 SPECIAL_DESCRIPTION = (
     'Route billing requests: preserve #tags and "quoted" context.\n'
@@ -352,10 +371,13 @@ def make_spec(schema_version: str = "1.1") -> dict[str, Any]:
         "loops": loops,
     }
     if schema_version == "1.1":
+        spec["limits"]["max_instruction_lines"] = 120
+        spec["communication"] = dict(DEFAULT_COMMUNICATION)
         spec["memory"] = {
             "index": "harness/memory/INDEX.md",
             "policy": "preserve-and-reconcile",
-            "max_document_lines": 100,
+            "max_document_lines": 80,
+            "max_summary_chars": 160,
         }
         spec["self_evaluation"] = self_evaluation_policy(runtimes, skills, spec["agents"])
     return spec
@@ -389,12 +411,7 @@ def common_files(harness: Path, schema_version: str) -> None:
             {
                 "loops/HARNESS-EVAL-LOOP.md": "# Harness effect evaluation\n\nCompare baseline, control, treatment.",
                 "evaluation/EVALUATION-CONTRACT.md": "# Evaluation contract\n\nSeparate task and harness scopes.",
-                "memory/INDEX.md": (
-                    "# Memory Index\n\n"
-                    "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
-                    "|---|---|---|---|---|---|---|\n"
-                    "| - | - | 등록된 지속 메모리 없음 | - | - | 2026-07-24 | empty |"
-                ),
+                "memory/INDEX.md": ENGLISH_MEMORY_INDEX,
             }
         )
     for relative, text in files.items():
@@ -598,6 +615,108 @@ class RuntimeNeutralContractTests(unittest.TestCase):
         self.assertEqual(claude["version"], gemini["version"])
         self.assertEqual("./skills/", codex["skills"])
 
+    def test_internal_instruction_sources_are_english(self) -> None:
+        sources = [
+            *(
+                path
+                for path in (ROOT / "templates").rglob("*")
+                if path.is_file()
+            ),
+            *(ROOT / "skills" / skill_id / "SKILL.md" for skill_id in FACTORY_SKILLS),
+            ROOT / "skills/build-harness/references/RUNTIME-CONTRACT.md",
+            *((ROOT / "principles").glob("*.md")),
+            ROOT / "docs/CONSTRUCTOR-PROTOCOL.md",
+            ROOT / "interview/QUESTION-BANK.md",
+            ROOT / "CHECKLIST.md",
+        ]
+        violations = []
+        for path in sorted(set(sources)):
+            for line_number, line in enumerate(
+                path.read_text(encoding="utf-8").splitlines(), start=1
+            ):
+                if HANGUL_RE.search(line):
+                    violations.append(
+                        f"{path.relative_to(ROOT).as_posix()}:{line_number}: {line.strip()}"
+                    )
+        self.assertEqual([], violations, "\n".join(violations))
+
+    def test_bilingual_readmes_keep_english_as_the_default(self) -> None:
+        english_path = ROOT / "README.md"
+        korean_path = ROOT / "README.ko.md"
+        self.assertTrue(english_path.is_file())
+        self.assertTrue(korean_path.is_file())
+        english = english_path.read_text(encoding="utf-8")
+        korean = korean_path.read_text(encoding="utf-8")
+        language_nav = "[English](README.md) | [한국어](README.ko.md)"
+        self.assertIn(language_nav, english)
+        self.assertIn(language_nav, korean)
+        self.assertIsNone(HANGUL_RE.search(english.replace("[한국어]", "")))
+        self.assertIsNotNone(HANGUL_RE.search(korean))
+        for marker in (
+            "/plugin marketplace add HanyeolKo/harness-factory",
+            "codex plugin marketplace add HanyeolKo/harness-factory --ref main",
+            "gemini extensions install https://github.com/HanyeolKo/harness-factory --ref main",
+            "build-harness",
+        ):
+            self.assertIn(marker, english)
+            self.assertIn(marker, korean)
+
+    def test_report_terminology_and_legacy_fallback_are_forward_contracts(self) -> None:
+        runtime_contract = (
+            ROOT / "skills/build-harness/references/RUNTIME-CONTRACT.md"
+        ).read_text(encoding="utf-8")
+        for marker in (
+            "`technical-english` uses `report_language` grammar",
+            "stable technical nouns",
+            "`localized` translates explanatory technical nouns",
+            "`pass|fail` exactly",
+        ):
+            self.assertIn(marker, runtime_contract)
+
+        english_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        korean_readme = (ROOT / "README.ko.md").read_text(encoding="utf-8")
+        for text in (english_readme, korean_readme):
+            self.assertIn("ko + technical-english", text)
+            self.assertIn("`baseline`", text)
+            self.assertIn("`treatment`", text)
+            self.assertIn("`pass`", text)
+
+        harness_template = (ROOT / "templates/HARNESS.md.tmpl").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "If `communication` is absent in a compatible existing spec",
+            harness_template,
+        )
+        for marker in (
+            "`artifact_language=en`",
+            "`report_language=en`",
+            "`terminology=technical-english`",
+        ):
+            self.assertIn(marker, harness_template)
+
+        shared_skill = (
+            ROOT / "templates/adapters/shared/SKILL.md.tmpl"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "If `communication` is absent, use `en` reports with "
+            "`technical-english`",
+            shared_skill,
+        )
+        for provider_template in (
+            "templates/adapters/claude/CLAUDE.md.block.tmpl",
+            "templates/adapters/codex/AGENTS.md.block.tmpl",
+            "templates/adapters/gemini/GEMINI.md.block.tmpl",
+        ):
+            text = (ROOT / provider_template).read_text(encoding="utf-8")
+            self.assertIn(
+                "if absent, use `en` and `technical-english`",
+                text,
+                provider_template,
+            )
+            self.assertIn("`technical-english`:", text, provider_template)
+            self.assertIn("`localized`:", text, provider_template)
+
     def test_all_seven_factory_skills_have_runtime_parity(self) -> None:
         actual = {
             path.name
@@ -625,10 +744,13 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             self.assertNotIn(">", description)
             if skill_id == "build-harness":
                 for marker in (
-                    "create|improve|reconcile",
-                    "기존 하네스 융화 규칙",
-                    "메모리 인덱스 관리",
+                    "create",
+                    "improve",
+                    "reconcile",
                     "preserve-and-reconcile",
+                    "artifact_language",
+                    "report_language",
+                    "terminology",
                 ):
                     self.assertIn(marker, text)
             metadata = (canonical_dir / "agents/openai.yaml").read_text(encoding="utf-8")
@@ -673,6 +795,31 @@ class RuntimeNeutralContractTests(unittest.TestCase):
         self.assertEqual(
             {"claude", "codex", "gemini"},
             set(schema["properties"]["runtime_targets"]["items"]["enum"]),
+        )
+        limits_schema = schema["properties"]["limits"]["properties"]
+        self.assertEqual(
+            {"type": "integer", "minimum": 1},
+            limits_schema["max_instruction_lines"],
+        )
+        self.assertNotIn("communication", schema["required"])
+        communication_schema = schema["properties"]["communication"]
+        self.assertFalse(communication_schema["additionalProperties"])
+        self.assertEqual(
+            {"artifact_language", "report_language", "terminology"},
+            set(communication_schema["required"]),
+        )
+        self.assertEqual(
+            "en",
+            communication_schema["properties"]["artifact_language"]["const"],
+        )
+        self.assertEqual(
+            {"technical-english", "localized"},
+            set(communication_schema["properties"]["terminology"]["enum"]),
+        )
+        self.assertEqual(DEFAULT_COMMUNICATION, communication_schema["default"])
+        self.assertEqual(
+            {"type": "integer", "minimum": 1},
+            schema["properties"]["memory"]["properties"]["max_summary_chars"],
         )
         self.assertIn(
             "harness-evaluation",
@@ -729,6 +876,8 @@ class RuntimeNeutralContractTests(unittest.TestCase):
                 "RUNTIME_TARGETS_JSON": json_scalar(expected["runtime_targets"]),
                 "MAX_PARALLELISM": "2",
                 "MAX_DELEGATION_DEPTH": "2",
+                "REPORT_LANGUAGE": expected["communication"]["report_language"],
+                "REPORT_TERMINOLOGY": expected["communication"]["terminology"],
                 "DOMAINS_JSON": json_scalar(expected["domains"]),
                 "AGENTS_JSON": json_scalar(expected["agents"]),
                 "SKILLS_JSON": json_scalar(expected["skills"]),
@@ -753,6 +902,175 @@ class RuntimeNeutralContractTests(unittest.TestCase):
         )
         self.assertNotIn("{{", rendered)
         self.assertEqual(expected, json.loads(rendered))
+
+    def test_communication_contract_is_optional_and_strict(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target)
+            spec.pop("communication")
+            write_json(target / "harness/harness-spec.json", spec)
+            write_text(
+                target / "harness/HARNESS.md",
+                "# 하네스\n\n기존 프로젝트 소유 문서는 자동 번역하지 않는다.",
+            )
+            write_text(target / "harness/memory/INDEX.md", LEGACY_KOREAN_MEMORY_INDEX)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target)
+            spec["communication"] = {
+                "artifact_language": "en",
+                "report_language": "ko",
+                "terminology": "localized",
+            }
+            write_json(target / "harness/harness-spec.json", spec)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+        invalid_cases = (
+            (
+                "artifact-language",
+                {
+                    "artifact_language": "ko",
+                    "report_language": "ko",
+                    "terminology": "localized",
+                },
+                "communication.artifact_language must be 'en'",
+            ),
+            (
+                "report-language",
+                {
+                    "artifact_language": "en",
+                    "report_language": "korean",
+                    "terminology": "localized",
+                },
+                "communication.report_language must be a supported language tag",
+            ),
+            (
+                "terminology",
+                {
+                    "artifact_language": "en",
+                    "report_language": "en",
+                    "terminology": "hybrid",
+                },
+                "communication.terminology must be technical-english or localized",
+            ),
+            (
+                "missing-field",
+                {"artifact_language": "en", "report_language": "en"},
+                "communication is missing keys: ['terminology']",
+            ),
+            (
+                "unsupported-field",
+                {**DEFAULT_COMMUNICATION, "dialect": "formal"},
+                "communication has unsupported keys: ['dialect']",
+            ),
+        )
+        for label, communication, expected_error in invalid_cases:
+            with self.subTest(case=label), WorkspaceDirectory() as target:
+                spec = build_fixture(target)
+                spec["communication"] = communication
+                write_json(target / "harness/harness-spec.json", spec)
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertIn(expected_error, errors)
+
+    def test_default_render_passes_english_prose_validation(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target)
+            self.assertEqual("en", spec["communication"]["artifact_language"])
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+    def test_english_artifact_prose_rejects_non_english_text(self) -> None:
+        with WorkspaceDirectory() as target:
+            build_fixture(target)
+            write_text(
+                target / "harness/HARNESS.md",
+                "# Harness\n\nThis line is English.\n\n이 문장은 영문 정본이 아니다.",
+            )
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any(
+                    "canonical prose must be English" in error
+                    and "HARNESS.md:5" in error
+                    for error in errors
+                ),
+                "\n".join(errors),
+            )
+
+    def test_english_artifact_prose_allows_code_and_machine_tokens(self) -> None:
+        with WorkspaceDirectory() as target:
+            build_fixture(target)
+            write_text(
+                target / "harness/HARNESS.md",
+                (
+                    "# Harness\n\n"
+                    "Keep the inline token `상태=완료` unchanged.\n"
+                    "Keep the machine path harness/메모리.md unchanged.\n"
+                    "Keep the [source](docs/한글-참조.md) unchanged.\n\n"
+                    "```powershell\n"
+                    "Write-Output '검증 명령'\n"
+                    "```\n"
+                ),
+            )
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+    def test_english_spec_prose_is_enforced_without_breaking_legacy(self) -> None:
+        cases = (
+            ("harness.purpose", ("harness", "purpose")),
+            ("agents[0].description", ("agents", 0, "description")),
+            (
+                "orchestration.handoffs[0].when",
+                ("orchestration", "handoffs", 0, "when"),
+            ),
+            (
+                "evaluators[0].pass_condition",
+                ("evaluators", 0, "pass_condition"),
+            ),
+            (
+                "approval_gates[0].trigger",
+                ("approval_gates", 0, "trigger"),
+            ),
+            (
+                "approval_gates[0].required_action",
+                ("approval_gates", 0, "required_action"),
+            ),
+        )
+        for label, path in cases:
+            with self.subTest(field=label), WorkspaceDirectory() as target:
+                spec = build_fixture(target)
+                parent = spec
+                for key in path[:-1]:
+                    parent = parent[key]
+                parent[path[-1]] = "한글 설명"
+                write_json(target / "harness/harness-spec.json", spec)
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertTrue(
+                    any(
+                        "canonical spec prose must be English" in error
+                        and label in error
+                        for error in errors
+                    ),
+                    "\n".join(errors),
+                )
+
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target)
+            spec["harness"]["purpose"] = "Preserve `한글-프로젝트` exactly."
+            write_json(target / "harness/harness-spec.json", spec)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+            spec["harness"]["purpose"] = "한글 목적"
+            spec.pop("communication")
+            write_json(target / "harness/harness-spec.json", spec)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
 
     def test_schema_11_fixture_passes_all_three_provider_adapters(self) -> None:
         with WorkspaceDirectory() as target:
@@ -800,7 +1118,10 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             self.assertEqual("local", gemini_fields["kind"])
             self.assertEqual(0, gemini_fields["temperature"])
             self.assertIsInstance(gemini_fields["tools"], list)
-            self.assertIn("메인 오케스트레이터", (target / ".gemini/agents" / f"{NAMESPACE}-billing-router.md").read_text(encoding="utf-8"))
+            self.assertIn(
+                "main orchestrator",
+                (target / ".gemini/agents" / f"{NAMESPACE}-billing-router.md").read_text(encoding="utf-8"),
+            )
 
     def test_provider_path_preflight_rejects_resolved_escape_fail_closed(self) -> None:
         class EscapingProviderValidator(Validator):
@@ -885,7 +1206,7 @@ class RuntimeNeutralContractTests(unittest.TestCase):
                 index,
                 (
                     "# Memory Index\n\n"
-                    "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
+                    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
                     "|---|---|---|---|---|---|---|\n"
                     "| durable-note | harness/memory/missing.md | missing | task | user | 2026-07-24 | active |"
                 ),
@@ -894,12 +1215,12 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             self.assertTrue(any("active path does not exist" in error for error in errors), errors)
 
             long_memory = target / "harness/memory/long.md"
-            write_text(long_memory, "\n".join(["line"] * 101))
+            write_text(long_memory, "\n".join(["line"] * 81))
             write_text(
                 index,
                 (
                     "# Memory Index\n\n"
-                    "| ID | 경로 | 한 줄 요약 | 언제 읽나 | 출처 | 마지막 검증 | 상태 |\n"
+                    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
                     "|---|---|---|---|---|---|---|\n"
                     "| durable-note | harness/memory/long.md | long | task | user | 2026-07-24 | active |"
                 ),
@@ -910,6 +1231,110 @@ class RuntimeNeutralContractTests(unittest.TestCase):
                 errors,
             )
 
+            short_memory = target / "harness/memory/short.md"
+            write_text(short_memory, "short")
+            write_text(
+                index,
+                (
+                    "# Memory Index\n\n"
+                    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
+                    "|---|---|---|---|---|---|---|\n"
+                    f"| durable-note | harness/memory/short.md | {'s' * 161} | task | user | 2026-07-24 | active |"
+                ),
+            )
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any("exceeds memory.max_summary_chars" in error for error in errors),
+                errors,
+            )
+
+    def test_legacy_korean_memory_index_remains_compatible(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target)
+            spec.pop("communication")
+            write_json(target / "harness/harness-spec.json", spec)
+            write_text(target / "harness/memory/INDEX.md", LEGACY_KOREAN_MEMORY_INDEX)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+    def test_english_memory_index_rejects_non_english_routing_prose(self) -> None:
+        with WorkspaceDirectory() as target:
+            build_fixture(target)
+            note = target / "harness/memory/note.md"
+            write_text(note, "# Durable note\n\nKeep verified project context.")
+            index = target / "harness/memory/INDEX.md"
+            write_text(
+                index,
+                (
+                    "# Memory Index\n\n"
+                    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
+                    "|---|---|---|---|---|---|---|\n"
+                    "| durable-note | harness/memory/note.md | 결제 규칙 | 결제 작업 때 | user | 2026-07-24 | active |"
+                ),
+            )
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any(
+                    "memory index Summary must use English prose" in error
+                    for error in errors
+                ),
+                "\n".join(errors),
+            )
+            self.assertTrue(
+                any(
+                    "memory index Read when must use English prose" in error
+                    for error in errors
+                ),
+                "\n".join(errors),
+            )
+
+            write_text(
+                index,
+                (
+                    "# Memory Index\n\n"
+                    "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
+                    "|---|---|---|---|---|---|---|\n"
+                    "| durable-note | harness/memory/note.md | Preserve `결제-rule` | Read when `상태=완료` | user | 2026-07-24 | active |"
+                ),
+            )
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+    def test_english_memory_index_requires_english_headers(self) -> None:
+        with WorkspaceDirectory() as target:
+            build_fixture(target)
+            write_text(target / "harness/memory/INDEX.md", LEGACY_KOREAN_MEMORY_INDEX)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertIn(
+                "memory index must use English table headers when "
+                "communication.artifact_language is 'en'",
+                errors,
+            )
+
+    def test_canonical_skill_instruction_budget(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target)
+            skill = spec["skills"][0]
+            canonical = target / skill["instructions"]
+            write_text(
+                canonical,
+                canonical.read_text(encoding="utf-8")
+                + "\n"
+                + "\n".join(["Bounded instruction."] * 121),
+            )
+            for runtime in spec["runtime_targets"]:
+                projection = (
+                    target
+                    / PROVIDERS[runtime]["skill_root"]
+                    / skill["id"]
+                    / "SKILL.md"
+                )
+                shutil.copyfile(canonical, projection)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any("exceeds limits.max_instruction_lines" in error for error in errors),
+                errors,
+            )
     def test_schema_10_requires_retro_interval(self) -> None:
         with WorkspaceDirectory() as target:
             spec = build_fixture(target, "1.0")

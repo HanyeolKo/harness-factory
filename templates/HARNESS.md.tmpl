@@ -1,95 +1,106 @@
 # HARNESS — {{TARGET}}
 
-> 프로젝트가 소유하는 하네스의 단일 진입점이다. 팩토리는 이 상태를 중앙으로 수집하지 않는다.
-> 생성: {{CREATED_DATE}} / 마지막 개정: {{CREATED_DATE}}
+> This is the single entry point for the project-owned harness. The factory does not collect its state.
+> Created: {{CREATED_DATE}} / Last revised: {{CREATED_DATE}}
 
-## 목적
+## Purpose
 
 {{PURPOSE}}
 
-## 설계 방향
+## Design direction
 
 {{DESIGN_ORIENTATION}}
 
-## 세션 시작
+## Communication and reading cost
 
-다음 순서만 먼저 읽는다.
+- Write canonical skills, roles, memory, and machine-readable narrative in concise English, as required by `communication.artifact_language`.
+- Format only user-facing reports with `communication.report_language` and `communication.terminology`.
+- If `communication` is absent in a compatible existing spec, use `artifact_language=en`, `report_language=en`, and `terminology=technical-english`.
+- `technical-english` uses the report language's grammar but keeps stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
+- `localized` translates explanatory technical nouns when a conventional local term exists. Both modes keep machine tokens exact and avoid bilingual duplication.
+- Wrap an exact non-English project name or machine token in backticks and keep its surrounding canonical prose English.
+- Keep IDs, commands, paths, evidence, JSON keys, reasons, status values, and verdicts unchanged. Do not store bilingual copies.
+- Obey the instruction and memory budgets in the spec. Read indexes first and open only references needed for the current unit.
+
+## Start a session
+
+Read only these items first, in order:
 
 1. `HARNESS.md`
 2. `harness-spec.json`
 3. `team/TEAM-ARCHITECTURE.md`
 4. `state/state.json`
-5. `state/self-evaluation.json`에서 pending event와 마지막 verdict 확인
-6. `memory/INDEX.md`에서 현재 unit에 필요한 지속 메모리만 선택
-7. `budget/CONTEXT-BUDGET.md`의 잔여 예산
-8. 현재 unit이 `state.current.refs`와 memory index로 선택한 파일
+5. Pending events and the last verdict in `state/self-evaluation.json`
+6. Only durable memory needed for the current unit, selected through `memory/INDEX.md`
+7. Remaining budget in `budget/CONTEXT-BUDGET.md`
+8. Files selected by `state.current.refs` and the memory index for the current unit
 
-목적·현재 단계·즉시 수행할 다음 행동·연결 task evaluator·선택 memory·pending event·마지막 verdict를 복원하지 못해 `coldstart_fail`이 false→true가 되면 메인 orchestrator가 `state/self-evaluation.json.pending_events`에 `coldstart-fail`을 중복 없이 추가한다. 긴 평가·개선 문서는 checker가 필요하다고 할 때만 연다.
+If the purpose, phase, immediate next action, linked task evaluator, selected memory, pending events, or last verdict cannot be restored and `coldstart_fail` changes from false to true, the main orchestrator adds `coldstart-fail` once to `state/self-evaluation.json.pending_events`. Open long evaluation or improvement documents only when the checker requires them.
 
-## 운영 축
+## Operating lanes
 
-| 축 | 문서 | 실행 시점 |
+| Lane | Document | When |
 |---|---|---|
-| 실행 | `loops/EXECUTION-LOOP.md` | 작업 단위마다 |
-| 작업 평가 | `loops/EVAL-LOOP.md` | 작업 직후 항상 |
-| 구조 검증 | validator·`{{SKILL_NAME}}-verify` | component 변경 후 |
-| 하네스 효과 평가 | `loops/HARNESS-EVAL-LOOP.md` | 유효한 targeted/full trigger |
-| 개선 | `loops/IMPROVE-LOOP.md` | full 근거가 하네스 결함을 확인한 뒤 |
-| 회복 | `recovery/` | task/structural fail 시 |
-| 지속 메모리 | `memory/INDEX.md` | 필요한 항목만 점진 로드 |
-| 기록·예산 | `ledger/`, `budget/`, `state/` | 경계마다 |
+| Execution | `loops/EXECUTION-LOOP.md` | Every work unit |
+| Task evaluation | `loops/EVAL-LOOP.md` | After every unit |
+| Structural verification | validator and `{{SKILL_NAME}}-verify` | After a component change |
+| Harness-effect evaluation | `loops/HARNESS-EVAL-LOOP.md` | Valid targeted or full trigger |
+| Improvement | `loops/IMPROVE-LOOP.md` | After full evidence identifies a harness defect |
+| Recovery | `recovery/` | Task or structural failure |
+| Durable memory | `memory/INDEX.md` | Load selected entries only |
+| Records and budget | `ledger/`, `budget/`, `state/` | At each boundary |
 
-schema 1.1의 모든 `skills[].evaluator`는 실제 evaluator를 참조한다. entry/evaluation/verification/domain skill은 `scope: task`, harness-evaluation/improvement skill은 `scope: harness`, `type: experiment` evaluator를 사용한다.
+Every schema 1.1 `skills[].evaluator` references an existing evaluator. Entry, evaluation, verification, and domain skills use `scope: task`; harness-evaluation and improvement skills use a `scope: harness`, `type: experiment` evaluator.
 
-## 저비용 trigger와 ACK
+## Low-cost trigger and ACK
 
 ```text
 python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}
 python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
 ```
 
-- `input-invalid:*`이면 effect evaluation이나 LLM을 열지 않고 `{{SKILL_NAME}}-verify`와 구조 복구 후 checker를 다시 실행한다.
-- `adapter-change|parity-fail`이면 parity 검증 pass 전 effect evaluation을 실행하지 않는다. parity가 새로 실패하면 pending event를 추가한다.
-- `none`이면 평가·개선 skill을 로드하지 않는다. `targeted`는 `evaluation/suites/targeted.json`의 reason 매핑만 실행한다.
-- 평가 전 checker JSON을 `evaluation/runs/<run-id>/trigger.json`에 동결한다. 명시적 full 요청은 raw checker JSON 전체를 `override.original`에 보존하고 top-level effective `decision: full`, `mandatory: false`, `override.kind: explicit-user-request`, original reasons 뒤 marker, 동일한 deferred reasons·hashes·`acknowledgement`를 기록한다. evaluator와 recorder는 같은 top-level decision을 해석하며 단순 decision 변조는 거부한다. 완료된 targeted/full은 그 decision file을 recorder로 ACK한다. full은 처리한 pending event와 frozen failure snapshot만 ACK하고 hash·units·cooldown을 갱신해 같은 mandatory 신호의 반복 평가를 막는다.
+- For `input-invalid:*`, do not open effect evaluation or an LLM. Run `{{SKILL_NAME}}-verify`, repair the structure, then rerun the checker.
+- For `adapter-change|parity-fail`, require parity verification before effect evaluation. Add a pending event when parity newly fails.
+- On `none`, do not load evaluation or improvement skills. On `targeted`, run only the reason mapping in `evaluation/suites/targeted.json`.
+- Before evaluation, freeze the checker JSON at `evaluation/runs/<run-id>/trigger.json`. For an explicit full request, preserve the raw checker JSON in `override.original`; set the effective top-level `decision: full`, `mandatory: false`, `override.kind: explicit-user-request`; append the marker after the original reasons; and preserve the original deferred reasons, hashes, and `acknowledgement`. The evaluator and recorder read the same top-level decision and reject a simple decision edit. ACK each completed targeted or full run with that decision file. A full ACK consumes only the processed pending events and frozen failure snapshot, then updates hashes, units, and cooldown so the same mandatory signal does not reopen evaluation.
 
-canonical contract는 checker가 별도 hash한다. 일반 `memory/` 내용과 index 행 갱신은 이 hash에서 제외하고 결정적 구조 검증으로 처리한다. memory 정책·읽기 라우팅의 정본은 `harness-spec.json`과 이 문서다. `self_evaluation.watched_paths`는 선택 provider의 정확한 managed artifact—root guidance 파일, spec 각 skill projection, namespaced agent wrapper, 생성 config—만 포함한다. provider root 전체, unrelated user skill/agent, 선택하지 않은 provider, factory 저장소는 감시하지 않는다.
+The checker hashes the canonical contract separately. Ordinary `memory/` content and index-row edits are excluded from that hash and receive deterministic structural verification. `harness-spec.json` and this file are canonical for memory policy and read routing. `self_evaluation.watched_paths` lists only exact managed artifacts for selected providers: root guidance files, each spec skill projection, namespaced agent wrappers, and generated config. Do not watch whole provider roots, unrelated user skills or agents, unselected providers, or the factory repository.
 
-## 파일 맵
+## File map
 
 ```text
 {{HARNESS_ROOT}}/
 ├── HARNESS.md
 ├── harness-spec.json
 ├── ENVIRONMENT.md
-├── team/                   # provider-neutral agent 정본
-├── skills/                 # canonical skill 정본
+├── team/                   # provider-neutral agent source
+├── skills/                 # canonical skill source
 ├── loops/                  # execution, task eval, harness eval, improve
-├── triggers/               # deterministic checker와 recorder
+├── triggers/               # deterministic checker and recorder
 ├── evaluation/
 │   ├── suites/targeted.json
 │   ├── baselines/
 │   ├── runs/
 │   └── reports/
 ├── maintenance/
-├── memory/INDEX.md         # 지속 메모리 경로·요약·출처·상태
+├── memory/INDEX.md         # durable-memory paths, summaries, sources, status
 ├── recovery/
 ├── ledger/
 ├── budget/
-└── state/                  # task state와 self-evaluation state
+└── state/                  # task and self-evaluation state
 ```
 
-## 세션 종료
+## End a session
 
-1. checkpoint 규격으로 state를 갱신한다.
-2. journal과 budget 장부를 append/update하고 memory 변경이 있으면 `memory/INDEX.md`의 active 경로·중복·고아 항목을 검증한다.
+1. Update state using the checkpoint contract.
+2. Append or update the journal and budget ledger. After a memory change, validate active paths, duplicates, and orphaned entries in `memory/INDEX.md`.
 3. {{COMMIT_POLICY}}
 
-## 불변 조건
+## Invariants
 
-- task evaluator의 원본 증거 없이 pass 처리하지 않는다.
-- 인간 approval gate를 우회하지 않는다.
-- 의미 변경은 common spec/canonical file에 먼저 적용한다.
-- 선택 provider adapter parity가 깨진 상태를 완료로 보고하지 않는다.
-- state, ledger, evaluation 이력은 대상 프로젝트 밖으로 자동 전송하지 않는다.
-- 기존 하네스는 baseline·preservation manifest·delta plan으로 제자리에서 개선하며 사용자 구성과 지속 메모리를 승인 없이 삭제·덮어쓰기·이름 변경하지 않는다.
+- Never pass without raw evidence from the task evaluator.
+- Never bypass a human approval gate.
+- Apply semantic changes to the common spec or canonical file first.
+- Never report completion while selected provider adapters lack parity.
+- Never send state, ledger, or evaluation history outside the target project automatically.
+- Improve an existing harness in place using a baseline, preservation manifest, and delta plan. Never delete, overwrite, or rename user configuration or durable memory without approval.

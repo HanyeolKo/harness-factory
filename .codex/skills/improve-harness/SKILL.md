@@ -1,35 +1,31 @@
 ---
 name: improve-harness
-description: 설치된 프로젝트 하네스의 자체 evaluation 결과를 바탕으로 agent·skill·evaluator를 점진 개선하고 회귀 검증 후 효과가 입증된 변경만 채택한다. 사용자가 근거 있는 하네스 개선을 요청하거나 full 평가가 regression·하네스 결함을 확인했을 때 사용한다.
+description: Incrementally improve an installed project harness from completed full-evaluation evidence, then verify and re-evaluate the candidate and retain only a proven improvement or explicitly approved neutral result.
 ---
 
 # improve-harness
 
-개선 이력은 대상 프로젝트 안에 유지한다. 팩토리가 설치된 하네스를 중앙으로 흡수하지 않는다.
+Keep all improvement state and evidence in the target project. The factory does not centralize installed harnesses.
 
-## 진입 조건
+## Entry gate
 
-- 완료·ACK된 full report가 `regressed` 또는 하네스 결함을 판정했거나,
-- 사용자가 full report 등 effect evidence와 함께 개선을 명시해야 한다.
+Require either an ACKed full report that attributes a regression or defect to the harness, or an explicit user request backed by effect evidence. `input-invalid:*`, unresolved parity, a single weak signal, sampling, or an interval alone is not an LLM improvement trigger; verify and recover first.
 
-`input-invalid:*`, 미해결 parity, 단일 약한 신호, 정기 간격은 LLM 개선 진입 조건이 아니다. 구조 문제는 먼저 `verify-harness`와 결정적 recovery로 복구하고 checker를 다시 실행한다.
+## Procedure
 
-## 절차
-
-1. full decision/report 또는 사용자 지정 effect evidence, 관련 journal 최소 구간, 직전 개선 효과, 기준선, 파일 소유권을 읽고 `harness/maintenance/runs/<change-id>/preservation-before.json`을 만든다. improvement skill의 `evaluator`가 `scope: harness`, `type: experiment`인지 확인한다.
-2. 제품 코드와 하네스 원인을 분리한다. 하네스 원인이 없으면 작업 recovery로 돌려보낸다.
-3. 한 가설과 1~2개 변경만 제안하고 예상 metric, 영향 파일, 원복 조건을 `unchanged|add|modify-proposed|conflict|approval-required`로 분류해 같은 run의 `delta-plan.json`에 기록한다.
-4. agent·skill·evaluator는 해당 build 스킬의 원자 변경 계약을 따른다. common spec을 먼저 바꾸고 delta의 관리 파일과 선택 provider의 정확한 managed artifact만 재투영한다. 지속 메모리 생성·이동·대체·보관은 `memory/INDEX.md`와 원자적으로 처리한다.
-5. provider parity가 pass하지 않으면 effect evaluation을 열지 않는다. 새 parity fail은 pending events에 추가하고 구조 복구한다.
-6. `verify-harness`, memory index, cold-start, 연결 task structural evaluator, 변경을 촉발한 원 task evaluator를 실행한다. `preservation-after.json`을 만들고 before와 비교한다.
-7. checker JSON을 `harness/evaluation/runs/<run-id>/trigger.json`에 동결한 뒤 동일 full suite의 scope=harness,type=experiment evaluator를 재실행하고 불변 report를 저장한다.
-8. 완료된 full run을 recorder로 ACK한다.
+1. Read the full decision/report, smallest relevant journal window, prior candidate effects, baseline, report settings, ownership, and indexed memory. Write `preservation-before.json`.
+2. Confirm the improvement skill links a `scope: harness`, `type: experiment` evaluator. Separate product defects from harness causes; return product defects to task recovery.
+3. Record one hypothesis and at most two changes with target metric, exact files, and rollback condition in `delta-plan.json`, classified as `unchanged|add|modify-proposed|conflict|approval-required`.
+4. Use the matching atomic build skill. Update spec and concise English canonical artifacts first, then reproject only selected providers' exact managed artifacts. Keep communication presentation settings separate from effect-bearing instructions. Update durable memory and its index atomically.
+5. Require provider parity before effect evaluation. Record a new parity failure once and recover structurally.
+6. Run `verify-harness`, memory/instruction budgets, cold-start, preservation comparison, the structural evaluator, and the original task evaluator. Write `preservation-after.json`.
+7. Freeze checker JSON and rerun the same full experiment under the same conditions. Store the report and ACK the completed run:
 
 ```text
 python <target>/harness/triggers/record_self_evaluation.py <target>/harness --decision full --decision-file <target>/harness/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
 ```
 
-9. improved 또는 사전 허용된 neutral만 채택한다. regressed/inconclusive는 원복하고 rejected proposal로 보존한다.
-10. DECISIONS, append-only journal, evaluation state에 근거와 결과를 기록한다.
+8. Accept `improved` or pre-approved `neutral`. Revert `regressed|inconclusive` candidates and retain rejected evidence.
+9. Append decisions and journal events. Present the result in the configured report language and terminology while keeping all machine tokens exact.
 
-승인 없는 사용자 구성·메모리 삭제, 전면 덮어쓰기, 평가기준 완화, gate 우회, 실패 은폐, 한 provider만의 의미 변경은 개선이 아니다.
+Unapproved deletion or overwrite of user configuration/memory, evaluator weakening, gate bypass, hidden failures, bulk hypotheses, and one-provider semantic drift are not improvements.

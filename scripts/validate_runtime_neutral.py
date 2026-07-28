@@ -7,6 +7,7 @@ import json
 import math
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 try:
@@ -15,6 +16,19 @@ except ModuleNotFoundError as exc:  # pragma: no cover - Python < 3.11
     raise SystemExit("Python 3.11 or newer is required (tomllib is missing)") from exc
 
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+LANGUAGE_TAG_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
+FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
+MARKDOWN_LINK_TARGET_RE = re.compile(r"\]\([^)\n]*\)")
+URL_RE = re.compile(r"https?://\S+")
+MACHINE_TOKEN_RE = re.compile(
+    r"(?<!\S)(?:"
+    r"[A-Za-z]:[\\/]\S+|"
+    r"(?:\.{0,2}[\\/])\S+|"
+    r"\S+[\\/]\S+|"
+    r"--?[A-Za-z0-9][^\s]*|"
+    r"[A-Za-z_][A-Za-z0-9_.-]*=[^\s]+"
+    r")(?!\S)"
+)
 MODEL_TIERS = {"fast", "balanced", "deep"}
 SCHEMA_VERSIONS = {"1.0", "1.1"}
 LANES = {"control", "execution", "evaluation", "improvement"}
@@ -70,11 +84,74 @@ TOP_LEVEL_KEYS = {
     "orchestration",
     "evaluators",
     "approval_gates",
+    "communication",
     "memory",
     "loops",
     "self_evaluation",
 }
 MEMORY_STATUSES = {"active", "superseded", "archived", "empty"}
+ENGLISH_MEMORY_HEADERS = (
+    "ID",
+    "Path",
+    "Summary",
+    "Read when",
+    "Source",
+    "Last verified",
+    "Status",
+)
+LEGACY_KOREAN_MEMORY_HEADERS = (
+    "ID",
+    "경로",
+    "한 줄 요약",
+    "언제 읽나",
+    "출처",
+    "마지막 검증",
+    "상태",
+)
+
+
+def strip_inline_code(text: str) -> str:
+    """Remove balanced Markdown code spans without interpreting their contents."""
+    result: list[str] = []
+    index = 0
+    while index < len(text):
+        if text[index] != "`":
+            result.append(text[index])
+            index += 1
+            continue
+        end_ticks = index
+        while end_ticks < len(text) and text[end_ticks] == "`":
+            end_ticks += 1
+        marker = text[index:end_ticks]
+        closing = text.find(marker, end_ticks)
+        if closing < 0:
+            result.append(marker)
+            index = end_ticks
+            continue
+        result.append(" ")
+        index = closing + len(marker)
+    return "".join(result)
+
+
+def non_english_letters(text: str) -> str:
+    """Return distinct non-ASCII letters left in human-facing prose."""
+    prose = strip_inline_code(text)
+    prose = MARKDOWN_LINK_TARGET_RE.sub(" ", prose)
+    prose = URL_RE.sub(" ", prose)
+    prose = MACHINE_TOKEN_RE.sub(" ", prose)
+    return "".join(
+        sorted(
+            {
+                character
+                for character in prose
+                if unicodedata.category(character).startswith("L")
+                and not (
+                    "A" <= character <= "Z"
+                    or "a" <= character <= "z"
+                )
+            }
+        )
+    )
 
 
 class Validator:
@@ -94,8 +171,10 @@ class Validator:
         self.evaluator_ids: set[str] = set()
         self.gate_ids: set[str] = set()
         self.provider_path_preflight_failed = False
+        self.max_instruction_lines = 0
         self.memory_index_path: Path | None = None
         self.memory_max_document_lines = 0
+        self.memory_max_summary_chars = 0
     def error(self, message: str) -> None:
         self.errors.append(message)
 
@@ -220,7 +299,11 @@ class Validator:
             self.error(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
         else:
             self.schema_version = version
-        required_top_level = TOP_LEVEL_KEYS - {"self_evaluation", "memory"}
+        required_top_level = TOP_LEVEL_KEYS - {
+            "self_evaluation",
+            "memory",
+            "communication",
+        }
         if self.schema_version == "1.1":
             required_top_level.update({"self_evaluation", "memory"})
         self.check_keys(self.spec, "spec", required_top_level, TOP_LEVEL_KEYS)
@@ -257,12 +340,54 @@ class Validator:
             limits,
             "limits",
             {"max_parallelism", "max_delegation_depth"},
-            {"max_parallelism", "max_delegation_depth"},
+            {"max_parallelism", "max_delegation_depth", "max_instruction_lines"},
         )
         for key in ("max_parallelism", "max_delegation_depth"):
             value = limits.get(key)
             if not isinstance(value, int) or isinstance(value, bool) or value < 1:
                 self.error(f"limits.{key} must be a positive integer")
+        instruction_lines = limits.get("max_instruction_lines")
+        if instruction_lines is not None:
+            if (
+                not isinstance(instruction_lines, int)
+                or isinstance(instruction_lines, bool)
+                or instruction_lines < 1
+            ):
+                self.error("limits.max_instruction_lines must be a positive integer")
+            else:
+                self.max_instruction_lines = instruction_lines
+
+        communication_value = self.spec.get("communication")
+        if communication_value is not None:
+            communication = self.object(communication_value, "communication")
+            communication_keys = {
+                "artifact_language",
+                "report_language",
+                "terminology",
+            }
+            self.check_keys(
+                communication,
+                "communication",
+                communication_keys,
+                communication_keys,
+            )
+            if communication.get("artifact_language") != "en":
+                self.error("communication.artifact_language must be 'en'")
+            report_language = communication.get("report_language")
+            if (
+                not isinstance(report_language, str)
+                or LANGUAGE_TAG_RE.fullmatch(report_language) is None
+            ):
+                self.error("communication.report_language must be a supported language tag")
+            if communication.get("terminology") not in {
+                "technical-english",
+                "localized",
+            }:
+                self.error(
+                    "communication.terminology must be technical-english or localized"
+                )
+        if self.requires_english_artifacts():
+            self.validate_english_spec_prose()
 
         domains = self.list_of_objects(self.spec.get("domains"), "domains")
         self.domain_ids = self.unique_ids(domains, "domains")
@@ -544,7 +669,7 @@ class Validator:
                 memory,
                 "memory",
                 {"index", "policy", "max_document_lines"},
-                {"index", "policy", "max_document_lines"},
+                {"index", "policy", "max_document_lines", "max_summary_chars"},
             )
             index_path = memory.get("index")
             if self.safe_relative(index_path, "memory.index"):
@@ -563,6 +688,16 @@ class Validator:
                 self.error("memory.max_document_lines must be a positive integer")
             else:
                 self.memory_max_document_lines = max_lines
+            max_summary_chars = memory.get("max_summary_chars")
+            if max_summary_chars is not None:
+                if (
+                    not isinstance(max_summary_chars, int)
+                    or isinstance(max_summary_chars, bool)
+                    or max_summary_chars < 1
+                ):
+                    self.error("memory.max_summary_chars must be a positive integer")
+                else:
+                    self.memory_max_summary_chars = max_summary_chars
 
         loops = self.object(self.spec.get("loops"), "loops")
         loop_keys = {
@@ -871,8 +1006,19 @@ class Validator:
                 canonical, "description", f"canonical skill {skill_id}"
             )
             spec_reference = f"{self.harness_root_text()}/harness-spec.json"
-            if spec_reference not in canonical.read_text(encoding="utf-8"):
+            canonical_text = canonical.read_text(encoding="utf-8")
+            if spec_reference not in canonical_text:
                 self.error(f"canonical skill does not reference common spec: {skill_id}")
+            if self.max_instruction_lines > 0:
+                line_count = len(canonical_text.splitlines())
+                if (
+                    line_count > self.max_instruction_lines
+                    and "<!-- instruction-budget exception:" not in canonical_text
+                ):
+                    self.error(
+                        f"canonical skill exceeds limits.max_instruction_lines "
+                        f"({line_count} > {self.max_instruction_lines}): {skill_id}"
+                    )
         state_path = self.harness_root / "state" / "state.json"
         if state_path.is_file():
             try:
@@ -902,33 +1048,142 @@ class Validator:
             self.error("ledger/journal.jsonl must contain an initial event")
         if self.memory_index_path is not None and self.memory_index_path.is_file():
             self.validate_memory_index(self.memory_index_path)
+        if self.requires_english_artifacts():
+            self.validate_english_artifact_markdown()
         if self.schema_version == "1.1" or "self_evaluation" in self.spec:
             self.validate_targeted_suite()
             self.validate_self_evaluation_state()
+
+    def requires_english_artifacts(self) -> bool:
+        communication = self.spec.get("communication")
+        return (
+            isinstance(communication, dict)
+            and communication.get("artifact_language") == "en"
+        )
+
+    def validate_english_spec_prose(self) -> None:
+        """Reject non-English prose in effect-bearing canonical spec fields."""
+        fields: list[tuple[str, object]] = []
+        harness = self.spec.get("harness")
+        if isinstance(harness, dict):
+            fields.append(("harness.purpose", harness.get("purpose")))
+
+        for collection_name, field_names in (
+            ("agents", ("description",)),
+            ("evaluators", ("pass_condition",)),
+            ("approval_gates", ("trigger", "required_action")),
+        ):
+            collection = self.spec.get(collection_name)
+            if not isinstance(collection, list):
+                continue
+            for index, item in enumerate(collection):
+                if not isinstance(item, dict):
+                    continue
+                for field_name in field_names:
+                    fields.append(
+                        (
+                            f"{collection_name}[{index}].{field_name}",
+                            item.get(field_name),
+                        )
+                    )
+
+        orchestration = self.spec.get("orchestration")
+        if isinstance(orchestration, dict):
+            handoffs = orchestration.get("handoffs")
+            if isinstance(handoffs, list):
+                for index, handoff in enumerate(handoffs):
+                    if isinstance(handoff, dict):
+                        fields.append(
+                            (
+                                f"orchestration.handoffs[{index}].when",
+                                handoff.get("when"),
+                            )
+                        )
+
+        for label, value in fields:
+            if not isinstance(value, str):
+                continue
+            letters = non_english_letters(value)
+            if letters:
+                self.error(
+                    "canonical spec prose must be English when "
+                    "communication.artifact_language is 'en': "
+                    f"{label} contains {letters!r}"
+                )
+
+    def validate_english_artifact_markdown(self) -> None:
+        """Reject non-English prose in new canonical Markdown artifacts."""
+        for path in sorted(self.harness_root.rglob("*.md")):
+            relative = path.relative_to(self.harness_root).as_posix()
+            if relative == "memory/INDEX.md" or relative.startswith(
+                (
+                    "evaluation/baselines/",
+                    "evaluation/reports/",
+                    "evaluation/runs/",
+                )
+            ):
+                continue
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError) as exc:
+                self.error(f"cannot inspect canonical prose in {relative}: {exc}")
+                continue
+            fence_marker = ""
+            for line_number, line in enumerate(lines, start=1):
+                fence = FENCE_RE.match(line)
+                if fence_marker:
+                    if (
+                        fence
+                        and fence.group(1)[0] == fence_marker[0]
+                        and len(fence.group(1)) >= len(fence_marker)
+                    ):
+                        fence_marker = ""
+                    continue
+                if fence:
+                    fence_marker = fence.group(1)
+                    continue
+                letters = non_english_letters(line)
+                if letters:
+                    self.error(
+                        "canonical prose must be English when "
+                        "communication.artifact_language is 'en': "
+                        f"{relative}:{line_number} contains {letters!r}"
+                    )
+
     def validate_memory_index(self, path: Path) -> None:
         text = path.read_text(encoding="utf-8")
         self.validate_memory_document_budget(path, "memory index", text)
-        required_headers = [
-            "ID",
-            "경로",
-            "한 줄 요약",
-            "언제 읽나",
-            "출처",
-            "마지막 검증",
-            "상태",
-        ]
-        header = next(
+        header_sets = (
+            ENGLISH_MEMORY_HEADERS,
+            LEGACY_KOREAN_MEMORY_HEADERS,
+        )
+        header_columns = next(
             (
-                line
+                tuple(
+                    column.strip()
+                    for column in line.strip().strip("|").split("|")
+                )
                 for line in text.splitlines()
                 if line.lstrip().startswith("|")
-                and all(marker in line for marker in required_headers)
+                and tuple(
+                    column.strip()
+                    for column in line.strip().strip("|").split("|")
+                )
+                in header_sets
             ),
             None,
         )
-        if header is None:
+        if header_columns is None:
             self.error("memory index is missing required table headers")
             return
+        if (
+            self.requires_english_artifacts()
+            and header_columns != ENGLISH_MEMORY_HEADERS
+        ):
+            self.error(
+                "memory index must use English table headers when "
+                "communication.artifact_language is 'en'"
+            )
 
         seen_ids: set[str] = set()
         seen_paths: set[str] = set()
@@ -939,11 +1194,22 @@ class Validator:
             if len(columns) != 7:
                 self.error(f"memory index has a malformed table row: {line!r}")
                 continue
-            if columns[0] in {"ID", "---"}:
+            if tuple(columns) in header_sets or columns[0] == "---":
                 continue
             if all(set(column) <= {"-", ":"} for column in columns):
                 continue
-            entry_id, relative, _summary, _read_when, _source, _verified, status = columns
+            entry_id, relative, summary, read_when, _source, _verified, status = columns
+            if self.requires_english_artifacts():
+                for field, value in (
+                    ("Summary", summary),
+                    ("Read when", read_when),
+                ):
+                    letters = non_english_letters(value)
+                    if letters:
+                        self.error(
+                            f"memory index {field} must use English prose: "
+                            f"{entry_id!r} contains {letters!r}"
+                        )
             if status not in MEMORY_STATUSES:
                 self.error(f"memory index has unsupported status {status!r}: {entry_id!r}")
                 continue
@@ -953,6 +1219,14 @@ class Validator:
                 continue
             if not self.identifier(entry_id, "memory index ID"):
                 continue
+            if (
+                self.memory_max_summary_chars > 0
+                and len(summary) > self.memory_max_summary_chars
+            ):
+                self.error(
+                    f"memory index summary exceeds memory.max_summary_chars "
+                    f"({len(summary)} > {self.memory_max_summary_chars}): {entry_id!r}"
+                )
             if entry_id in seen_ids:
                 self.error(f"memory index contains duplicate ID: {entry_id!r}")
             seen_ids.add(entry_id)
@@ -984,6 +1258,7 @@ class Validator:
         line_count = len(text.splitlines())
         if (
             line_count > self.memory_max_document_lines
+            and "<!-- reading-budget exception:" not in text
             and "<!-- 문서규율 예외:" not in text
         ):
             self.error(
@@ -1614,11 +1889,11 @@ class Validator:
         harness_root = self.harness_root_text()
         return (
             f"# {role}\n\n"
-            f"먼저 `{harness_root}/harness-spec.json`과 "
-            f"`{harness_root}/team/agents/{role}.md`를 읽는다.\n\n"
-            "공통 역할 파일을 이 agent의 지시 정본으로 따른다. 결과에 근거와 "
-            "미실행 검증을 포함하고, 다음 역할은 "
-            f"`{self.namespace}-<role-id>` namespaced agent로 지정한다."
+            f"Read `{harness_root}/harness-spec.json` and "
+            f"`{harness_root}/team/agents/{role}.md` first.\n\n"
+            "Treat the common role file as canonical. Return evidence and any "
+            "verification not run. Name the next role "
+            f"`{self.namespace}-<role-id>`."
         )
 
     def expected_codex_agent_instructions(self, role: str) -> str:
@@ -1635,11 +1910,11 @@ class Validator:
         harness_root = self.harness_root_text()
         return (
             f"# {role}\n\n"
-            f"먼저 `{harness_root}/harness-spec.json`과 "
-            f"`{harness_root}/team/agents/{role}.md`를 읽는다.\n\n"
-            "공통 역할 파일을 이 agent의 지시 정본으로 따른다. 결과에 근거와 "
-            "미실행 검증을 포함한다. Gemini subagent는 다른 subagent를 호출하지 "
-            "않고, 다음 handoff는 메인 오케스트레이터에 반환한다."
+            f"Read `{harness_root}/harness-spec.json` and "
+            f"`{harness_root}/team/agents/{role}.md` first.\n\n"
+            "Treat the common role file as canonical. Return evidence and any "
+            "verification not run. Do not call another Gemini subagent; return the "
+            "next handoff to the main orchestrator."
         )
 
     def frontmatter_raw_fields(self, path: Path) -> dict[str, str]:

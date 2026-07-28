@@ -1,30 +1,34 @@
-# 원칙 2 — 모든 컨텍스트는 예산이다
+# Principle 2 — Context Is a Budget
 
-## 선언
+## Statement
 
-컨텍스트 윈도우는 무한하지 않고, 소진은 눈에 보이지 않게 진행된다.
-따라서 하네스는 컨텍스트를 **명시적으로 선언된 예산**으로 다룬다.
-예산 없는 실행은 "잔고를 모르는 지출"이며, 컨텍스트 고갈로 인한 품질 저하·작업 유실은
-사고가 아니라 예산 관리 실패로 분류한다.
+Context is finite and its depletion is easy to miss. A harness therefore treats reading, reasoning, delegation, and session length as declared budgets. Quality loss caused by context exhaustion is a budget-management failure, not an unavoidable accident.
 
-## 규칙
+## Rules
 
-1. **선언**: 작업 단위마다 예산을 선언한다. 단위는 프로젝트 성격에 따라 토큰·턴·서브에이전트 수·세션 수 중 택한다. 선언 위치는 `budget/CONTEXT-BUDGET.md`의 예산표.
-2. **추적**: 작업 단위 종료 시 실제 소진을 장부에 기록한다. 정밀할 필요는 없다 — 자릿수(order of magnitude)가 맞으면 된다. 기록하지 않는 것보다 대충이라도 기록하는 것이 낫다.
-3. **초과 시 행동은 미리 정한다**: 예산 80% 도달 시와 100% 초과 시의 행동(체크포인트 후 분할 / 오프로딩 / 세션 교체)을 하네스 생성 시점에 확정해 둔다. 초과한 뒤에 고민하지 않는다.
-4. **컨텍스트에 상태를 들고 다니지 않는다**: 긴 중간 산출물, 조사 결과, 작업 목록은 파일로 내리고 컨텍스트에는 경로만 남긴다 (→ 원칙 3, 결정적 오프로딩).
-5. **읽기에도 예산이 있다**: 세션 시작 시 읽는 파일의 순서와 상한을 `HARNESS.md`에 정의한다. "전부 읽고 시작"은 예산 위반이다.
+1. **Declare a unit budget** — Record a measurable allowance in `budget/CONTEXT-BUDGET.md`. Use tokens, turns, subagents, sessions, or another observable unit appropriate to the runtime.
+2. **Track actual use** — At the end of a work unit, append a useful estimate to the ledger. Order-of-magnitude accuracy is sufficient when exact metering is unavailable.
+3. **Predefine thresholds** — Decide at harness creation what happens at 80% and 100%: checkpoint, split, offload, change session, or stop.
+4. **Store state in files** — Keep queues, research, long intermediate results, and decisions in canonical files. Context contains paths and the smallest working set, not durable state.
+5. **Budget reads** — `HARNESS.md` declares cold-start order and limits. Read indexes first and open only references required by the current unit.
+6. **Keep internal prose lean** — Canonical runtime instructions are concise English and are not duplicated in multiple languages. User-facing presentation is configured separately.
 
-## 기본 예산 정책 (인터뷰에서 미지정 시)
+## Defaults for new harnesses
 
-| 항목 | 기본값 |
+| Item | Default |
 |---|---|
-| 작업 단위당 예산 | 세션 컨텍스트의 1/4 (초과 예상 시 작업을 쪼갠다) |
-| 80% 도달 시 | 체크포인트 기록 후 현 단위만 마무리, 신규 단위 착수 금지 |
-| 100% 초과 시 | 즉시 체크포인트, 남은 작업을 state.json에 기록하고 세션 종료(교체) |
-| 세션 시작 읽기 상한 | HARNESS.md + state.json + 진행 중 단위 관련 파일만 |
+| Work-unit allowance | One quarter of the session context; split units expected to exceed it |
+| At 80% | Write a checkpoint, finish only the current unit, start no new unit |
+| At 100% | Checkpoint immediately, persist remaining work in `state/state.json`, and stop or replace the session |
+| Cold-start reads | Follow `HARNESS.md`; load the spec, current state, memory index, and only current-unit references |
+| Canonical skill limit | `limits.max_instruction_lines: 120` |
+| Memory document limit | `memory.max_document_lines: 80` |
+| Memory summary limit | `memory.max_summary_chars: 160` |
 
-## 구성자에게
+The three reading-cost fields are optional for existing schema 1.0 or 1.1 harnesses. Their absence is backward compatible and must not cause an automatic rewrite of project-owned content. New harnesses include them; migrations add them deliberately and preserve approved exceptions.
 
-- 인터뷰에서 사용자의 코스트 민감도(무제한/보통/타이트)를 반드시 확인하고 `CONTEXT-BUDGET.md.tmpl`의 정책 강도를 조절하라.
-- 예산 단위를 토큰으로 강제하지 마라. 측정할 수 없는 환경에서는 턴 수·작업 단위 수가 더 정직한 예산이다.
+## Constructor requirements
+
+- Q4 captures cost sensitivity and adjusts work budgets, sampling, intervals, cooldown, and evaluation budget without suppressing mandatory events.
+- Do not force token accounting when the runtime cannot measure it. Turns or completed units may be more honest.
+- Split optional detail into indexed references before exceeding a configured budget.
