@@ -28,14 +28,15 @@ Read only these items first, in order:
 
 1. `HARNESS.md`
 2. `harness-spec.json`
-3. `team/TEAM-ARCHITECTURE.md`
-4. `state/state.json`
-5. Pending events and the last verdict in `state/self-evaluation.json`
-6. Only durable memory needed for the current unit, selected through `memory/INDEX.md`
-7. Remaining budget in `budget/CONTEXT-BUDGET.md`
-8. Files selected by `state.current.refs` and the memory index for the current unit
+3. `policies/learning-gate.json`
+4. `team/TEAM-ARCHITECTURE.md`
+5. `state/state.json`
+6. Pending events and the last verdict in `state/self-evaluation.json`
+7. Only durable memory needed for the current unit, selected through `memory/INDEX.md`
+8. Remaining budget in `budget/CONTEXT-BUDGET.md`
+9. Files selected by `state.current.refs` and the memory index for the current unit
 
-If the purpose, phase, immediate next action, linked task evaluator, selected memory, pending events, or last verdict cannot be restored and `coldstart_fail` changes from false to true, the main orchestrator adds `coldstart-fail` once to `state/self-evaluation.json.pending_events`. Open long evaluation or improvement documents only when the checker requires them.
+If the purpose, phase, immediate next action, linked task evaluator, selected memory, pending events, or last verdict cannot be restored and `coldstart_fail` changes from false to true, the main orchestrator adds `coldstart-fail` once to `state/self-evaluation.json.pending_events`. Open long evaluation, improvement, or learning documents only when the current policy and task require them.
 
 ## Operating lanes
 
@@ -44,6 +45,7 @@ If the purpose, phase, immediate next action, linked task evaluator, selected me
 | Execution | `loops/EXECUTION-LOOP.md` | Every work unit |
 | Task evaluation | `loops/EVAL-LOOP.md` | After every unit |
 | Structural verification | validator and `{{SKILL_NAME}}-verify` | After a component change |
+| Learning gate | `policies/learning-gate.json` and `triggers/verify_learning_gate.py` | Only when user-enabled and applicable |
 | Harness-effect evaluation | `loops/HARNESS-EVAL-LOOP.md` | Valid targeted or full trigger |
 | Improvement | `loops/IMPROVE-LOOP.md` | After full evidence identifies a harness defect |
 | Recovery | `recovery/` | Task or structural failure |
@@ -51,6 +53,20 @@ If the purpose, phase, immediate next action, linked task evaluator, selected me
 | Records and budget | `ledger/`, `budget/`, `state/` | At each boundary |
 
 Every schema 1.1 `skills[].evaluator` references an existing evaluator. Entry, evaluation, verification, and domain skills use `scope: task`; harness-evaluation and improvement skills use a `scope: harness`, `type: experiment` evaluator.
+
+## User-controlled learning gate
+
+- The gate is installed in every generated harness and starts with `policies/learning-gate.json.enabled: false`.
+- Only an explicit user instruction may change `enabled`. Agents may recommend a state but must not change it.
+- When disabled, do not create `learning/<change-id>/` artifacts and do not block review, pull request creation, or merge.
+- When enabled and applicable, follow `policies/LEARNING-GATE.md`: write the brief before implementation, explain the actual diff, create five understanding questions, collect developer-authored answers, and bind the passing result to the current commit and content hashes.
+- The implementation agent must not write the developer's answers or serve as the sole semantic judge of an ambiguous answer.
+
+```text
+python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --change-id <change-id> --changed-lines <count> --risk-tag <tag>
+```
+
+A `skip` result is valid only when the gate is disabled or the enabled policy is not applicable. A missing, stale, or failed result blocks only the delivery steps declared in the enabled policy. Learning verification is separate from harness-effect evaluation.
 
 ## Low-cost trigger and ACK
 
@@ -64,7 +80,7 @@ python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --de
 - On `none`, do not load evaluation or improvement skills. On `targeted`, run only the reason mapping in `evaluation/suites/targeted.json`.
 - Before evaluation, freeze the checker JSON at `evaluation/runs/<run-id>/trigger.json`. For an explicit full request, preserve the raw checker JSON in `override.original`; set the effective top-level `decision: full`, `mandatory: false`, `override.kind: explicit-user-request`; append the marker after the original reasons; and preserve the original deferred reasons, hashes, and `acknowledgement`. The evaluator and recorder read the same top-level decision and reject a simple decision edit. ACK each completed targeted or full run with that decision file. A full ACK consumes only the processed pending events and frozen failure snapshot, then updates hashes, units, and cooldown so the same mandatory signal does not reopen evaluation.
 
-The checker hashes the canonical contract separately. Ordinary `memory/` content and index-row edits are excluded from that hash and receive deterministic structural verification. `harness-spec.json` and this file are canonical for memory policy and read routing. `self_evaluation.watched_paths` lists only exact managed artifacts for selected providers: root guidance files, each spec skill projection, namespaced agent wrappers, and generated config. Do not watch whole provider roots, unrelated user skills or agents, unselected providers, or the factory repository.
+The checker hashes the canonical contract separately. Ordinary `memory/` content and index-row edits are excluded from that hash and receive deterministic structural verification. `harness-spec.json` and this file are canonical for memory policy and read routing. `self_evaluation.watched_paths` lists only exact managed artifacts for selected providers: root guidance files, each spec skill projection, namespaced agent wrappers, and generated config. Do not watch whole provider roots, unrelated user skills or agents, unselected providers, the factory repository, or per-change learning answers.
 
 ## File map
 
@@ -75,8 +91,17 @@ The checker hashes the canonical contract separately. Ordinary `memory/` content
 ├── ENVIRONMENT.md
 ├── team/                   # provider-neutral agent source
 ├── skills/                 # canonical skill source
+├── policies/
+│   ├── learning-gate.json  # installed disabled; user controls enabled
+│   └── LEARNING-GATE.md
+├── learning/
+│   ├── _templates/
+│   └── <change-id>/        # created only when the enabled gate applies
 ├── loops/                  # execution, task eval, harness eval, improve
-├── triggers/               # deterministic checker and recorder
+├── triggers/
+│   ├── check_self_evaluation.py
+│   ├── record_self_evaluation.py
+│   └── verify_learning_gate.py
 ├── evaluation/
 │   ├── suites/targeted.json
 │   ├── baselines/
@@ -100,7 +125,9 @@ The checker hashes the canonical contract separately. Ordinary `memory/` content
 
 - Never pass without raw evidence from the task evaluator.
 - Never bypass a human approval gate.
+- Never change the learning gate's enabled state without an explicit user instruction.
+- A disabled learning gate must not create learning work or block delivery.
 - Apply semantic changes to the common spec or canonical file first.
 - Never report completion while selected provider adapters lack parity.
-- Never send state, ledger, or evaluation history outside the target project automatically.
-- Improve an existing harness in place using a baseline, preservation manifest, and delta plan. Never delete, overwrite, or rename user configuration or durable memory without approval.
+- Never send state, ledger, evaluation history, or learning evidence outside the target project automatically.
+- Improve an existing harness in place using a baseline, preservation manifest, and delta plan. Never delete, overwrite, or rename user configuration, durable memory, or learning evidence without approval.
