@@ -10,11 +10,15 @@
 - Trigger: `python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}`
 - ACK: `python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>`
 - Targeted suite: `{{HARNESS_ROOT}}/evaluation/suites/targeted.json`
+- Learning gate policy: `{{HARNESS_ROOT}}/policies/learning-gate.json` (installed disabled; only the user may change `enabled`)
+- Learning gate verifier: `python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --change-id <change-id> --changed-lines <count> --risk-tag <tag>`
 - Reports: follow `communication.report_language` and `communication.terminology`; if absent, use `en` and `technical-english`
 - `technical-english`: report-language grammar with stable technical nouns kept in English; `localized`: conventional local explanatory nouns
 - In both modes, keep machine tokens exact and do not duplicate bilingual prose
 - Skills: `.agents/skills/{{SKILL_NAME}}*/SKILL.md`
 - Agents: `.codex/agents/{{SKILL_NAME}}-*.toml`
+
+At review, pull request, and merge boundaries, read the learning gate policy. When disabled, do not create learning artifacts or block delivery. When enabled and applicable, require the project-owned brief, actual-diff explanation, five-question quiz, developer-authored answers, and current commit/hash verification. Agents may recommend enabling or disabling the gate but must not change `enabled` without an explicit user instruction.
 
 Every schema 1.1 skill has an evaluator link. At task boundaries run only the deterministic checker. Route `input-invalid:*` to structural verification/recovery without effect evaluation or LLM. For `adapter-change|parity-fail`, require provider parity verification before effect evaluation and append a new `parity-fail` pending event on a pass-to-fail transition. Targeted evaluation may run only the deterministic reason mapping in `targeted.json`.
 
