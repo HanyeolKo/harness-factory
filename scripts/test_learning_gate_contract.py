@@ -15,13 +15,29 @@ POLICY_TEMPLATE = ROOT / "templates" / "policies" / "learning-gate.json.tmpl"
 VERIFIER_TEMPLATE = ROOT / "templates" / "triggers" / "verify_learning_gate.py.tmpl"
 
 
-def run_verifier(script: Path, harness_root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def run_verifier(
+    script: Path, harness_root: Path, *args: str
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(script), str(harness_root), *args],
         check=False,
         capture_output=True,
         text=True,
     )
+
+
+def run_git(project_root: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(project_root), *args],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            f"git {' '.join(args)} failed: {result.stdout} {result.stderr}"
+        )
+    return result.stdout.strip()
 
 
 def digest(path: Path) -> str:
@@ -33,15 +49,29 @@ def write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
-def expect_status(result: subprocess.CompletedProcess[str], code: int, status: str) -> dict:
+def expect_status(
+    result: subprocess.CompletedProcess[str], code: int, status: str
+) -> dict:
     if result.returncode != code:
         raise AssertionError(
-            f"expected exit {code}, got {result.returncode}: {result.stdout} {result.stderr}"
+            f"expected exit {code}, got {result.returncode}: "
+            f"{result.stdout} {result.stderr}"
         )
     payload = json.loads(result.stdout)
     if payload.get("status") != status:
         raise AssertionError(f"expected status {status}, got {payload}")
     return payload
+
+
+def expect_error(payload: dict, fragment: str) -> None:
+    if not any(fragment in error for error in payload.get("errors", [])):
+        raise AssertionError(f"expected error containing {fragment!r}, got {payload}")
+
+
+def initialize_repository(project_root: Path) -> None:
+    run_git(project_root, "init")
+    run_git(project_root, "config", "user.name", "Learning Gate Test")
+    run_git(project_root, "config", "user.email", "learning-gate@example.invalid")
 
 
 def main() -> int:
@@ -54,6 +84,7 @@ def main() -> int:
     assert policy["enabled"] is False
     assert policy["control"]["owner"] == "user"
     assert policy["control"]["agents_may_change_enabled"] is False
+    assert policy["verification"]["require_source_commit_binding"] is True
     compile(VERIFIER_TEMPLATE.read_text(encoding="utf-8"), str(VERIFIER_TEMPLATE), "exec")
 
     with tempfile.TemporaryDirectory() as temporary:
@@ -76,10 +107,47 @@ def main() -> int:
             "--apply",
             "--change-id",
             "CHG-TEST-001",
-            "--head-sha",
-            "abc123",
         )
         expect_status(missing, 1, "fail")
+
+        high_risk_exemption = run_verifier(
+            verifier_path,
+            harness_root,
+            "--change-id",
+            "CHG-RISK-001",
+            "--changed-lines",
+            "1",
+            "--change-kind",
+            "typo",
+            "--risk-tag",
+            "authentication-change",
+        )
+        high_risk_payload = expect_status(high_risk_exemption, 1, "fail")
+        expect_error(high_risk_payload, "missing brief")
+
+        invalid_change_id = run_verifier(
+            verifier_path,
+            harness_root,
+            "--apply",
+            "--change-id",
+            "../outside",
+        )
+        invalid_id_payload = expect_status(invalid_change_id, 1, "fail")
+        expect_error(invalid_id_payload, "--change-id must start")
+
+        policy["quiz"]["minimum_score"] = "80"
+        write_json(policy_path, policy)
+        malformed_policy = run_verifier(
+            verifier_path,
+            harness_root,
+            "--apply",
+            "--change-id",
+            "CHG-POLICY-001",
+        )
+        malformed_payload = expect_status(malformed_policy, 1, "fail")
+        expect_error(malformed_payload, "quiz.minimum_score")
+        policy["quiz"]["minimum_score"] = 80
+        write_json(policy_path, policy)
 
         change_root = harness_root / "learning" / "CHG-TEST-001"
         change_root.mkdir(parents=True, exist_ok=True)
@@ -111,11 +179,18 @@ def main() -> int:
                 ],
             },
         )
+
+        initialize_repository(project_root)
+        run_git(project_root, "add", ".")
+        run_git(project_root, "commit", "-m", "source change and learning evidence")
+        source_sha = run_git(project_root, "rev-parse", "HEAD")
+
+        verification_path = change_root / "verification.json"
         write_json(
-            change_root / "verification.json",
+            verification_path,
             {
                 "change_id": "CHG-TEST-001",
-                "commit_sha": "abc123",
+                "source_commit_sha": source_sha,
                 "developer": "developer",
                 "score": 90,
                 "required_concepts_score": 100,
@@ -126,6 +201,8 @@ def main() -> int:
                 "answers_hash": digest(answers_path),
             },
         )
+        run_git(project_root, "add", verification_path.relative_to(project_root).as_posix())
+        run_git(project_root, "commit", "-m", "record learning verification")
 
         passed = run_verifier(
             verifier_path,
@@ -133,26 +210,40 @@ def main() -> int:
             "--apply",
             "--change-id",
             "CHG-TEST-001",
-            "--head-sha",
-            "abc123",
         )
-        expect_status(passed, 0, "pass")
+        pass_payload = expect_status(passed, 0, "pass")
+        assert pass_payload["source_commit_sha"] == source_sha
+        assert pass_payload["evidence_commit_sha"] == run_git(
+            project_root, "rev-parse", "HEAD"
+        )
 
         answers = json.loads(answers_path.read_text(encoding="utf-8"))
         answers["answers"][0]["answer"] = "Changed after verification"
         write_json(answers_path, answers)
-        stale = run_verifier(
+        stale_answers = run_verifier(
             verifier_path,
             harness_root,
             "--apply",
             "--change-id",
             "CHG-TEST-001",
-            "--head-sha",
-            "abc123",
         )
-        payload = expect_status(stale, 1, "fail")
-        if not any("answers_hash" in error for error in payload.get("errors", [])):
-            raise AssertionError(f"expected answers hash failure, got {payload}")
+        stale_answers_payload = expect_status(stale_answers, 1, "fail")
+        expect_error(stale_answers_payload, "answers_hash")
+        expect_error(stale_answers_payload, "worktree must be clean")
+        run_git(project_root, "restore", answers_path.relative_to(project_root).as_posix())
+
+        (project_root / "application.txt").write_text("changed code\n", encoding="utf-8")
+        run_git(project_root, "add", "application.txt")
+        run_git(project_root, "commit", "-m", "change code after verification")
+        stale_code = run_verifier(
+            verifier_path,
+            harness_root,
+            "--apply",
+            "--change-id",
+            "CHG-TEST-001",
+        )
+        stale_code_payload = expect_status(stale_code, 1, "fail")
+        expect_error(stale_code_payload, "changes after source_commit_sha")
 
     print("learning gate contract: pass")
     return 0

@@ -18,7 +18,7 @@
 - Skills: `.claude/skills/{{SKILL_NAME}}*/SKILL.md`
 - Agents: `.claude/agents/{{SKILL_NAME}}-*.md`
 
-At review, pull request, and merge boundaries, read the learning gate policy. When disabled, do not create learning artifacts or block delivery. When enabled and applicable, require the project-owned brief, actual-diff explanation, five-question quiz, developer-authored answers, and current commit/hash verification. Agents may recommend enabling or disabling the gate but must not change `enabled` without an explicit user instruction.
+At review, pull request, and merge boundaries, read the learning gate policy. When disabled, do not create learning artifacts or block delivery. When enabled and applicable, require the project-owned brief, actual-diff explanation, five-question quiz, developer-authored answers, and committed source-snapshot/hash verification. A matching risk tag overrides a low-risk exemption. Agents may recommend enabling or disabling the gate but must not change `enabled` without an explicit user instruction.
 
 Every schema 1.1 skill has an evaluator link. At task boundaries run only the deterministic checker. Route `input-invalid:*` to structural verification/recovery without effect evaluation or LLM. For `adapter-change|parity-fail`, require provider parity verification before effect evaluation and append a new `parity-fail` pending event on a pass-to-fail transition. Targeted evaluation may run only the deterministic reason mapping in `targeted.json`.
 

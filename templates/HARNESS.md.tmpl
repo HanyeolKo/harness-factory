@@ -59,7 +59,7 @@ Every schema 1.1 `skills[].evaluator` references an existing evaluator. Entry, e
 - The gate is installed in every generated harness and starts with `policies/learning-gate.json.enabled: false`.
 - Only an explicit user instruction may change `enabled`. Agents may recommend a state but must not change it.
 - When disabled, do not create `learning/<change-id>/` artifacts and do not block review, pull request creation, or merge.
-- When enabled and applicable, follow `policies/LEARNING-GATE.md`: write the brief before implementation, explain the actual diff, create five understanding questions, collect developer-authored answers, and bind the passing result to the current commit and content hashes.
+- When enabled and applicable, follow `policies/LEARNING-GATE.md`: write the brief before implementation, explain the actual diff, create five understanding questions, collect developer-authored answers, and bind the passing result to a committed source snapshot and content hashes. A matching risk tag overrides a low-risk exemption.
 - The implementation agent must not write the developer's answers or serve as the sole semantic judge of an ambiguous answer.
 
 ```text

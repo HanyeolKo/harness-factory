@@ -47,7 +47,7 @@ Every newly generated harness installs the learning gate but sets `policies/lear
 - Disabled means no per-change learning artifacts, no quiz work, and no review, PR, or merge blocking.
 - Enabled applies only under the configured scope. The default scope is risk-based, with a changed-line threshold, risk tags, and low-risk exemptions.
 - Applicable changes require a pre-change brief, an explanation based on the actual diff, five medium-difficulty questions with at least three free-text items, developer-authored answers, and deterministic verification.
-- Verification binds the current commit SHA and SHA-256 hashes of `quiz.json` and `answers.json`. Stale or missing evidence is a failure.
+- Verification binds SHA-256 hashes of `quiz.json` and `answers.json` to a committed source snapshot. That source commit contains the code and the first four learning artifacts; only the committed `verification.json` may change between it and a clean `HEAD`. Matching risk tags override low-risk exemptions. Stale, uncommitted, path-escaped, or missing evidence is a failure.
 - The implementation agent must not author the developer's answers or act as the sole semantic judge of an ambiguous answer.
 - Learning verification is task-understanding evidence and a delivery gate. It is separate from harness-effect evaluation and does not establish that the harness improved.
 

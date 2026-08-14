@@ -5,10 +5,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+
+CHANGE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -28,24 +33,78 @@ def file_hash(path: Path) -> str:
     return f"sha256:{digest}"
 
 
-def current_head(project_root: Path) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(project_root), "rev-parse", "HEAD"],
+def run_git(project_root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(project_root), *arguments],
         check=False,
         capture_output=True,
         text=True,
     )
+
+
+def current_head(project_root: Path) -> str:
+    result = run_git(project_root, "rev-parse", "HEAD")
     if result.returncode != 0:
         return ""
     return result.stdout.strip()
+
+
+def canonical_commit(project_root: Path, revision: str) -> str:
+    result = run_git(project_root, "rev-parse", "--verify", f"{revision}^{{commit}}")
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
+def tracked_at(project_root: Path, revision: str, relative_path: str) -> bool:
+    result = run_git(project_root, "cat-file", "-e", f"{revision}:{relative_path}")
+    return result.returncode == 0
+
+
+def changed_paths(project_root: Path, older: str, newer: str) -> list[str] | None:
+    result = run_git(
+        project_root,
+        "diff",
+        "--name-only",
+        "--no-renames",
+        f"{older}..{newer}",
+    )
+    if result.returncode != 0:
+        return None
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def worktree_changes(project_root: Path) -> list[str] | None:
+    result = run_git(
+        project_root,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+    )
+    if result.returncode != 0:
+        return None
+    return [line.rstrip() for line in result.stdout.splitlines() if line.strip()]
 
 
 def emit(status: str, **payload: Any) -> None:
     print(json.dumps({"status": status, **payload}, ensure_ascii=False, sort_keys=True))
 
 
-def positive_number(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+def non_negative_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def positive_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def percentage(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and 0 <= value <= 100
+    )
 
 
 def main() -> int:
@@ -55,7 +114,6 @@ def main() -> int:
     parser.add_argument("--changed-lines", type=int, default=0)
     parser.add_argument("--risk-tag", action="append", default=[])
     parser.add_argument("--change-kind", action="append", default=[])
-    parser.add_argument("--head-sha")
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
 
@@ -99,8 +157,11 @@ def main() -> int:
         emit("fail", errors=["scope must be an object"])
         return 1
     threshold = scope.get("changed_lines_gte", 0)
-    if not isinstance(threshold, int) or isinstance(threshold, bool) or threshold < 0:
+    if not non_negative_integer(threshold):
         emit("fail", errors=["scope.changed_lines_gte must be a non-negative integer"])
+        return 1
+    if args.changed_lines < 0:
+        emit("fail", errors=["--changed-lines must be a non-negative integer"])
         return 1
     configured_risks = scope.get("risk_tags", [])
     if not isinstance(configured_risks, list) or not all(
@@ -118,9 +179,10 @@ def main() -> int:
     supplied_kinds = set(args.change_kind)
     exempt = bool(supplied_kinds) and supplied_kinds.issubset(set(exemptions))
     matching_risks = sorted(set(args.risk_tag) & set(configured_risks))
-    applicable = args.apply or (
-        not exempt
-        and (args.changed_lines >= threshold or bool(matching_risks))
+    applicable = (
+        args.apply
+        or bool(matching_risks)
+        or (not exempt and args.changed_lines >= threshold)
     )
     if not applicable:
         emit(
@@ -134,8 +196,71 @@ def main() -> int:
     if not args.change_id:
         emit("fail", errors=["--change-id is required when the gate applies"])
         return 1
+    if not CHANGE_ID_PATTERN.fullmatch(args.change_id):
+        emit(
+            "fail",
+            errors=[
+                "--change-id must start with an alphanumeric character and contain "
+                "only alphanumerics, '.', '_', or '-' (maximum 128 characters)"
+            ],
+        )
+        return 1
 
-    change_root = harness_root / "learning" / args.change_id
+    learning_root = (harness_root / "learning").resolve()
+    if learning_root.parent != harness_root:
+        emit("fail", errors=["harness/learning resolves outside the harness root"])
+        return 1
+    change_root = (learning_root / args.change_id).resolve()
+    if change_root.parent != learning_root:
+        emit("fail", errors=["--change-id resolves outside harness/learning"])
+        return 1
+
+    quiz_policy = policy.get("quiz")
+    policy_errors: list[str] = []
+    if not isinstance(quiz_policy, dict):
+        policy_errors.append("quiz policy must be an object")
+        quiz_policy = {}
+    expected_count = quiz_policy.get("question_count", 5)
+    min_free_text = quiz_policy.get("minimum_free_text_questions", 3)
+    minimum_score = quiz_policy.get("minimum_score", 80)
+    required_score = quiz_policy.get("required_concepts_score", 100)
+    max_attempts = quiz_policy.get("max_attempts", 3)
+    if not positive_integer(expected_count):
+        policy_errors.append("quiz.question_count must be a positive integer")
+    if not non_negative_integer(min_free_text):
+        policy_errors.append(
+            "quiz.minimum_free_text_questions must be a non-negative integer"
+        )
+    elif positive_integer(expected_count) and min_free_text > expected_count:
+        policy_errors.append(
+            "quiz.minimum_free_text_questions must not exceed quiz.question_count"
+        )
+    if not percentage(minimum_score):
+        policy_errors.append("quiz.minimum_score must be a number from 0 to 100")
+    if not percentage(required_score):
+        policy_errors.append(
+            "quiz.required_concepts_score must be a number from 0 to 100"
+        )
+    if not positive_integer(max_attempts):
+        policy_errors.append("quiz.max_attempts must be a positive integer")
+
+    configured_verification = policy.get("verification")
+    if not isinstance(configured_verification, dict):
+        policy_errors.append("verification policy must be an object")
+        configured_verification = {}
+    for field in (
+        "require_source_commit_binding",
+        "require_quiz_hash_match",
+        "require_answers_hash_match",
+    ):
+        if field in configured_verification and not isinstance(
+            configured_verification[field], bool
+        ):
+            policy_errors.append(f"verification.{field} must be a boolean")
+    if policy_errors:
+        emit("fail", errors=policy_errors)
+        return 1
+
     required_paths = {
         "brief": change_root / "brief.md",
         "diff_explanation": change_root / "diff-explanation.md",
@@ -163,16 +288,6 @@ def main() -> int:
         errors.append(str(exc))
         emit("fail", errors=errors)
         return 1
-
-    quiz_policy = policy.get("quiz")
-    if not isinstance(quiz_policy, dict):
-        errors.append("quiz policy must be an object")
-        quiz_policy = {}
-    expected_count = quiz_policy.get("question_count", 5)
-    min_free_text = quiz_policy.get("minimum_free_text_questions", 3)
-    minimum_score = quiz_policy.get("minimum_score", 80)
-    required_score = quiz_policy.get("required_concepts_score", 100)
-    max_attempts = quiz_policy.get("max_attempts", 3)
 
     questions = quiz.get("questions")
     if not isinstance(questions, list):
@@ -243,23 +358,76 @@ def main() -> int:
     if verification.get("change_id") != args.change_id:
         errors.append("verification.change_id does not match --change-id")
 
-    configured_verification = policy.get("verification")
-    if not isinstance(configured_verification, dict):
-        errors.append("verification policy must be an object")
-        configured_verification = {}
-
-    head_sha = args.head_sha or current_head(project_root)
-    if configured_verification.get("require_head_sha_match", True):
+    head_sha = current_head(project_root)
+    source_sha = verification.get("source_commit_sha")
+    if configured_verification.get("require_source_commit_binding", True):
         if not head_sha:
             errors.append("cannot resolve current commit SHA")
-        elif verification.get("commit_sha") != head_sha:
-            errors.append("verification.commit_sha does not match the current commit")
+        if not isinstance(source_sha, str) or not source_sha:
+            errors.append("verification.source_commit_sha must be a commit SHA")
+        else:
+            resolved_source_sha = canonical_commit(project_root, source_sha)
+            if not resolved_source_sha or resolved_source_sha != source_sha:
+                errors.append(
+                    "verification.source_commit_sha must be a full valid commit SHA"
+                )
+            elif head_sha:
+                ancestor = run_git(
+                    project_root,
+                    "merge-base",
+                    "--is-ancestor",
+                    source_sha,
+                    head_sha,
+                )
+                if ancestor.returncode != 0:
+                    errors.append(
+                        "verification.source_commit_sha must be an ancestor of HEAD"
+                    )
+                else:
+                    relative_paths: dict[str, str] = {}
+                    for label, path in required_paths.items():
+                        try:
+                            relative_paths[label] = path.relative_to(
+                                project_root
+                            ).as_posix()
+                        except ValueError:
+                            errors.append(f"{label} resolves outside the project root")
+                    for label in ("brief", "diff_explanation", "quiz", "answers"):
+                        relative_path = relative_paths.get(label)
+                        if relative_path and not tracked_at(
+                            project_root, source_sha, relative_path
+                        ):
+                            errors.append(
+                                f"{label} must be committed in source_commit_sha"
+                            )
+                    verification_path = relative_paths.get("verification")
+                    if verification_path and not tracked_at(
+                        project_root, head_sha, verification_path
+                    ):
+                        errors.append("verification.json must be committed at HEAD")
+                    paths_after_source = changed_paths(
+                        project_root, source_sha, head_sha
+                    )
+                    if paths_after_source is None:
+                        errors.append("cannot compare source_commit_sha with HEAD")
+                    elif verification_path and set(paths_after_source) != {
+                        verification_path
+                    }:
+                        errors.append(
+                            "changes after source_commit_sha must be limited to "
+                            f"{verification_path}"
+                        )
+                    dirty_paths = worktree_changes(project_root)
+                    if dirty_paths is None:
+                        errors.append("cannot inspect project worktree state")
+                    elif dirty_paths:
+                        errors.append("project worktree must be clean during verification")
 
     score = verification.get("score")
-    if not positive_number(score) or score < minimum_score:
+    if not percentage(score) or score < minimum_score:
         errors.append(f"verification.score must be at least {minimum_score}")
     concept_score = verification.get("required_concepts_score")
-    if not positive_number(concept_score) or concept_score < required_score:
+    if not percentage(concept_score) or concept_score < required_score:
         errors.append(
             f"verification.required_concepts_score must be at least {required_score}"
         )
@@ -288,7 +456,8 @@ def main() -> int:
     emit(
         "pass",
         change_id=args.change_id,
-        commit_sha=head_sha,
+        source_commit_sha=source_sha,
+        evidence_commit_sha=head_sha,
         score=score,
         required_concepts_score=concept_score,
         matching_risk_tags=matching_risks,

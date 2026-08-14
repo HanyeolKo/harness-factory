@@ -90,7 +90,7 @@ Every new harness installs a learning gate as a project-owned policy, but it sta
 
 - Only an explicit user instruction may change `enabled`; agents may recommend a state but cannot toggle it.
 - Disabled means no learning artifacts, quiz work, review block, pull request block, or merge block.
-- Enabled changes use the configured risk-based scope. Applicable work requires a pre-change brief, an explanation based on the actual diff, five understanding questions, developer-authored answers, and deterministic verification bound to the current commit and content hashes.
+- Enabled changes use the configured risk-based scope, with matching risk tags taking precedence over low-risk exemptions. Applicable work requires a pre-change brief, an explanation based on the actual diff, five understanding questions, developer-authored answers, and deterministic verification bound to a committed source snapshot and content hashes.
 - Existing harnesses preserve the user's current on/off value during improve or reconcile operations.
 
 The policy lives at `harness/policies/learning-gate.json`. See [Learning Gate](docs/LEARNING-GATE.md) for the lifecycle, artifact contract, and CI integration.

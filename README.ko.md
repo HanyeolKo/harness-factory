@@ -90,7 +90,7 @@ Use the build-harness skill to create a Claude, Codex, and Gemini harness in D:\
 
 - `enabled`는 사용자의 명시적 지시로만 바꿀 수 있습니다. agent는 활성화나 비활성화를 제안할 수 있지만 직접 전환할 수 없습니다.
 - OFF 상태에서는 학습 문서와 퀴즈를 만들지 않고, 리뷰 요청·PR 생성·병합도 막지 않습니다.
-- ON 상태에서는 설정된 위험 기반 범위에 해당하는 변경만 적용합니다. 적용 대상 변경은 구현 전 brief, 실제 diff 기반 설명, 이해도 질문 5개, 개발자가 직접 작성한 답변, 현재 commit과 파일 hash에 묶인 결정적 검증을 요구합니다.
+- ON 상태에서는 설정된 위험 기반 범위에 해당하는 변경만 적용하며, 일치하는 risk tag는 저위험 exemption보다 우선합니다. 적용 대상 변경은 구현 전 brief, 실제 diff 기반 설명, 이해도 질문 5개, 개발자가 직접 작성한 답변, commit된 source snapshot과 파일 hash에 묶인 결정적 검증을 요구합니다.
 - 기존 하네스를 improve 또는 reconcile할 때 사용자가 정한 ON/OFF 값과 기존 학습 증거를 보존합니다.
 
 정책 파일은 `harness/policies/learning-gate.json`에 생성됩니다. 전체 흐름, 산출물 계약, CI 연결 방식은 [Learning Gate](docs/LEARNING-GATE.md)를 참고합니다.
