@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "enabled": false,
+  "control": {
+    "owner": "user",
+    "agents_may_change_enabled": false,
+    "activation_requires_explicit_user_instruction": true
+  },
+  "scope": {
+    "mode": "risk-based",
+    "changed_lines_gte": 50,
+    "risk_tags": [
+      "architecture-change",
+      "transaction-boundary-change",
+      "authentication-change",
+      "authorization-change",
+      "data-model-change",
+      "external-integration-change",
+      "unfamiliar-technology"
+    ]
+  },
+  "documentation": {
+    "brief_required": true,
+    "diff_explanation_required": true
+  },
+  "quiz": {
+    "question_count": 5,
+    "minimum_score": 80,
+    "required_concepts_score": 100,
+    "minimum_free_text_questions": 3,
+    "max_attempts": 3
+  },
+  "verification": {
+    "require_source_commit_binding": true,
+    "require_quiz_hash_match": true,
+    "require_answers_hash_match": true
+  },
+  "gates": {
+    "block_review_request": true,
+    "block_pr_creation": true,
+    "block_merge": true
+  },
+  "exemptions": [
+    "typo",
+    "formatting",
+    "generated-file",
+    "dependency-lockfile"
+  ]
+}

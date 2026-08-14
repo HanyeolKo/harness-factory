@@ -7,8 +7,9 @@ The target project's `harness/` directory owns canonical meaning and operational
 1. Schema 1.1 `harness/harness-spec.json` defines providers, communication, limits, domains, roles, skills, DAG, evaluators, gates, memory, loops, and self-evaluation.
 2. `team/agents/<role-id>.md` and `skills/<skill-id>/SKILL.md` hold provider-neutral meaning.
 3. `loops/` separates execution, task evaluation, harness-effect evaluation, and improvement.
-4. `state/`, append-only `ledger/`, `evaluation/`, and `memory/` remain in the target project and are never sent to the factory.
-5. `providers/<id>/contract.json` declares native projection paths and capabilities.
+4. `policies/learning-gate.json`, `policies/LEARNING-GATE.md`, `learning/`, and `triggers/verify_learning_gate.py` define the optional project-owned learning speed regulator.
+5. `state/`, append-only `ledger/`, `evaluation/`, `learning/`, and `memory/` remain in the target project and are never sent to the factory.
+6. `providers/<id>/contract.json` declares native projection paths and capabilities.
 
 ## Language and context
 
@@ -34,11 +35,41 @@ The target project's `harness/` directory owns canonical meaning and operational
 - Human approval is a stable-ID gate, not an evaluator.
 - Change the common spec and canonical file before every selected adapter.
 
+## Optional learning gate
+
+Every newly generated harness installs the learning gate but sets `policies/learning-gate.json.enabled` to `false`.
+
+- `control.owner` is `user`.
+- `control.agents_may_change_enabled` is `false`.
+- `control.activation_requires_explicit_user_instruction` is `true`.
+- An agent may explain or recommend the gate, but only an explicit user instruction may change `enabled`.
+- `improve|reconcile` preserves the existing enabled value and existing learning evidence.
+- Disabled means no per-change learning artifacts, no quiz work, and no review, PR, or merge blocking.
+- Enabled applies only under the configured scope. The default scope is risk-based, with a changed-line threshold, risk tags, and low-risk exemptions.
+- Applicable changes require a pre-change brief, an explanation based on the actual diff, five medium-difficulty questions with at least three free-text items, developer-authored answers, and deterministic verification.
+- Verification binds SHA-256 hashes of `quiz.json` and `answers.json` to a committed source snapshot. That source commit contains the code and the first four learning artifacts; only the committed `verification.json` may change between it and a clean `HEAD`. Matching risk tags override low-risk exemptions. Stale, uncommitted, path-escaped, or missing evidence is a failure.
+- The implementation agent must not author the developer's answers or act as the sole semantic judge of an ambiguous answer.
+- Learning verification is task-understanding evidence and a delivery gate. It is separate from harness-effect evaluation and does not establish that the harness improved.
+
+Generated paths are:
+
+```text
+harness/
+├── policies/
+│   ├── learning-gate.json
+│   └── LEARNING-GATE.md
+├── learning/
+│   ├── _templates/
+│   └── <change-id>/
+└── triggers/
+    └── verify_learning_gate.py
+```
+
 ## Existing harnesses
 
 Classify no harness as `create`, a valid runtime-neutral spec as `improve`, and a partial/legacy harness as `reconcile`. Before `improve|reconcile`, freeze original validator/evaluator results, ownership, and `preservation-before.json`; apply only a classified `unchanged|add|modify-proposed|conflict|approval-required` delta.
 
-Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, and durable memory. Deletion, rename, semantic replacement, split, or merge needs explicit approval. Upsert only namespaced managed blocks and generated adapters. Completion requires the new contract, original evaluators, and preservation comparison to pass.
+Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, durable memory, learning evidence, and the user's learning-gate enabled value. Deletion, rename, semantic replacement, split, merge, or a learning-gate state change needs explicit approval. Upsert only namespaced managed blocks and generated adapters. Completion requires the new contract, original evaluators, and preservation comparison to pass.
 
 ## Memory
 
@@ -62,6 +93,8 @@ Create, move, rename, supersede, archive, and index updates are one transaction.
 
 Skills are byte-identical to canonical files. Agent wrappers contain only minimal native metadata and the common role path. The Gemini main orchestrator owns DAG sequencing; Gemini subagents do not recursively delegate.
 
+Each root guidance block points to `policies/learning-gate.json`, states its current user-owned control rule, and invokes the verifier only when enabled and applicable. Provider adapters must not add a runtime-specific learning-gate meaning or toggle state.
+
 Before any provider write, require provider-path preflight. Reject absolute paths, lexical traversal, and symlink escape. On failure, do not create, write, move, or bypass the provider path.
 
 ## Watched artifacts
@@ -73,7 +106,7 @@ The checker hashes effect-bearing `harness/` canonical files separately. `self_e
 - namespaced wrapper for every spec role;
 - generated provider config.
 
-Never watch a provider directory, unrelated user skill/agent, unselected provider, or the factory repository.
+Never watch a provider directory, unrelated user skill/agent, unselected provider, or the factory repository. Per-change learning answers and verification records are task evidence, not provider parity artifacts.
 
 ## Event-driven self-evaluation
 
@@ -105,4 +138,4 @@ Open a candidate only after a full regression or attributed harness defect, or a
 
 ## Compatibility
 
-The validator reads schema 1.0 and 1.1. Version 1.0 does not require memory, self-evaluation files, skill evaluator links, or communication. Existing 1.1 specs may omit communication and new reading-cost fields. New harnesses include memory, event-driven self-evaluation, concise-English artifacts, selectable report presentation, and explicit instruction/memory budgets.
+The validator reads schema 1.0 and 1.1. Version 1.0 does not require memory, self-evaluation files, skill evaluator links, communication, or a learning gate. Existing 1.1 specs may omit communication and new reading-cost fields. New harnesses include memory, event-driven self-evaluation, the disabled-by-default user-controlled learning gate, concise-English artifacts, selectable report presentation, and explicit instruction/memory budgets.

@@ -84,6 +84,17 @@ Use the build-harness skill to create a Claude, Codex, and Gemini harness in D:\
 
 두 방식 모두 식별자, 명령, 경로, 증거, JSON 키, reason·status 값, `pass`·`fail` 같은 저장 판정은 번역하지 않습니다. 같은 내용을 두 언어로 반복하지 않고 선택한 방식으로 자연스럽게 한 번만 작성합니다. 영문 정본에 정확한 비영문 프로젝트명이나 기계 토큰을 넣어야 할 때는 해당 값만 백틱으로 감싸고 주변 설명은 영문으로 작성합니다. 이 표시 설정만 바뀌어도 full 하네스 성과평가가 열리지는 않습니다. 기존 schema 1.0과 1.1 하네스와의 호환성을 위해 `communication` 객체는 선택 사항이며, 없으면 위의 영문 기본값 세 가지를 적용합니다. 새로 생성되는 하네스에는 항상 포함됩니다.
 
+## 선택형 Learning Gate
+
+새 하네스에는 Learning Gate 정책이 항상 설치되지만 기본값은 `enabled: false`입니다.
+
+- `enabled`는 사용자의 명시적 지시로만 바꿀 수 있습니다. agent는 활성화나 비활성화를 제안할 수 있지만 직접 전환할 수 없습니다.
+- OFF 상태에서는 학습 문서와 퀴즈를 만들지 않고, 리뷰 요청·PR 생성·병합도 막지 않습니다.
+- ON 상태에서는 설정된 위험 기반 범위에 해당하는 변경만 적용하며, 일치하는 risk tag는 저위험 exemption보다 우선합니다. 적용 대상 변경은 구현 전 brief, 실제 diff 기반 설명, 이해도 질문 5개, 개발자가 직접 작성한 답변, commit된 source snapshot과 파일 hash에 묶인 결정적 검증을 요구합니다.
+- 기존 하네스를 improve 또는 reconcile할 때 사용자가 정한 ON/OFF 값과 기존 학습 증거를 보존합니다.
+
+정책 파일은 `harness/policies/learning-gate.json`에 생성됩니다. 전체 흐름, 산출물 계약, CI 연결 방식은 [Learning Gate](docs/LEARNING-GATE.md)를 참고합니다.
+
 ## 역할이 분명한 일곱 스킬
 
 변경 범위에 맞는 가장 작은 skill을 사용합니다.
@@ -102,9 +113,9 @@ Use the build-harness skill to create a Claude, Codex, and Gemini harness in D:\
 
 ## 프로젝트 소유와 점진적 변경
 
-Harness Factory는 설치된 하네스를 중앙에서 운영하는 제어면이나 패키지 레지스트리가 아닙니다. 각 대상 프로젝트가 정본 명세, 상태, 추가 전용 원장, 평가 증거와 메모리를 직접 소유합니다.
+Harness Factory는 설치된 하네스를 중앙에서 운영하는 제어면이나 패키지 레지스트리가 아닙니다. 각 대상 프로젝트가 정본 명세, 상태, 추가 전용 원장, 평가 증거, 학습 증거와 메모리를 직접 소유합니다.
 
-`build-harness`는 대상을 `create`, `improve`, `reconcile` 중 하나로 분류합니다. 기존 하네스에서는 기준선, 파일 소유권, 보존 목록을 먼저 기록한 뒤 필요한 변경분만 적용합니다. 기존 ID, 상태, 원장, 평가기, 승인 게이트, 사용자 규칙, 소유권을 알 수 없는 파일은 승인 없이 삭제하거나 이름을 바꾸거나 의미를 교체하지 않습니다.
+`build-harness`는 대상을 `create`, `improve`, `reconcile` 중 하나로 분류합니다. 기존 하네스에서는 기준선, 파일 소유권, 보존 목록을 먼저 기록한 뒤 필요한 변경분만 적용합니다. 기존 ID, 상태, 원장, 평가기, 승인 게이트, 사용자 규칙, Learning Gate 상태, 학습 증거, 소유권을 알 수 없는 파일은 승인 없이 삭제하거나 이름을 바꾸거나 의미를 교체하지 않습니다.
 
 의미의 정본은 `harness/harness-spec.json`과 그 파일이 참조하는 공통 문서입니다. 공통 정본을 먼저 수정해야 하며, 런타임 어댑터만 직접 고치면 다음 투영에서 변경이 사라질 수 있습니다.
 
@@ -126,6 +137,8 @@ task boundary
 
 재실행 대기 기간, 표본 하한, 평가 예산은 필수가 아닌 작업을 유예합니다. 일반 메모리 변경은 결정적으로 검사할 뿐 그 자체로 full 실험을 일으키지 않습니다. 따라서 평소 작업 경계의 비용은 낮게 유지하면서 계약 변경, 회귀, 콜드 스타트 실패, 어댑터 드리프트에는 더 강한 평가를 적용할 수 있습니다.
 
+Learning Gate 검증은 이 하네스 효과 평가 루프와 별개입니다. 적용 대상 변경에 대해 개발자가 코드를 이해했다는 증거를 확인할 뿐, 하네스 자체의 성능이 개선됐다고 판정하지 않습니다.
+
 ## 생성되는 구조
 
 ```text
@@ -135,6 +148,12 @@ task boundary
 │   ├── HARNESS.md
 │   ├── team/agents/<role-id>.md
 │   ├── skills/<skill-id>/SKILL.md
+│   ├── policies/
+│   │   ├── learning-gate.json            # enabled=false로 설치
+│   │   └── LEARNING-GATE.md
+│   ├── learning/
+│   │   ├── _templates/
+│   │   └── <change-id>/                  # ON이고 적용 대상일 때만 생성
 │   ├── loops/
 │   │   └── HARNESS-EVAL-LOOP.md
 │   ├── evaluation/
@@ -142,7 +161,8 @@ task boundary
 │   │   └── suites/targeted.json
 │   ├── triggers/
 │   │   ├── check_self_evaluation.py
-│   │   └── record_self_evaluation.py
+│   │   ├── record_self_evaluation.py
+│   │   └── verify_learning_gate.py
 │   ├── state/
 │   │   ├── state.json
 │   │   └── self-evaluation.json
@@ -183,6 +203,7 @@ Codex에서는 로컬 체크아웃을 등록한 뒤 Plugins에서 `harness-facto
 
 - [설치, 업데이트, 버전 고정](docs/SETUP.md)
 - [운영, 평가, 개선](docs/OPERATIONS.md)
+- [Learning Gate](docs/LEARNING-GATE.md)
 - [plugin 0.1 또는 schema 1.0에서 마이그레이션](docs/MIGRATION.md)
 - [구성자 프로토콜](docs/CONSTRUCTOR-PROTOCOL.md)
 - [평가 계약](docs/SKILL-EVALUATION.md)
@@ -195,8 +216,9 @@ Codex에서는 로컬 체크아웃을 등록한 뒤 Plugins에서 `harness-facto
 ```powershell
 python scripts\test_runtime_neutral_contract.py
 python scripts\test_self_evaluation_trigger.py
+python scripts\test_learning_gate_contract.py
 python scripts\skill_smoke_build_harness.py
 python scripts\validate_runtime_neutral.py <target-project>
 ```
 
-이 검사는 플러그인 0.2.0 매니페스트, 일곱 스킬, Claude/Codex/Gemini 어댑터, 스키마 1.1, 투영 동등성, 결정적 trigger 정책을 확인합니다. 마지막 명령은 실제 대상 프로젝트에 생성된 하네스를 검증합니다.
+이 검사는 플러그인 0.2.0 매니페스트, 일곱 스킬, Claude/Codex/Gemini 어댑터, 스키마 1.1, 투영 동등성, 결정적 trigger 정책, Learning Gate의 OFF/ON 무결성 계약을 확인합니다. 마지막 명령은 실제 대상 프로젝트에 생성된 하네스를 검증합니다.

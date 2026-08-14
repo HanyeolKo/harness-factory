@@ -1,0 +1,49 @@
+# LEARNING GATE
+
+The learning gate is installed with every new harness but starts disabled.
+
+## User control
+
+- Configuration: `{{HARNESS_ROOT}}/policies/learning-gate.json`
+- Default: `enabled: false`
+- Only an explicit user instruction may change `enabled`.
+- Agents may explain or recommend the gate, but must not enable or disable it themselves.
+- When disabled, do not create learning artifacts and do not block review, pull request creation, or merge.
+
+## Enabled workflow
+
+When the gate is enabled and the change matches its scope:
+
+1. Write `learning/<change-id>/brief.md` before implementation.
+2. Implement and validate the change.
+3. Write `learning/<change-id>/diff-explanation.md` from the actual diff.
+4. Create five medium-difficulty questions in `quiz.json`, with at least three free-text questions.
+5. The developer writes `answers.json` without agent-authored answers.
+6. Commit the source change together with `brief.md`, `diff-explanation.md`, `quiz.json`, and `answers.json`.
+7. Record that full source commit SHA, the score, the required-concept result, and the content hashes in `verification.json`.
+8. Commit only `verification.json`, then run the deterministic verifier before requesting review, creating a pull request, or merging.
+
+```text
+python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --change-id <change-id> --changed-lines <count> --risk-tag <tag>
+```
+
+## Required artifacts
+
+```text
+{{HARNESS_ROOT}}/learning/<change-id>/
+├── brief.md
+├── diff-explanation.md
+├── quiz.json
+├── answers.json
+└── verification.json
+```
+
+The quiz must test design intent, failure modes, trade-offs, and code impact rather than implementation recall. The implementation agent must not author the developer's answers or act as the sole judge of an ambiguous answer.
+
+## Scope and exemptions
+
+The default scope is risk-based. The gate applies when changed lines reach the configured threshold or the change has a configured risk tag. A matching risk tag always overrides a low-risk exemption. Typo, formatting, generated-file, and dependency-lockfile changes are exempt from threshold-only activation by default. The user may change scope or thresholds without changing the on/off ownership rule.
+
+## Integrity
+
+A passing verification binds the quiz and answers hashes to a committed source snapshot. The source commit contains the code and the first four learning artifacts; every later path through `HEAD` must be exactly this change's committed `verification.json`. The verifier also requires a clean worktree. Any later code or evidence change invalidates the result. Missing, stale, path-escaped, or ambiguous evidence is a failure, not a pass.

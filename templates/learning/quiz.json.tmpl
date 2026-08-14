@@ -1,0 +1,35 @@
+{
+  "change_id": "{{CHANGE_ID}}",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "free-text",
+      "question": "Explain the primary design reason for this change.",
+      "required_concepts": ["design-intent"]
+    },
+    {
+      "id": "q2",
+      "type": "free-text",
+      "question": "Describe a failure mode introduced or addressed by this change and how it is handled.",
+      "required_concepts": ["failure-mode"]
+    },
+    {
+      "id": "q3",
+      "type": "free-text",
+      "question": "Compare the selected design with one plausible alternative.",
+      "required_concepts": ["trade-off"]
+    },
+    {
+      "id": "q4",
+      "type": "scenario",
+      "question": "Given a realistic runtime scenario, explain how control or data flows through the changed code.",
+      "required_concepts": ["interaction"]
+    },
+    {
+      "id": "q5",
+      "type": "code-location",
+      "question": "Identify the code location that enforces the main invariant and explain why it belongs there.",
+      "required_concepts": ["code-impact"]
+    }
+  ]
+}
