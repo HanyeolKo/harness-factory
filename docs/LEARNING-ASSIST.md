@@ -67,7 +67,7 @@ If confusing wording or an undefined term caused the miss, rewrite the question 
 
 ## Reader-facing report destination
 
-During new-harness setup, ask where reader-facing change and learning documents should be organized:
+During new-harness setup, ask where reader-facing change and learning documents should be organized. Store the answer in `harness/policies/reporting.json`.
 
 - `file` — default; store under `harness/reports/`.
 - `notion` — publish the reader copy to a user-selected Notion page or database.
