@@ -1,29 +1,33 @@
 # Diff Explanation — {{CHANGE_ID}}
 
-## Actual change
+Write this artifact in the configured report language. Keep code tokens, identifiers, paths, commands, table names, and conventional technical terms exact.
 
-Summarize the behavior implemented by the current diff.
+## What changed
 
-## File-by-file reasoning
+Start with a short description of the behavior that is different after this change. A developer should understand the result before reading implementation details.
 
-For each meaningful file, explain what changed and why that location owns the responsibility.
+## Why it changed
 
-## Interaction and data flow
+Explain the concrete problem this change solves and why the chosen behavior fixes it.
 
-Describe how control, data, transactions, events, or external calls move through the changed code.
+## How the flow works now
 
-## Design intent
+Describe the important control or data flow in execution order. Prefer a short sequence such as `request -> service -> query -> response` before introducing architecture terms.
 
-Explain the invariant or design principle the implementation preserves.
+## Important files
 
-## Failure modes
+For each meaningful file, state what changed and what responsibility that file has. Skip generated files and boilerplate unless they matter to understanding.
 
-Describe the most likely failure paths and how the implementation detects, contains, retries, or reports them.
+## Failure and edge cases
 
-## Alternatives rejected
+Describe realistic failure paths or boundary cases and how the implementation handles them. Do not invent risks that are not supported by the diff.
 
-Compare the selected design with at least one realistic alternative.
+## Technical concepts worth knowing
 
-## Validation evidence
+Include only concepts that materially help the developer read or maintain this change. Explain the behavior first, then name the technical term. Do not test vocabulary for its own sake.
 
-List the exact tests, commands, logs, or observations used to validate the change. Do not claim unrun checks.
+## Validation
+
+List the exact tests, commands, logs, or observations that were actually used. Do not claim checks that were not run.
+
+<!-- Readability rule: concrete behavior -> reason -> technical term. Prefer natural teammate-to-teammate development language. Avoid translation-like wording, dense abstract nouns, and a file-by-file restatement of the full diff. -->
