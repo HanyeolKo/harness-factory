@@ -41,7 +41,9 @@ New harness setup asks the user to choose one reader-facing destination:
 - `notion`: keep the canonical Git file and publish a reader copy to the selected Notion target;
 - `slack`: keep the canonical Git file and publish a reader copy to the selected Slack target.
 
-The selected destination and target are stored in `harness/harness-spec.json`. For `notion` or `slack`, the target must come from the user; agents must not guess it.
+Store the selected destination and target in `harness/policies/reporting.json`. For `notion` or `slack`, the target must come from the user; agents must not guess it. Existing harnesses without this policy remain valid until the user chooses to add it.
+
+The canonical evidence mode stays `file` regardless of reader destination. Notion and Slack are reader copies, not replacements for Git-bound Learning Gate evidence.
 
 ## Learning Assist
 
