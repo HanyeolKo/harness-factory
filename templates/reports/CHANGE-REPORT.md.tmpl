@@ -1,27 +1,41 @@
 # Change Report — {{CHANGE_ID}}
 
+> Follow `harness/reports/report-style.json`. Explain concrete behavior before architecture terms. Use technical terms only when they help future code reading, and define them on first use.
+
 ## What changed
 
 {{CHANGE_SUMMARY}}
+
+Write this as if explaining the change to a developer who has not read the diff yet. Prefer "what happens now" over abstract design labels.
 
 ## Why
 
 {{CHANGE_REASON}}
 
+Prefer cause and effect: what problem existed, what decision was made, and what that changes.
+
 ## Impact
 
 {{CHANGE_IMPACT}}
+
+State observable effects, affected flows, and important compatibility or operational impact. Avoid speculative architecture prose.
 
 ## Key files
 
 {{KEY_FILES}}
 
+List only the files worth opening to understand the change. Add one short reason for each file.
+
 ## Validation
 
 {{VALIDATION_SUMMARY}}
+
+List only checks actually run and their result. Do not restate the implementation.
 
 ## Need to know
 
 {{NEED_TO_KNOW}}
 
-<!-- Keep this report concise. Prefer one screen or roughly one page. Do not turn it into a design document. If deeper explanation is useful, use Learning Assist on request. -->
+Include only information that would surprise or matter to the next developer. If there is nothing important, write `None`.
+
+<!-- Keep this report to one screen or roughly one page. Use at most three new technical terms. Do not turn it into a design document. If deeper explanation is useful, use Learning Assist on request. -->
