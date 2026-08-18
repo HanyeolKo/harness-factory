@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Contract tests for the optional learning gate templates and verifier."""
+"""Contract tests for Learning Assist, the optional Learning Gate, and reporting."""
 from __future__ import annotations
 
 import hashlib
@@ -12,6 +12,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_TEMPLATE = ROOT / "templates" / "policies" / "learning-gate.json.tmpl"
+REPORTING_TEMPLATE = ROOT / "templates" / "policies" / "reporting.json.tmpl"
+GATE_DOC_TEMPLATE = ROOT / "templates" / "policies" / "LEARNING-GATE.md.tmpl"
+CHANGE_REPORT_TEMPLATE = ROOT / "templates" / "reports" / "CHANGE-REPORT.md.tmpl"
+ASSIST_EXPLANATION_TEMPLATE = ROOT / "templates" / "learning-assist" / "explanation.md.tmpl"
+ASSIST_QUIZ_TEMPLATE = ROOT / "templates" / "learning-assist" / "quiz.json.tmpl"
+ASSIST_COMPREHENSION_TEMPLATE = ROOT / "templates" / "learning-assist" / "comprehension.json.tmpl"
 VERIFIER_TEMPLATE = ROOT / "templates" / "triggers" / "verify_learning_gate.py.tmpl"
 
 
@@ -74,11 +80,74 @@ def initialize_repository(project_root: Path) -> None:
     run_git(project_root, "config", "user.email", "learning-gate@example.invalid")
 
 
+def assert_learning_assist_contract() -> None:
+    required = (
+        REPORTING_TEMPLATE,
+        GATE_DOC_TEMPLATE,
+        CHANGE_REPORT_TEMPLATE,
+        ASSIST_EXPLANATION_TEMPLATE,
+        ASSIST_QUIZ_TEMPLATE,
+        ASSIST_COMPREHENSION_TEMPLATE,
+        ROOT / "docs" / "LEARNING-ASSIST.md",
+        ROOT / "docs" / "REPORTING-CONTRACT.md",
+    )
+    for path in required:
+        if not path.is_file():
+            raise AssertionError(f"missing {path}")
+
+    reporting_text = REPORTING_TEMPLATE.read_text(encoding="utf-8")
+    reporting = json.loads(
+        reporting_text.replace("{{REPORT_DESTINATION}}", "file").replace(
+            "{{REPORT_TARGET_JSON}}", json.dumps("harness/reports")
+        )
+    )
+    assert reporting["reader_destination"] == "file"
+    assert reporting["reader_target"] == "harness/reports"
+    assert reporting["canonical_evidence"] == "file"
+    assert reporting["style"] == "plain-language-first"
+
+    change_report = CHANGE_REPORT_TEMPLATE.read_text(encoding="utf-8")
+    assert "Explain concrete behavior" in change_report
+    assert "Do not copy the full diff" in change_report
+
+    explanation = ASSIST_EXPLANATION_TEMPLATE.read_text(encoding="utf-8")
+    assert "Explain concrete behavior first" in explanation
+    assert "at most three core concepts" in explanation
+
+    assist_quiz = json.loads(
+        ASSIST_QUIZ_TEMPLATE.read_text(encoding="utf-8")
+        .replace("{{CHANGE_ID}}", "CHG-ASSIST-001")
+        .replace("{{CONCEPT_1}}", "flow")
+        .replace("{{CONCEPT_2}}", "failure")
+        .replace("{{CONCEPT_3}}", "responsibility")
+        .replace("{{QUESTION_1}}", "What changed?")
+        .replace("{{QUESTION_2}}", "What happens in this scenario?")
+        .replace("{{QUESTION_3}}", "What happens on failure?")
+    )
+    assert assist_quiz["blocking"] is False
+    assert assist_quiz["remediation"] == {
+        "first_miss": "directional-hint",
+        "second_miss": "concrete-scenario",
+        "final_miss": "record-then-explain",
+    }
+
+    gate_doc = GATE_DOC_TEMPLATE.read_text(encoding="utf-8")
+    for marker in (
+        "Learning Assist explanation",
+        "developer reads the explanation",
+        "directional hint",
+        "confusing wording or an undefined term",
+    ):
+        assert marker in gate_doc
+
+
 def main() -> int:
     if not POLICY_TEMPLATE.is_file():
         raise AssertionError(f"missing {POLICY_TEMPLATE}")
     if not VERIFIER_TEMPLATE.is_file():
         raise AssertionError(f"missing {VERIFIER_TEMPLATE}")
+
+    assert_learning_assist_contract()
 
     policy = json.loads(POLICY_TEMPLATE.read_text(encoding="utf-8"))
     assert policy["enabled"] is False
@@ -245,7 +314,7 @@ def main() -> int:
         stale_code_payload = expect_status(stale_code, 1, "fail")
         expect_error(stale_code_payload, "changes after source_commit_sha")
 
-    print("learning gate contract: pass")
+    print("learning assist and learning gate contract: pass")
     return 0
 
 
