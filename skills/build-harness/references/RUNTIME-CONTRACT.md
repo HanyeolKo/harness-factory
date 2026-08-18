@@ -16,6 +16,8 @@ The target project's `harness/` directory owns canonical meaning and operational
 - New canonical artifacts use concise English: `communication.artifact_language: en`.
 - `communication.report_language` is a language tag chosen during setup; default `en`.
 - `communication.terminology` is `technical-english|localized`; default `technical-english`.
+- `technical-english` uses `report_language` grammar while retaining stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment`.
+- `localized` translates explanatory technical nouns when a conventional local term exists. Both modes preserve machine tokens and stored verdicts such as `pass|fail` exactly, and neither mode duplicates bilingual prose.
 - Reader-facing Change Reports and Learning Assist explanations use `reporting.style: plain-language-first`.
 - Plain-language-first means: concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful.
 - Prefer wording a developer would naturally use when explaining the change to a teammate. Avoid literal translation-like nouns and unnecessary architecture abstraction.
