@@ -29,22 +29,23 @@ Classify the target as create|improve|reconcile:
 - New specs include `communication.artifact_language: en`.
 - During setup, let the user choose `communication.report_language` and `communication.terminology` (`technical-english|localized`). Default to `en` and `technical-english`.
 - Also ask where reader-facing Change Reports and Learning Assist copies should be organized: `file|notion|slack`. Default to `file`.
-- For `file`, default `reporting.reader_target` to `harness/reports`.
+- Store that choice in `harness/policies/reporting.json`, not in the runtime-neutral schema.
+- For `file`, default `reader_target` to `harness/reports`.
 - For `notion` or `slack`, ask the user for the target page/database/channel/conversation identifier or URL. Do not guess it.
-- Always keep `reporting.canonical_evidence: file` and `reporting.style: plain-language-first`.
+- Always keep `canonical_evidence: file` and `style: plain-language-first` in the reporting policy.
 - Plain-language-first means concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful.
 - Prefer wording a developer would naturally use when explaining the change to a teammate. Avoid literal translation-like nouns and unnecessary abstraction.
 - Keep identifiers, commands, paths, evidence, JSON keys, status values, API names, table names, and conventional technical terms exact.
-- Existing 1.0/1.1 specs without `communication` or `reporting` remain valid. Do not silently add or change an existing reader destination during improve/reconcile.
+- Existing harnesses without `policies/reporting.json` remain valid. Add it only as a preservation-aware delta and do not silently change an existing destination.
 - Use progressive disclosure: read indexes first, open only task-relevant files, and skip evaluation/improvement references on `none`.
 
 ## Workflow
 
-1. **Discover** — inspect root rules, README/docs, modules, build/test/CI, existing agents/skills/hooks, evaluator baselines, file ownership, preservation needs, indexed memory, existing reports, any reporting destination, and any Learning Gate policy. Ask only for unknown purpose, completion criteria, approval boundaries, provider scope, report language/terminology, and reader destination/target.
+1. **Discover** — inspect root rules, README/docs, modules, build/test/CI, existing agents/skills/hooks, evaluator baselines, file ownership, preservation needs, indexed memory, existing reports, any reporting policy, and any Learning Gate policy. Ask only for unknown purpose, completion criteria, approval boundaries, provider scope, report language/terminology, and reader destination/target.
 2. **Plan** — record mode and a `unchanged|add|modify-proposed|conflict|approval-required` delta plan under `harness/maintenance/runs/<change-id>/`. In `improve|reconcile`, write `preservation-before.json` first.
-3. **Specify** — create schema 1.1 with a valid DAG and the chosen reporting contract. Every skill links an evaluator: entry/evaluation/verification/domain to `scope: task`; harness-evaluation/improvement to the `self_evaluation.evaluator`, which is `scope: harness`, `type: experiment`.
-4. **Build common** — in `create`, render the spec, HARNESS, team, canonical skills, loops, recovery, budget, state, append-only ledger, evaluation contract, `memory/INDEX.md`, report templates, and Learning Assist contract. In other modes, touch only delta-owned files.
-5. **Install reporting** — every new harness receives the short Change Report contract and `reports/` layout. A completed work unit writes `reports/<change-id>/CHANGE-REPORT.md`. Keep it to one screen or roughly one page and do not restate the full diff. If the reader destination is Notion or Slack, retain the Git file as canonical and publish a reader copy when the integration is available.
+3. **Specify** — create schema 1.1 with a valid DAG. Every skill links an evaluator: entry/evaluation/verification/domain to `scope: task`; harness-evaluation/improvement to the `self_evaluation.evaluator`, which is `scope: harness`, `type: experiment`.
+4. **Build common** — in `create`, render the spec, HARNESS, team, canonical skills, loops, recovery, budget, state, append-only ledger, evaluation contract, `memory/INDEX.md`, the reporting policy/templates, and Learning Assist contract. In other modes, touch only delta-owned files.
+5. **Install reporting** — every new harness receives `policies/reporting.json`, the short Change Report contract, and `reports/` layout. A completed work unit writes `reports/<change-id>/CHANGE-REPORT.md`. Keep it to one screen or roughly one page and do not restate the full diff. If the reader destination is Notion or Slack, retain the Git file as canonical and publish a reader copy when the integration is available.
 6. **Install Learning Assist** — use it on request for deeper explanation or comprehension checks. It starts from the Change Report, reads only relevant actual diff/source, and uses the same plain-language-first style. A voluntary quiz while the Learning Gate is disabled is advisory and never blocks delivery.
 7. **Install the Learning Gate** — every new harness receives `policies/learning-gate.json`, `policies/LEARNING-GATE.md`, `learning/_templates/`, and `triggers/verify_learning_gate.py`. Set `enabled: false` by default. Only an explicit user instruction may change `enabled`; agents may recommend a state but must not toggle it. In `improve|reconcile`, preserve the existing value. When enabled and applicable, write the pre-change brief, implement/validate, produce the short Change Report, render `diff-explanation.md` through Learning Assist, let the developer read it, then run the five-question comprehension check and deterministic verification. Wrong answers use progressive hints rather than immediate answer reveal. Matching risk tags override low-risk exemptions.
 8. **Budget context** — use `limits.max_instruction_lines`, `memory.max_document_lines`, and `memory.max_summary_chars`; split references before exceeding a budget and retain only routing metadata in indexes.
@@ -65,7 +66,7 @@ Classify the target as create|improve|reconcile:
 
 ## Preservation
 
-Preserve existing IDs, state, append-only ledger, evaluation runs, gates, evaluator semantics, user rules, unknown-ownership files, durable memory, reports, learning evidence, the user's Learning Gate `enabled` value, and any existing reader destination/target. Deletion, rename, semantic replacement, split, merge, Learning Gate state change, or reader-destination change requires an exact field/path proposal and explicit approval. Upsert only namespaced managed blocks and generated adapters. Never move an installed harness into the factory package.
+Preserve existing IDs, state, append-only ledger, evaluation runs, gates, evaluator semantics, user rules, unknown-ownership files, durable memory, reports, learning evidence, the user's Learning Gate `enabled` value, and any existing reporting policy. Deletion, rename, semantic replacement, split, merge, Learning Gate state change, or reader-destination change requires an exact field/path proposal and explicit approval. Upsert only namespaced managed blocks and generated adapters. Never move an installed harness into the factory package.
 
 Memory uses `harness/memory/INDEX.md` with `preserve-and-reconcile`. Create, move, supersede, archive, and index updates are one transaction. Keep current state in `state.json` and events in `journal.jsonl`, not memory. Ordinary memory changes get deterministic verification; policy or routing changes are canonical effect changes.
 
