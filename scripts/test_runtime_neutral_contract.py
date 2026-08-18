@@ -610,7 +610,7 @@ class RuntimeNeutralContractTests(unittest.TestCase):
         gemini = json.loads((ROOT / "gemini-extension.json").read_text(encoding="utf-8"))
         self.assertEqual("harness-factory", claude["name"])
         self.assertEqual(claude["name"], codex["name"])
-        self.assertEqual("0.2.0", claude["version"])
+        self.assertEqual("0.2.1", claude["version"])
         self.assertEqual(claude["version"], codex["version"])
         self.assertEqual(claude["version"], gemini["version"])
         self.assertEqual("./skills/", codex["skills"])
