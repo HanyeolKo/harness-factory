@@ -65,6 +65,21 @@ For a wrong answer:
 
 If confusing wording or an undefined term caused the miss, rewrite the question or explanation before counting it as a comprehension failure.
 
+## Optional session artifacts
+
+When the user requests durable Learning Assist output, use:
+
+```text
+harness/learning-assist/<change-id>/
+├── explanation.md
+├── quiz.json
+└── comprehension.json
+```
+
+These artifacts are advisory and do not block ordinary delivery. Generated harnesses keep reusable templates under `harness/learning-assist/_templates/`.
+
+When the Learning Gate is enabled and applicable, do not duplicate this session into a second evidence set. Apply the same explanation contract directly to the Gate-owned `learning/<change-id>/diff-explanation.md` and keep Gate evidence under its existing path.
+
 ## Reader-facing report destination
 
 During new-harness setup, ask where reader-facing change and learning documents should be organized. Store the answer in `harness/policies/reporting.json`.
