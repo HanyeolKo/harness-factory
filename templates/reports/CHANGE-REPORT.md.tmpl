@@ -1,41 +1,39 @@
 # Change Report — {{CHANGE_ID}}
 
-> Follow `harness/reports/report-style.json`. Explain concrete behavior before architecture terms. Use technical terms only when they help future code reading, and define them on first use.
-
-## What changed
+## 한눈에 보기
 
 {{CHANGE_SUMMARY}}
 
-Write this as if explaining the change to a developer who has not read the diff yet. Prefer "what happens now" over abstract design labels.
-
-## Why
+## 왜 바꿨나
 
 {{CHANGE_REASON}}
 
-Prefer cause and effect: what problem existed, what decision was made, and what that changes.
-
-## Impact
+## 무엇이 달라졌나
 
 {{CHANGE_IMPACT}}
 
-State observable effects, affected flows, and important compatibility or operational impact. Avoid speculative architecture prose.
+## 처리 흐름
 
-## Key files
+{{FLOW_SUMMARY}}
+
+## 중요한 파일
 
 {{KEY_FILES}}
 
-List only the files worth opening to understand the change. Add one short reason for each file.
-
-## Validation
+## 확인한 내용
 
 {{VALIDATION_SUMMARY}}
 
-List only checks actually run and their result. Do not restate the implementation.
-
-## Need to know
+## 알아둘 점
 
 {{NEED_TO_KNOW}}
 
-Include only information that would surprise or matter to the next developer. If there is nothing important, write `None`.
-
-<!-- Keep this report to one screen or roughly one page. Use at most three new technical terms. Do not turn it into a design document. If deeper explanation is useful, use Learning Assist on request. -->
+<!-- Readability contract:
+- Explain concrete behavior before technical or architectural terms.
+- Prefer wording a developer would naturally use when explaining the change to a teammate.
+- Avoid translation-like nouns when ordinary development language is clearer.
+- Keep conventional technical terms and code tokens exact.
+- If a new term is useful, explain the behavior first and name the term second.
+- Keep this report to one screen or roughly one page. Do not copy the full diff.
+- Use Learning Assist only when deeper explanation is requested.
+-->
