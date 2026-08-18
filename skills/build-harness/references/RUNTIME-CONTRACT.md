@@ -4,10 +4,10 @@ The target project's `harness/` directory owns canonical meaning and operational
 
 ## Canonical layers
 
-1. Schema 1.1 `harness/harness-spec.json` defines providers, communication, reporting, limits, domains, roles, skills, DAG, evaluators, gates, memory, loops, and self-evaluation.
+1. Schema 1.1 `harness/harness-spec.json` defines providers, communication, limits, domains, roles, skills, DAG, evaluators, gates, memory, loops, and self-evaluation.
 2. `team/agents/<role-id>.md` and `skills/<skill-id>/SKILL.md` hold provider-neutral meaning.
 3. `loops/` separates execution, task evaluation, harness-effect evaluation, and improvement.
-4. `reports/`, the Learning Assist contract, `policies/learning-gate.json`, `policies/LEARNING-GATE.md`, `learning/`, and `triggers/verify_learning_gate.py` define change comprehension and the optional project-owned learning gate.
+4. `policies/reporting.json`, `reports/`, the Learning Assist contract, `policies/learning-gate.json`, `policies/LEARNING-GATE.md`, `learning/`, and `triggers/verify_learning_gate.py` define change comprehension and the optional project-owned learning gate.
 5. `state/`, append-only `ledger/`, `evaluation/`, `learning/`, reports, and `memory/` remain in the target project and are never sent to the factory.
 6. `providers/<id>/contract.json` declares native projection paths and capabilities.
 
@@ -18,14 +18,15 @@ The target project's `harness/` directory owns canonical meaning and operational
 - `communication.terminology` is `technical-english|localized`; default `technical-english`.
 - `technical-english` uses `report_language` grammar while retaining stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment`.
 - `localized` translates explanatory technical nouns when a conventional local term exists. Both modes preserve machine tokens and stored verdicts such as `pass|fail` exactly, and neither mode duplicates bilingual prose.
-- Reader-facing Change Reports and Learning Assist explanations use `reporting.style: plain-language-first`.
+- Reader-facing Change Reports and Learning Assist explanations use the `plain-language-first` style declared in `policies/reporting.json`.
 - Plain-language-first means: concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful.
 - Prefer wording a developer would naturally use when explaining the change to a teammate. Avoid literal translation-like nouns and unnecessary architecture abstraction.
 - Keep identifiers, commands, paths, API names, table names, evidence tokens, status values, and conventional technical terms exact.
 - During new-harness setup, ask where reader-facing reports should be organized. Allowed destinations are `file|notion|slack`; default is `file`.
-- For `file`, default `reporting.reader_target` to `harness/reports`. For `notion` or `slack`, require a user-supplied target identifier or URL. Never guess an external target.
-- `reporting.canonical_evidence` remains `file`: Git files are always the verification source even when a reader copy is published externally.
-- Existing 1.0/1.1 specs without `communication` or `reporting` remain valid. Add reporting only as a preservation-aware delta.
+- Store that choice in `harness/policies/reporting.json`.
+- For `file`, default `reader_target` to `harness/reports`. For `notion` or `slack`, require a user-supplied target identifier or URL. Never guess an external target.
+- `canonical_evidence` remains `file`: Git files are always the verification source even when a reader copy is published externally.
+- Existing 1.0/1.1 harnesses without `policies/reporting.json` remain valid. Add it only as a preservation-aware delta.
 - Presentation-only language, terminology, reader destination, and external publication do not by themselves establish harness-effect improvement.
 - `limits.max_instruction_lines`, `memory.max_document_lines`, and `memory.max_summary_chars` bound reading cost when present. Read an index first, then only relevant documents.
 
@@ -39,7 +40,7 @@ harness/reports/<change-id>/CHANGE-REPORT.md
 
 The Change Report is supporting documentation and does not block delivery. Keep it to one screen or roughly one page and include only what changed, why, important impact/flow, key files, actual validation, and anything the developer should know next.
 
-If `reporting.reader_destination` is `notion` or `slack`, publish a reader copy to the configured target when that integration is available. Report publication failure clearly. Do not invalidate valid Git evidence merely because an external copy failed unless the user explicitly made publication a delivery requirement.
+If the reporting policy selects `notion` or `slack`, publish a reader copy to the configured target when that integration is available. Report publication failure clearly. Do not invalidate valid Git evidence merely because an external copy failed unless the user explicitly made publication a delivery requirement.
 
 ## Learning Assist
 
@@ -87,11 +88,12 @@ Generated paths are:
 
 ```text
 harness/
-├── reports/
-│   └── <change-id>/CHANGE-REPORT.md
 ├── policies/
+│   ├── reporting.json
 │   ├── learning-gate.json
 │   └── LEARNING-GATE.md
+├── reports/
+│   └── <change-id>/CHANGE-REPORT.md
 ├── learning/
 │   ├── _templates/
 │   └── <change-id>/
@@ -103,7 +105,7 @@ harness/
 
 Classify no harness as `create`, a valid runtime-neutral spec as `improve`, and a partial/legacy harness as `reconcile`. Before `improve|reconcile`, freeze original validator/evaluator results, ownership, and `preservation-before.json`; apply only a classified `unchanged|add|modify-proposed|conflict|approval-required` delta.
 
-Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, durable memory, learning evidence, reports, the user's Learning Gate enabled value, and any existing reader destination. Deletion, rename, semantic replacement, split, merge, gate-state change, or reader-destination change needs explicit approval. Upsert only namespaced managed blocks and generated adapters.
+Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, durable memory, learning evidence, reports, the user's Learning Gate enabled value, and any existing reporting policy. Deletion, rename, semantic replacement, split, merge, gate-state change, or reader-destination change needs explicit approval. Upsert only namespaced managed blocks and generated adapters.
 
 ## Memory
 
@@ -135,4 +137,4 @@ Open a candidate only after a full regression, attributed harness defect, or exp
 
 ## Compatibility
 
-The validator reads schema 1.0 and 1.1. Existing 1.1 specs may omit communication, reporting, and new reading-cost fields. New harnesses include memory, event-driven self-evaluation, lightweight Change Reports, selectable reader destination, Learning Assist, the disabled-by-default user-controlled Learning Gate, concise-English canonical artifacts, and explicit instruction/memory budgets.
+The validator reads schema 1.0 and 1.1. Existing 1.1 specs may omit communication and new reading-cost fields. New harnesses include memory, event-driven self-evaluation, a separate reporting policy, lightweight Change Reports, selectable reader destination, Learning Assist, the disabled-by-default user-controlled Learning Gate, concise-English canonical artifacts, and explicit instruction/memory budgets.
