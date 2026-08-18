@@ -1,0 +1,30 @@
+{
+  "change_id": "{{CHANGE_ID}}",
+  "purpose": "comprehension",
+  "blocking": false,
+  "questions": [
+    {
+      "id": "q1",
+      "concept": "{{CONCEPT_1}}",
+      "type": "mental-model",
+      "question": "{{QUESTION_1}}"
+    },
+    {
+      "id": "q2",
+      "concept": "{{CONCEPT_2}}",
+      "type": "scenario",
+      "question": "{{QUESTION_2}}"
+    },
+    {
+      "id": "q3",
+      "concept": "{{CONCEPT_3}}",
+      "type": "failure-path",
+      "question": "{{QUESTION_3}}"
+    }
+  ],
+  "remediation": {
+    "first_miss": "directional-hint",
+    "second_miss": "concrete-scenario",
+    "final_miss": "record-then-explain"
+  }
+}
