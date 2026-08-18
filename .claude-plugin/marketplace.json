@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Project-owned agent harness tooling for Claude, Codex, and Gemini",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "plugins": [
     {
       "name": "harness-factory",
       "source": "./",
       "description": "Build, extend, verify, evaluate, and improve project-owned agent harnesses with event-driven evaluation.",
-      "version": "0.2.0"
+      "version": "0.2.1"
     }
   ]
 }
