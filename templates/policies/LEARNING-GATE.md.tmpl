@@ -1,6 +1,6 @@
 # LEARNING GATE
 
-The learning gate is installed with every new harness but starts disabled.
+The Learning Gate is installed with every new harness but starts disabled. It keeps its existing delivery-blocking semantics, but it uses Learning Assist as the explanation layer so the developer is tested on the implementation rather than on difficult wording.
 
 ## User control
 
@@ -8,20 +8,45 @@ The learning gate is installed with every new harness but starts disabled.
 - Default: `enabled: false`
 - Only an explicit user instruction may change `enabled`.
 - Agents may explain or recommend the gate, but must not enable or disable it themselves.
-- When disabled, do not create learning artifacts and do not block review, pull request creation, or merge.
+- When disabled, do not create gate-specific per-change artifacts and do not block review, pull request creation, or merge.
+
+## Shared explanation flow
+
+Every completed work unit should first have a short Change Report. When this gate is enabled and applicable, use the Learning Assist explanation contract to expand the actual diff into `learning/<change-id>/diff-explanation.md`.
+
+The order is:
+
+```text
+implementation
+-> validation
+-> Change Report
+-> Learning Assist explanation
+-> developer reads the explanation
+-> Learning Gate quiz
+-> pass or hint-based retry
+```
+
+Do not generate a second explanation style for the gate. Use plain language first: concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful.
 
 ## Enabled workflow
 
 When the gate is enabled and the change matches its scope:
 
-1. Write `learning/<change-id>/brief.md` before implementation.
+1. Write `learning/<change-id>/brief.md` before implementation using concrete problem language.
 2. Implement and validate the change.
-3. Write `learning/<change-id>/diff-explanation.md` from the actual diff.
-4. Create five medium-difficulty questions in `quiz.json`, with at least three free-text questions.
-5. The developer writes `answers.json` without agent-authored answers.
-6. Commit the source change together with `brief.md`, `diff-explanation.md`, `quiz.json`, and `answers.json`.
-7. Record that full source commit SHA, the score, the required-concept result, and the content hashes in `verification.json`.
-8. Commit only `verification.json`, then run the deterministic verifier before requesting review, creating a pull request, or merging.
+3. Produce the normal short Change Report.
+4. Render `learning/<change-id>/diff-explanation.md` from the actual diff using the Learning Assist explanation contract.
+5. Let the developer read that explanation before the quiz.
+6. Create five medium-difficulty questions that test the developer's mental model, not vocabulary recall.
+7. The developer writes `answers.json` without agent-authored answers.
+8. Grade the attempt without immediately revealing final answers.
+   - First miss: give a directional hint.
+   - Second miss: give a concrete scenario or counterexample.
+   - Final miss: record the failed attempt, then explain the concept directly.
+   - If confusing wording or an undefined term caused the miss, rewrite the question/explanation before counting the attempt as a comprehension failure.
+9. Commit the source change together with `brief.md`, `diff-explanation.md`, `quiz.json`, and `answers.json`.
+10. Record that full source commit SHA, the score, the required-concept result, and the content hashes in `verification.json`.
+11. Commit only `verification.json`, then run the deterministic verifier before requesting review, creating a pull request, or merging.
 
 ```text
 python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --change-id <change-id> --changed-lines <count> --risk-tag <tag>
@@ -38,7 +63,13 @@ python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --chan
 └── verification.json
 ```
 
-The quiz must test design intent, failure modes, trade-offs, and code impact rather than implementation recall. The implementation agent must not author the developer's answers or act as the sole judge of an ambiguous answer.
+The quiz must test why the code exists, how data/control flows, realistic failure modes, and responsibility placement. Do not fail a developer for not recalling an unnecessary architecture term.
+
+## Reader-facing document destination
+
+The harness reporting configuration selects where human-readable Change Reports and Learning Assist copies are organized: `file` (default), `notion`, or `slack`.
+
+Even when the reader copy is published to Notion or Slack, the Git files above remain the canonical Learning Gate verification evidence. External publication failure must not rewrite or invalidate valid canonical evidence unless the user explicitly configures publication as a delivery requirement.
 
 ## Scope and exemptions
 
