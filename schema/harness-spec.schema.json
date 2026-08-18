@@ -60,6 +60,17 @@
         "terminology": "technical-english"
       }
     },
+    "reporting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reader_destination", "reader_target", "canonical_evidence", "style"],
+      "properties": {
+        "reader_destination": {"enum": ["file", "notion", "slack"], "description": "Where reader-facing Change Report and Learning Assist copies are organized. file is the default."},
+        "reader_target": {"type": "string", "minLength": 1, "description": "For file, the project-relative report root. For notion or slack, a user-supplied target identifier or URL."},
+        "canonical_evidence": {"const": "file", "description": "Learning Gate verification artifacts always remain project-owned Git files."},
+        "style": {"const": "plain-language-first", "description": "Explain concrete behavior before architecture terminology and avoid unnecessary translation-like wording."}
+      }
+    },
     "domains": {
       "type": "array",
       "minItems": 1,
