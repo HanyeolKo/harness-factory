@@ -140,8 +140,84 @@ build-harness 스킬을 사용해 D:\workspace\step_fps에 하네스를 구성�
 
 ## 변경 보고서와 Learning Assist
 
-새 하네스를 만들 때 사용자에게 변경 보고서를 어디에 정리할지 묻습니다. 기본값은 프로젝트 내부 `file`이고, 필요하면 `notion` 또는 `slack`을 선택할 수 있습니다. Notion/Slack을 선택하면 대상 페이지·데이터베이스·채널·대화 식별자는 사용자가 지정해야 합니다.
+새 하네스를 만들 때 사용자가 읽을 변경 보고서와 학습 문서를 어디에 정리할지 묻습니다. 선택값은 `harness/policies/reporting.json`에 저장합니다.
 
-선택값은 `harness/policies/reporting.json`에 저장합니다. 외부 위치를 선택해도 `harness/reports/`와 Learning Gate의 Git 파일은 검증 원본으로 유지합니다.
+- `file`: 기본값. `harness/reports/`의 프로젝트 파일을 그대로 사용합니다.
+- `notion`: 사용자가 지정한 Notion 페이지 또는 데이터베이스에 읽기용 사본을 게시합니다.
+- `slack`: 사용자가 지정한 Slack 채널 또는 대화에 읽기용 사본을 게시합니다.
 
-일반 작업은 짧은 Change Report만 남깁니다. 더 자세한 설명을 요청하면 Learning Assist가 실제 diff와 관련 소스만 읽어 쉬운 설명과 선택적 이해도 퀴즈를 제공합니다. Learning Gate가 켜져 있고 적용 대상이면 같은 Learning Assist 설명을 먼저 읽은 뒤 Gate 퀴즈로 이어집니다. 오답에는 정답을 바로 공개하지 않고 방향 힌트 → 구체적 상황 힌트 → 최종 개념 설명 순서로 보정합니다.
+Notion/Slack을 선택하면 대상 위치는 사용자가 직접 지정해야 하며 agent가 임의로 추측하지 않습니다. 외부 사본을 사용해도 Git 파일이 Learning Gate 검증 정본입니다.
+
+일반 작업은 구현과 검증 뒤에 짧은 Change Report를 남깁니다. 더 자세한 설명이나 이해도 확인을 요청하면 Learning Assist가 실제 diff와 관련 소스만 읽어 설명을 확장합니다. Learning Gate가 ON이고 적용 대상이면 같은 Learning Assist 설명을 먼저 읽은 뒤 Gate 퀴즈로 이어집니다. 오답은 바로 정답을 공개하지 않고 방향 힌트 → 구체적인 상황/반례 → 마지막 실패 기록 후 개념 설명 순서로 보정합니다.
+
+## 팩토리 source와 오프라인 설정
+
+각 factory skill의 resolver는 다음 순서로 호환 가능한 source를 찾습니다.
+
+1. 호출에서 지정한 로컬 factory root
+2. `HARNESS_FACTORY_HOME`
+3. 설치된 plugin 또는 extension의 조상 경로
+4. repository와 raw ref provenance가 일치하는 cache
+5. 네트워크가 허용된 경우 지정 repository/ref
+
+PowerShell:
+
+```powershell
+$env:HARNESS_FACTORY_HOME = 'D:\workspace\harness-factory'
+$env:HARNESS_FACTORY_REF = 'v0.2.1'
+```
+
+Bash:
+
+```bash
+export HARNESS_FACTORY_HOME=/workspace/harness-factory
+export HARNESS_FACTORY_REF=v0.2.1
+```
+
+fork나 사설 저장소는 `HARNESS_FACTORY_REPO`를 지정합니다. 완전 오프라인 첫 실행에는 schema, providers, templates, scripts, skills를 포함한 전체 checkout을 `HARNESS_FACTORY_HOME`으로 제공해야 합니다.
+
+## 업데이트
+
+Claude:
+
+```text
+/plugin marketplace update harness-factory-marketplace
+/reload-plugins
+```
+
+Codex:
+
+```powershell
+codex plugin marketplace upgrade harness-factory-marketplace
+```
+
+Gemini:
+
+```powershell
+gemini extensions update harness-factory
+```
+
+업데이트 후에는 새 세션을 시작하고 manifest가 0.2.1인지, 일곱 스킬이 모두 보이는지 확인합니다.
+
+## 문제 해결
+
+### 스킬이 일부만 보임
+
+- Claude: `/plugin`의 Installed/Errors 확인 후 `/reload-plugins`
+- Codex: marketplace와 enable 상태를 확인하고 새 작업 시작
+- Gemini: `/extensions list` 확인 후 CLI 재시작
+- 설치 source가 0.2.1이고 `skills/` 아래 일곱 폴더가 있는지 확인
+
+### 템플릿 또는 provider 계약을 찾지 못함
+
+`HARNESS_FACTORY_HOME`이 저장소 루트를 가리키는지 확인합니다. 루트에는 plugin/extension manifest, `schema/`, `providers/`, `templates/`, `scripts/`, `skills/`가 있어야 합니다.
+
+### 기존 root 규칙과 충돌함
+
+생성자는 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`의 harness-factory 관리 블록만 upsert합니다. `.codex/config.toml`은 관련 agent limits만 구조적으로 병합합니다. 관리 블록 밖 사용자 문장과 unrelated 설정은 보존해야 하며, 충돌은 자동 덮어쓰지 않고 보고합니다.
+
+### 평가가 매번 LLM을 호출함
+
+정상 0.2.1 하네스는 작업 경계에서 결정적 trigger checker만 실행합니다. `harness/harness-spec.json`의 `self_evaluation` 정책과 `harness/state/self-evaluation.json`을 확인하고, 실행 루프가 checker의 `none|targeted|full` 결과를 건너뛰지 않는지 검사합니다.
+
+일반 `harness/memory/` 내용이나 `memory/INDEX.md` 행 갱신은 full 평가 사유가 아닙니다. 이 경로는 결정적 `verify-harness`로 검사하고, memory schema·보존 정책·읽기 라우팅처럼 하네스 계약 의미가 바뀔 때만 canonical contract change로 full 평가합니다.
