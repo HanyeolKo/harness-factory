@@ -717,6 +717,43 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             self.assertIn("`technical-english`:", text, provider_template)
             self.assertIn("`localized`:", text, provider_template)
 
+    def test_reporting_policy_is_optional_but_strict_when_present(self) -> None:
+        valid_policy = {
+            "schema_version": "1.0",
+            "reader_destination": "file",
+            "reader_target": "harness/reports",
+            "canonical_evidence": "file",
+            "style": "plain-language-first",
+        }
+        cases = (
+            ("destination", {**valid_policy, "reader_destination": "email"}, "reader_destination"),
+            ("external-target", {**valid_policy, "reader_destination": "notion", "reader_target": ""}, "reader_target"),
+            ("file-target", {**valid_policy, "reader_target": "harness/other"}, "reader_target must be 'harness/reports'"),
+            ("evidence", {**valid_policy, "canonical_evidence": "notion"}, "canonical_evidence"),
+            ("style", {**valid_policy, "style": "dense"}, "style"),
+        )
+        with WorkspaceDirectory() as target:
+            build_fixture(target)
+            policy_path = target / "harness/policies/reporting.json"
+            self.assertFalse(policy_path.exists())
+            self.assertEqual(
+                [], Validator(target, target / "harness/harness-spec.json").validate()
+            )
+            write_json(policy_path, valid_policy)
+            self.assertEqual(
+                [], Validator(target, target / "harness/harness-spec.json").validate()
+            )
+            for name, policy, expected_error in cases:
+                with self.subTest(case=name):
+                    write_json(policy_path, policy)
+                    errors = Validator(
+                        target, target / "harness/harness-spec.json"
+                    ).validate()
+                    self.assertTrue(
+                        any(expected_error in error for error in errors),
+                        "\n".join(errors),
+                    )
+
     def test_all_seven_factory_skills_have_runtime_parity(self) -> None:
         actual = {
             path.name

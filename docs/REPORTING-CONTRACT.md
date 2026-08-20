@@ -48,3 +48,5 @@ The canonical evidence mode stays `file` regardless of reader destination. Notio
 ## Learning Assist
 
 When deeper understanding is requested, or when an enabled Learning Gate applies, Learning Assist starts from the Change Report and reads only the relevant actual diff/source. It expands the explanation without changing the basic reporting style.
+
+Durable ordinary Assist output uses `harness/learning-assist/<change-id>/`, with reusable templates under `harness/learning-assist/_templates/`. Learning Gate evidence remains in its separate `harness/learning/<change-id>/` path.

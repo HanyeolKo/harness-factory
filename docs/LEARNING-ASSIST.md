@@ -76,7 +76,7 @@ harness/learning-assist/<change-id>/
 └── comprehension.json
 ```
 
-These artifacts are advisory and do not block ordinary delivery. Generated harnesses keep reusable templates under `harness/learning-assist/_templates/`.
+These artifacts are advisory and do not block ordinary delivery. Generated harnesses keep reusable `explanation.md.tmpl`, `quiz.json.tmpl`, and `comprehension.json.tmpl` under `harness/learning-assist/_templates/`. This is the canonical layout for ordinary Assist sessions; create the per-change directory only when the user requests durable Assist output.
 
 When the Learning Gate is enabled and applicable, do not duplicate this session into a second evidence set. Apply the same explanation contract directly to the Gate-owned `learning/<change-id>/diff-explanation.md` and keep Gate evidence under its existing path.
 

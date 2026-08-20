@@ -131,6 +131,14 @@ def assert_learning_assist_contract() -> None:
         "final_miss": "record-then-explain",
     }
 
+    comprehension = json.loads(
+        ASSIST_COMPREHENSION_TEMPLATE.read_text(encoding="utf-8")
+        .replace("{{CHANGE_ID}}", "CHG-ASSIST-001")
+        .replace("{{CONCEPT_ID}}", "flow")
+    )
+    assert comprehension["concepts"][0]["state"] == "needs-explanation"
+    assert comprehension["concepts"][0]["attempts"] == 0
+
     gate_doc = GATE_DOC_TEMPLATE.read_text(encoding="utf-8")
     for marker in (
         "Learning Assist explanation",
@@ -139,6 +147,13 @@ def assert_learning_assist_contract() -> None:
         "confusing wording or an undefined term",
     ):
         assert marker in gate_doc
+
+    for path in (
+        ROOT / "docs" / "LEARNING-ASSIST.md",
+        ROOT / "templates" / "HARNESS.md.tmpl",
+        ROOT / "skills" / "build-harness" / "references" / "RUNTIME-CONTRACT.md",
+    ):
+        assert "learning-assist" in path.read_text(encoding="utf-8")
 
 
 def main() -> int:
