@@ -18,6 +18,7 @@
 - If `communication` is absent in a compatible existing spec, use `artifact_language=en`, `report_language=en`, and `terminology=technical-english`.
 - `technical-english` uses the report language's grammar but keeps stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
 - `localized` translates explanatory technical nouns when a conventional local term exists. Both modes keep machine tokens exact and avoid bilingual duplication.
+- Reader-facing Change Reports and Learning Assist explanations follow `policies/reporting.json` and use plain-language-first wording: concrete behavior, reason, execution flow, relevant code, then technical terminology only when useful.
 - Wrap an exact non-English project name or machine token in backticks and keep its surrounding canonical prose English.
 - Keep IDs, commands, paths, evidence, JSON keys, reasons, status values, and verdicts unchanged. Do not store bilingual copies.
 - Obey the instruction and memory budgets in the spec. Read indexes first and open only references needed for the current unit.
@@ -28,13 +29,14 @@ Read only these items first, in order:
 
 1. `HARNESS.md`
 2. `harness-spec.json`
-3. `policies/learning-gate.json`
-4. `team/TEAM-ARCHITECTURE.md`
-5. `state/state.json`
-6. Pending events and the last verdict in `state/self-evaluation.json`
-7. Only durable memory needed for the current unit, selected through `memory/INDEX.md`
-8. Remaining budget in `budget/CONTEXT-BUDGET.md`
-9. Files selected by `state.current.refs` and the memory index for the current unit
+3. `policies/reporting.json` when present
+4. `policies/learning-gate.json`
+5. `team/TEAM-ARCHITECTURE.md`
+6. `state/state.json`
+7. Pending events and the last verdict in `state/self-evaluation.json`
+8. Only durable memory needed for the current unit, selected through `memory/INDEX.md`
+9. Remaining budget in `budget/CONTEXT-BUDGET.md`
+10. Files selected by `state.current.refs` and the memory index for the current unit
 
 If the purpose, phase, immediate next action, linked task evaluator, selected memory, pending events, or last verdict cannot be restored and `coldstart_fail` changes from false to true, the main orchestrator adds `coldstart-fail` once to `state/self-evaluation.json.pending_events`. Open long evaluation, improvement, or learning documents only when the current policy and task require them.
 
@@ -43,6 +45,8 @@ If the purpose, phase, immediate next action, linked task evaluator, selected me
 | Lane | Document | When |
 |---|---|---|
 | Execution | `loops/EXECUTION-LOOP.md` | Every work unit |
+| Change report | `policies/reporting.json` and `reports/<change-id>/CHANGE-REPORT.md` | After every completed work unit |
+| Learning Assist | reporting contract plus actual diff/source | Only on user request, or before an applicable enabled Learning Gate quiz |
 | Task evaluation | `loops/EVAL-LOOP.md` | After every unit |
 | Structural verification | validator and `{{SKILL_NAME}}-verify` | After a component change |
 | Learning gate | `policies/learning-gate.json` and `triggers/verify_learning_gate.py` | Only when user-enabled and applicable |
@@ -54,12 +58,22 @@ If the purpose, phase, immediate next action, linked task evaluator, selected me
 
 Every schema 1.1 `skills[].evaluator` references an existing evaluator. Entry, evaluation, verification, and domain skills use `scope: task`; harness-evaluation and improvement skills use a `scope: harness`, `type: experiment` evaluator.
 
+## Reporting and Learning Assist
+
+- Every completed work unit writes a short `reports/<change-id>/CHANGE-REPORT.md` with what changed, why, important flow, key files, validation, and anything the developer needs next.
+- `policies/reporting.json` selects the reader destination: `file` by default, or user-selected `notion|slack` when configured.
+- For Notion or Slack, publish only a reader copy. Git files remain canonical evidence.
+- On a user request for deeper understanding, Learning Assist starts from the Change Report and reads only the relevant actual diff/source.
+- Learning Assist questions test the implementation mental model rather than terminology recall.
+- On a wrong answer, give a directional hint first, then a concrete scenario/counterexample, and reveal the concept only after the final failed attempt is recorded.
+- If confusing wording or an undefined term caused the miss, rewrite before treating it as a comprehension failure.
+
 ## User-controlled learning gate
 
 - The gate is installed in every generated harness and starts with `policies/learning-gate.json.enabled: false`.
 - Only an explicit user instruction may change `enabled`. Agents may recommend a state but must not change it.
-- When disabled, do not create `learning/<change-id>/` artifacts and do not block review, pull request creation, or merge.
-- When enabled and applicable, follow `policies/LEARNING-GATE.md`: write the brief before implementation, explain the actual diff, create five understanding questions, collect developer-authored answers, and bind the passing result to a committed source snapshot and content hashes. A matching risk tag overrides a low-risk exemption.
+- When disabled, do not create gate-specific blocking work and do not block review, pull request creation, or merge.
+- When enabled and applicable, follow `policies/LEARNING-GATE.md`: write the brief before implementation, produce the normal Change Report, render the actual-diff explanation through Learning Assist, let the developer read it, then run the five-question understanding check and bind the passing result to a committed source snapshot and content hashes. A matching risk tag overrides a low-risk exemption.
 - The implementation agent must not write the developer's answers or serve as the sole semantic judge of an ambiguous answer.
 
 ```text
@@ -92,8 +106,17 @@ The checker hashes the canonical contract separately. Ordinary `memory/` content
 ├── team/                   # provider-neutral agent source
 ├── skills/                 # canonical skill source
 ├── policies/
+│   ├── reporting.json      # reader destination and plain-language report style
 │   ├── learning-gate.json  # installed disabled; user controls enabled
 │   └── LEARNING-GATE.md
+├── reports/
+│   └── <change-id>/CHANGE-REPORT.md
+├── learning-assist/
+│   ├── _templates/
+│   │   ├── explanation.md.tmpl
+│   │   ├── quiz.json.tmpl
+│   │   └── comprehension.json.tmpl
+│   └── <change-id>/        # created only for user-requested durable Assist output
 ├── learning/
 │   ├── _templates/
 │   └── <change-id>/        # created only when the enabled gate applies
@@ -126,8 +149,10 @@ The checker hashes the canonical contract separately. Ordinary `memory/` content
 - Never pass without raw evidence from the task evaluator.
 - Never bypass a human approval gate.
 - Never change the learning gate's enabled state without an explicit user instruction.
-- A disabled learning gate must not create learning work or block delivery.
+- A disabled learning gate must not create gate-specific blocking work or block delivery.
+- Never guess a Notion or Slack report target; use only the user-selected destination and target.
+- Reader copies outside Git never replace canonical Learning Gate evidence.
 - Apply semantic changes to the common spec or canonical file first.
 - Never report completion while selected provider adapters lack parity.
-- Never send state, ledger, evaluation history, or learning evidence outside the target project automatically.
-- Improve an existing harness in place using a baseline, preservation manifest, and delta plan. Never delete, overwrite, or rename user configuration, durable memory, or learning evidence without approval.
+- Never send state, ledger, evaluation history, or learning evidence outside the target project automatically except the reader-facing report copies explicitly selected in the reporting policy.
+- Improve an existing harness in place using a baseline, preservation manifest, and delta plan. Never delete, overwrite, or rename user configuration, durable memory, learning evidence, or reporting policy without approval.

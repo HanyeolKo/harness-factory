@@ -1,25 +1,25 @@
 # Change Brief — {{CHANGE_ID}}
 
-## Background
+Write this artifact in the configured report language. Keep code tokens, identifiers, paths, commands, table names, and conventional technical terms exact.
 
-Describe the current behavior and the context required to understand the change.
+## Current situation
 
-## Problem
+Describe how the system behaves now and only the facts needed to understand this change.
 
-Describe the concrete defect, limitation, or risk.
+## Problem to solve
 
-## Intuition
+Describe the concrete user-visible or runtime problem. Start with observable behavior, not architecture vocabulary.
 
-Explain the core idea behind the proposed solution without relying on implementation detail.
+## Planned change
 
-## Expected changes
+Explain what will change in plain language. Describe the behavior first. Introduce a technical term only when it helps the developer read the code later, and define it on first use.
 
-List the expected files, boundaries, interfaces, or runtime behavior that may change.
+## Expected impact
 
-## Alternatives and trade-offs
+List the main files, boundaries, interfaces, or runtime behavior likely to change. Explain each item in one short sentence.
 
-Record at least one plausible alternative and why it was not selected.
+## Risks and checks
 
-## Risks and validation
+State what could go wrong and how the change will be checked. Include alternatives only when the choice materially affects understanding; do not add an alternatives section by habit.
 
-Describe failure modes, rollback considerations, and the evidence required before completion.
+<!-- Readability rule: concrete behavior -> reason -> technical term. Prefer wording a developer would naturally use when explaining the change to a teammate. Avoid literal translation-like nouns and unnecessary abstraction. -->

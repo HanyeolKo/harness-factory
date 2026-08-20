@@ -1046,6 +1046,7 @@ class Validator:
         journal = self.harness_root / "ledger" / "journal.jsonl"
         if journal.is_file() and not journal.read_text(encoding="utf-8").strip():
             self.error("ledger/journal.jsonl must contain an initial event")
+        self.validate_reporting_policy()
         if self.memory_index_path is not None and self.memory_index_path.is_file():
             self.validate_memory_index(self.memory_index_path)
         if self.requires_english_artifacts():
@@ -1053,6 +1054,58 @@ class Validator:
         if self.schema_version == "1.1" or "self_evaluation" in self.spec:
             self.validate_targeted_suite()
             self.validate_self_evaluation_state()
+
+    def validate_reporting_policy(self) -> None:
+        """Validate the optional reader-facing reporting policy.
+
+        Existing harnesses predate this policy, so its absence is valid. Once a
+        policy is present, however, its destination and canonical-evidence
+        contract must be deterministic.
+        """
+        path = self.harness_root / "policies" / "reporting.json"
+        if not path.exists():
+            return
+        if not path.is_file():
+            self.error("policies/reporting.json must be a file when present")
+            return
+        try:
+            policy = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            self.error(f"policies/reporting.json is invalid: {exc}")
+            return
+        if not isinstance(policy, dict):
+            self.error("policies/reporting.json must be a JSON object")
+            return
+        required = {
+            "schema_version",
+            "reader_destination",
+            "reader_target",
+            "canonical_evidence",
+            "style",
+        }
+        self.check_keys(policy, "policies/reporting.json", required, required)
+        if policy.get("schema_version") != "1.0":
+            self.error("policies/reporting.json.schema_version must be '1.0'")
+        destination = policy.get("reader_destination")
+        if destination not in {"file", "notion", "slack"}:
+            self.error(
+                "policies/reporting.json.reader_destination must be file, notion, or slack"
+            )
+        target = policy.get("reader_target")
+        if not isinstance(target, str) or not target.strip():
+            self.error("policies/reporting.json.reader_target must be a non-empty string")
+        elif destination == "file":
+            if target.replace("\\", "/").rstrip("/") != "harness/reports":
+                self.error(
+                    "policies/reporting.json.reader_target must be 'harness/reports' for file"
+                )
+            self.safe_relative(target, "policies/reporting.json.reader_target")
+        if policy.get("canonical_evidence") != "file":
+            self.error("policies/reporting.json.canonical_evidence must be 'file'")
+        if policy.get("style") != "plain-language-first":
+            self.error(
+                "policies/reporting.json.style must be 'plain-language-first'"
+            )
 
     def requires_english_artifacts(self) -> bool:
         communication = self.spec.get("communication")

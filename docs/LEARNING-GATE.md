@@ -1,87 +1,63 @@
 # Learning Gate
 
-The learning gate is an optional speed regulator for AI-assisted changes. It is installed with a generated harness but remains inactive until the user explicitly enables it.
+The Learning Gate is an optional speed regulator for AI-assisted changes. It is installed with a generated harness but remains inactive until the user explicitly enables it.
+
+Its delivery-blocking semantics stay the same. What changes is the explanation flow: the gate now depends on Learning Assist so the developer reads one plain-language explanation before being quizzed.
 
 ## Default behavior
 
-Every new harness receives:
+Every new harness receives the Learning Gate, Learning Assist reporting templates, and the deterministic verifier.
 
-```text
-harness/
-├── policies/
-│   ├── learning-gate.json
-│   └── LEARNING-GATE.md
-├── learning/
-│   └── _templates/
-└── triggers/
-    └── verify_learning_gate.py
-```
-
-The generated policy starts with:
-
-```json
-{
-  "enabled": false,
-  "control": {
-    "owner": "user",
-    "agents_may_change_enabled": false,
-    "activation_requires_explicit_user_instruction": true
-  }
-}
-```
-
-When `enabled` is `false`, the gate returns `skip`, creates no per-change learning artifacts, and does not block review, pull request creation, or merge.
+The policy still starts with `enabled: false`. When disabled, gate-specific per-change learning artifacts are not required and the gate does not block review, pull request creation, or merge.
 
 ## User-owned on/off control
 
 Only an explicit user instruction may change `enabled`. An agent may explain the trade-off or recommend enabling the gate for a risky change, but it must not change the value itself. Reconciliation preserves the existing value.
 
-To enable the gate, the user changes:
+## Shared explanation flow
 
-```json
-"enabled": true
+All completed work gets a short Change Report. When the gate is enabled and applicable, Learning Assist expands the actual diff into the gate's `diff-explanation.md` using the same readability contract.
+
+```text
+implementation
+  -> validation
+  -> short Change Report
+  -> Learning Assist explanation from the actual diff
+  -> developer reads it
+  -> Learning Gate quiz
+  -> pass or hint-based retry
 ```
 
-To disable it again:
-
-```json
-"enabled": false
-```
-
-Changing thresholds, risk tags, or exemptions does not transfer ownership of the on/off decision to an agent.
+The gate must not create a second, denser explanation vocabulary. Explain concrete behavior first, then the reason, runtime flow, relevant code, and only then technical terminology when it helps maintenance.
 
 ## Applicability
 
-The default mode is risk-based. When enabled, the gate applies if either condition is true:
+The default mode remains risk-based. When enabled, the gate applies if either condition is true:
 
 - changed lines meet the configured threshold;
 - at least one supplied risk tag appears in the configured risk list.
 
-The default risk tags cover architecture, transaction boundaries, authentication, authorization, data models, external integrations, and unfamiliar technology. A matching risk tag always takes precedence over an exemption. Typo, formatting, generated-file, and dependency-lockfile changes are exempt only from threshold-based activation by default.
-
-A CI workflow or local command should supply changed-line and risk metadata. `--apply` forces the gate to run; it does not bypass validation.
+Matching risk tags still take precedence over low-risk exemptions.
 
 ## Change lifecycle
 
 For an applicable change:
 
-1. Write `brief.md` before implementation.
+1. Write `brief.md` before implementation using concrete problem language.
 2. Implement and validate the change.
-3. Write `diff-explanation.md` from the actual diff.
-4. Generate five medium-difficulty questions focused on design intent, failure modes, trade-offs, interaction, and code impact.
-5. The developer writes `answers.json`. The implementation agent must not fill it in.
-6. Commit the source change together with `brief.md`, `diff-explanation.md`, `quiz.json`, and `answers.json`.
-7. Record the full source commit SHA, score, required-concept score, attempt count, and content hashes in `verification.json`.
-8. Commit only `verification.json`, then run the deterministic verifier before review, pull request creation, or merge.
-
-```text
-python harness/triggers/verify_learning_gate.py harness \
-  --change-id CHG-2026-0081 \
-  --changed-lines 120 \
-  --risk-tag transaction-boundary-change
-```
-
-A successful result is bound to the exact `quiz.json`, `answers.json`, and committed source snapshot. The source commit must contain the code and the first four learning artifacts. Every path changed between that source commit and `HEAD` must be exactly the current change's committed `verification.json`, and the worktree must be clean. Changing code or answers after the source commit makes the evidence stale.
+3. Produce the normal short Change Report.
+4. Build `diff-explanation.md` from the actual diff through the Learning Assist explanation contract.
+5. Let the developer read that explanation before quiz generation.
+6. Generate five questions that test cause/effect, execution flow, failure paths, design responsibility, and meaningful trade-offs rather than vocabulary recall.
+7. The developer writes `answers.json`; the implementation agent must not fill it in.
+8. On an incorrect answer, do not immediately reveal the final answer:
+   - first miss: give a directional hint;
+   - second miss: give a concrete scenario or counterexample;
+   - final miss: record the failed attempt, then explain the concept directly.
+9. If confusing wording or an undefined term caused the miss, rewrite the question or explanation before counting it as a comprehension failure.
+10. Commit the source change together with `brief.md`, `diff-explanation.md`, `quiz.json`, and `answers.json`.
+11. Record the full source commit SHA, score, required-concept result, attempt count, and content hashes in `verification.json`.
+12. Commit only `verification.json`, then run the deterministic verifier before review, pull request creation, or merge.
 
 ## Artifact contract
 
@@ -94,33 +70,31 @@ harness/learning/<change-id>/
 └── verification.json
 ```
 
-The default quiz contract requires:
+The default verification thresholds and commit/hash integrity rules remain unchanged.
 
-- exactly five questions;
-- at least three free-text questions;
-- a score of at least 80;
-- a required-concepts score of 100;
-- at most three attempts;
-- complete answers for every question;
-- matching quiz and answer hashes;
-- a full source commit SHA followed only by the committed `verification.json` evidence.
+## Reader-facing document destination
 
-The quiz should test whether the developer can explain why the code exists and how it fails, not whether they can repeat syntax.
+During harness setup, the user chooses where reader-facing Change Reports and Learning Assist copies are organized:
+
+- `file` — default;
+- `notion` — user-selected Notion target;
+- `slack` — user-selected Slack target.
+
+For Notion or Slack, the target must be supplied by the user. The canonical Learning Gate evidence remains in Git regardless of reader destination, because the verifier binds hashes and commits to project-owned files.
 
 ## Pull request and merge integration
 
-The policy declares review, pull request, and merge gates. Enforcement depends on the project's workflow. A GitHub Actions job can invoke the verifier and be configured as a required check. Local wrappers can call the same command before `git push` or PR creation.
+The policy still declares review, pull request, and merge gates. The deterministic verifier continues to validate structure, path containment, committed evidence, and integrity. It does not pretend to resolve ambiguous semantic grading.
 
-The verifier is deterministic. It validates structure, path containment, policy types, committed evidence, and integrity but does not pretend to resolve ambiguous semantic grading. Ambiguous free-text answers should be routed to human review or an evaluator distinct from the implementation agent.
+Learning Assist improves the explanation and feedback path; it does not weaken the gate.
 
 ## Factory responsibilities
 
 Harness Factory:
 
-- installs the disabled policy and templates;
-- preserves the user's current `enabled` value during improve or reconcile operations;
-- projects the policy path into runtime guidance;
-- provides deterministic verification and contract tests;
+- installs the disabled policy and verifier;
+- installs the shared Change Report and Learning Assist contracts;
+- asks for reader destination during new-harness setup, defaulting to `file`;
+- preserves the user's current `enabled` value and existing learning evidence during improve/reconcile;
+- keeps canonical verification evidence in Git even when reader copies are published externally;
 - never enables the gate automatically.
-
-The target project owns all learning artifacts and verification history. The factory does not collect them.

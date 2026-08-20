@@ -5,14 +5,14 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 ## Operating rules
 
 1. **At most two batches** — Batch one contains core Q1–Q4. Batch two contains at most four relevant conditional questions.
-2. **Inspect before asking** — Read root rules, README and docs, build/test/lint/CI, existing harness files, state, evaluators, and memory index.
+2. **Inspect before asking** — Read root rules, README and docs, build/test/lint/CI, existing harness files, state, evaluators, memory index, reporting policy, and Learning Gate policy when present.
 3. **Reuse approved decisions** — Do not repeat an unchanged purpose or boundary already recorded in the spec or D-001.
 4. **Apply disclosed defaults** — If the user delegates a choice, use the defaults below and list them in the delivery report.
 5. **Prefer bounded choices** — Offer concise options plus a short free-text correction.
 6. **Record decisions** — Write answers and applied defaults to `ledger/DECISIONS.md` D-001.
 7. **Keep project ownership fixed** — Do not ask whether to move an installed harness into the factory. Preserve and improve it inside the target project.
-8. **Protect invariants** — User direction may change design choices, but never permits evidence-free pass, evaluator removal, gate bypass, evidence deletion, or provider semantic drift.
-9. **Separate artifacts from presentation** — Internal canonical prose is concise English. Report language and terminology affect user-facing narrative only; technical tokens are never translated.
+8. **Protect invariants** — User direction may change design choices, but never permits evidence-free pass, evaluator removal, gate bypass, evidence deletion, provider semantic drift, or guessed external report targets.
+9. **Separate artifacts from presentation** — Internal canonical prose is concise English. Report language and terminology affect user-facing narrative only; technical tokens are never translated. Reader copies in Notion or Slack never replace canonical Git evidence.
 
 ## Core batch — four questions
 
@@ -40,14 +40,16 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 
 ### Q4. Cost and report presentation
 
-> Choose cost sensitivity: (a) tight, (b) balanced, or (c) loose. Also choose the user-facing report language tag and terminology style: `technical-english` or `localized`.
+> Choose cost sensitivity: (a) tight, (b) balanced, or (c) loose. Also choose the user-facing report language tag and terminology style: `technical-english` or `localized`. Finally, where should reader-facing Change Reports and Learning Assist copies be organized: `file`, `notion`, or `slack`?
 
-- **Defaults** — (b), `communication.report_language: en`, and `communication.terminology: technical-english`.
-- **Fixed contract** — `communication.artifact_language: en`; canonical skills, roles, memory, loops, and machine-readable prose remain concise English with no bilingual duplicate.
+- **Defaults** — (b), `communication.report_language: en`, `communication.terminology: technical-english`, and `reader_destination: file` with `reader_target: harness/reports`.
+- **External target** — If `notion` or `slack` is selected, ask for the page/database/channel/conversation identifier or URL. Never infer or guess it.
+- **Fixed contract** — `communication.artifact_language: en`; canonical skills, roles, memory, loops, and machine-readable prose remain concise English with no bilingual duplicate. `canonical_evidence: file` remains fixed in `harness/policies/reporting.json`.
 - **`technical-english`** — Use the selected report language's grammar, but keep stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
 - **`localized`** — Translate explanatory technical nouns when a conventional local term exists. Use localized prose once, without a parallel bilingual copy.
-- **Maps to** — Work budget, `targeted_sample_rate`, `cooldown_units`, `budget_ratio`, `full_interval_units`, report presentation, and terminology.
-- **Guard** — Report language and terminology are excluded from the effect hash. IDs, paths, commands, evidence, JSON keys, status values, reasons, and verdicts remain exact.
+- **Readability** — Reader-facing reports use `plain-language-first`: concrete behavior, reason, execution flow, relevant code, then technical terminology only when useful.
+- **Maps to** — Work budget, `targeted_sample_rate`, `cooldown_units`, `budget_ratio`, `full_interval_units`, report presentation, terminology, and `harness/policies/reporting.json`.
+- **Guard** — Report language, terminology, and reader destination do not replace Git evidence. IDs, paths, commands, evidence, JSON keys, status values, reasons, and verdicts remain exact.
 - **Cost note** — Each task boundary runs the deterministic checker. `targeted` uses fixed metrics; `full` uses the harness experiment and is ACKed. Invalid input and unresolved parity never enter effect evaluation.
 
 ## Conditional batch — ask at most four
@@ -113,23 +115,27 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 
 > Existing `<file or rule>` conflicts with proposed `<field or path>`. Should its meaning remain in place with an additive extension, or coexist at a separate path?
 
-- **Default** — Apply additive `improve|reconcile` deltas when no conflict exists. A deletion, rename, move, split, merge, or semantic replacement has no default and requires explicit approval.
+- **Default** — Apply additive `improve|reconcile` deltas when no conflict exists. A deletion, rename, move, split, merge, semantic replacement, Learning Gate state change, or reporting target change has no default and requires explicit approval.
 - **Maps to** — Mode, ownership, preservation manifest, and `unchanged|add|modify-proposed|conflict|approval-required` delta plan.
-- **Guard** — Never offer centralization in the factory or automatic overwrite of user-owned memory.
+- **Guard** — Never offer centralization in the factory or automatic overwrite of user-owned memory, learning evidence, or reporting policy.
 
 ## Defaults
 
 | Field | Default |
 |---|---|
 | `TARGET` | Current repository |
-| `HARNESS_OWNERSHIP` | Target project owns canonical files, state, ledger, memory, and evidence |
+| `HARNESS_OWNERSHIP` | Target project owns canonical files, state, ledger, memory, reports, learning evidence, and policies |
 | `EXISTING_HARNESS_MODE` | None → `create`; valid spec → `improve`; partial/legacy → `reconcile` |
 | `CHANGE_POLICY` | Baseline + ownership + preservation manifest + classified delta plan |
 | `SCHEMA_VERSION` | `1.1` |
 | `ARTIFACT_LANGUAGE` | `communication.artifact_language: en` |
 | `REPORT_LANGUAGE` | `communication.report_language: en` |
 | `REPORT_TERMINOLOGY` | `communication.terminology: technical-english` |
+| `REPORT_DESTINATION` | `harness/policies/reporting.json`: `reader_destination: file`, `reader_target: harness/reports` |
+| `REPORT_STYLE` | `plain-language-first` |
+| `CANONICAL_REPORT_EVIDENCE` | `file`; Notion/Slack are reader copies only |
 | `COMMUNICATION_COMPATIBILITY` | Existing 1.0/1.1 may omit `communication`; use English defaults until additively configured |
+| `REPORTING_COMPATIBILITY` | Existing harnesses may omit `policies/reporting.json`; add it only through a preservation-aware delta |
 | `MAX_INSTRUCTION_LINES` | `limits.max_instruction_lines: 120` for new harnesses |
 | `MEMORY_INDEX` | `harness/memory/INDEX.md`; read selected entries only; do not duplicate state or events |
 | `MEMORY_POLICY` | `preserve-and-reconcile` |
@@ -161,7 +167,7 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 | `MINIMUM_SAMPLES` | Five units |
 | `MANDATORY_EVENTS` | Canonical/agent/skill/evaluator/adapter changes and cold-start/parity failures |
 | `MEMORY_TRIGGER` | Content/index row → deterministic verify; policy/routing → canonical full |
-| `PRESENTATION_TRIGGER` | Report language/terminology only → no harness-effect change |
+| `PRESENTATION_TRIGGER` | Report language/terminology/reader destination only → no harness-effect change unless effect-bearing instructions change |
 | `TEAM_ARCHITECTURE` | Capability backbone with roles derived from project boundaries |
 | `RUNTIME_TARGETS` | Claude + Codex + Gemini unless the user narrows them |
 | `WATCHED_PATHS` | Canonical hash plus exact selected-provider managed artifacts only |
