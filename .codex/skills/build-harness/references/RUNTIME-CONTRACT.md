@@ -27,6 +27,7 @@ The target project's `harness/` directory owns canonical meaning and operational
 - Plain-language-first means: concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful.
 - Prefer wording a developer would naturally use when explaining the change to a teammate. Avoid literal translation-like nouns and unnecessary architecture abstraction.
 - Keep identifiers, commands, paths, API names, table names, evidence tokens, status values, and conventional technical terms exact.
+- In `localized` mode, use natural report-language prose, preserve machine tokens rather than surrounding jargon, and introduce optional exact terminology once after the behavior is clear.
 - During new-harness setup, ask where reader-facing reports should be organized. Allowed destinations are `file|notion|slack`; default is `file`.
 - Store that choice in `harness/policies/reporting.json`.
 - For `file`, default `reader_target` to `harness/reports`. For `notion` or `slack`, require a user-supplied target identifier or URL. Never guess an external target.
@@ -66,6 +67,7 @@ Learning Assist is the shared comprehension layer. It starts from the Change Rep
 - The gate's `diff-explanation.md` uses this same explanation contract; do not create a second denser vocabulary.
 - A voluntary comprehension quiz while the gate is disabled is advisory and never blocks delivery.
 - Questions test mental models, not vocabulary recall.
+- Before publishing, check for one main idea per sentence, no more than three new concepts, and no unexplained mixed-language nouns outside machine tokens.
 - Wrong-answer remediation is progressive: first miss directional hint, second miss concrete scenario/counterexample, final miss record failure then explain the concept.
 - If confusing wording or an undefined term caused a miss, rewrite before counting it as a comprehension failure.
 

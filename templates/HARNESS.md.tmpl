@@ -18,7 +18,7 @@
 - If `communication` is absent in a compatible existing spec, use `artifact_language=en`, `report_language=en`, and `terminology=technical-english`.
 - `technical-english` uses the report language's grammar but keeps stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
 - `localized` translates explanatory technical nouns when a conventional local term exists. Both modes keep machine tokens exact and avoid bilingual duplication.
-- Reader-facing Change Reports and Learning Assist explanations follow `policies/reporting.json` and use plain-language-first wording: concrete behavior, reason, execution flow, relevant code, then technical terminology only when useful.
+- Reader-facing Change Reports and Learning Assist explanations follow `policies/reporting.json` and use plain-language-first wording: concrete behavior, reason, execution flow, relevant code, then technical terminology only when useful. In `localized` mode, use natural report-language prose and preserve exact machine tokens without surrounding every explanation with untranslated jargon.
 - Wrap an exact non-English project name or machine token in backticks and keep its surrounding canonical prose English.
 - Keep IDs, commands, paths, evidence, JSON keys, reasons, status values, and verdicts unchanged. Do not store bilingual copies.
 - Obey the instruction and memory budgets in the spec. Read indexes first and open only references needed for the current unit.
@@ -65,6 +65,7 @@ Every schema 1.1 `skills[].evaluator` references an existing evaluator. Entry, e
 - For Notion or Slack, publish only a reader copy. Git files remain canonical evidence.
 - On a user request for deeper understanding, Learning Assist starts from the Change Report and reads only the relevant actual diff/source.
 - Learning Assist questions test the implementation mental model rather than terminology recall.
+- Before publishing an explanation, check for one main idea per sentence, no more than three new concepts, and no unexplained mixed-language nouns outside machine tokens.
 - On a wrong answer, give a directional hint first, then a concrete scenario/counterexample, and reveal the concept only after the final failed attempt is recorded.
 - If confusing wording or an undefined term caused the miss, rewrite before treating it as a comprehension failure.
 

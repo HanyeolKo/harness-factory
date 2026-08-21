@@ -33,6 +33,8 @@ Use plain language first:
 - explain a behavior before naming a new technical concept;
 - do not turn the report into a second copy of the diff.
 
+Apply `communication.terminology` deliberately. In `localized` mode, use natural report-language prose and introduce an exact technical token once only when it helps the reader find the same concept in source or configuration. Exact identifiers, paths, commands, keys, status values, and verdicts stay unchanged, but ordinary explanatory nouns should not remain untranslated by default.
+
 ## Reader destination
 
 New harness setup asks the user to choose one reader-facing destination:

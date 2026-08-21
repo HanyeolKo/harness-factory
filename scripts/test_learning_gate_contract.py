@@ -113,6 +113,14 @@ def assert_learning_assist_contract() -> None:
     explanation = ASSIST_EXPLANATION_TEMPLATE.read_text(encoding="utf-8")
     assert "Explain concrete behavior first" in explanation
     assert "at most three core concepts" in explanation
+    assert "natural report-language prose" in explanation
+    assert "exact technical token once" in explanation
+    assert "Preserve machine tokens, not surrounding jargon" in explanation
+
+    assist_doc = (ROOT / "docs" / "LEARNING-ASSIST.md").read_text(encoding="utf-8")
+    assert "one main idea per sentence" in assist_doc
+    assert "no unexplained mixed-language nouns" in assist_doc
+    assert "`localized` mode" in assist_doc
 
     assist_quiz = json.loads(
         ASSIST_QUIZ_TEMPLATE.read_text(encoding="utf-8")
