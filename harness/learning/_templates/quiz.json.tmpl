@@ -1,0 +1,35 @@
+{
+  "change_id": "<change-id>",
+  "questions": [
+    {
+      "id": "q1",
+      "type": "free-text",
+      "question": "What concrete problem does this change solve, and why does the new behavior solve it?",
+      "required_concepts": ["design-intent"]
+    },
+    {
+      "id": "q2",
+      "type": "free-text",
+      "question": "Describe one realistic failure or edge case for this change and how the code handles it.",
+      "required_concepts": ["failure-mode"]
+    },
+    {
+      "id": "q3",
+      "type": "free-text",
+      "question": "If there was another realistic way to implement this change, what would be different and why was the current approach chosen?",
+      "required_concepts": ["trade-off"]
+    },
+    {
+      "id": "q4",
+      "type": "scenario",
+      "question": "Using a realistic request or event, explain the important control or data flow through the changed code in execution order.",
+      "required_concepts": ["interaction"]
+    },
+    {
+      "id": "q5",
+      "type": "code-location",
+      "question": "Which code location is responsible for the most important rule introduced by this change, and why is that responsibility placed there?",
+      "required_concepts": ["code-impact"]
+    }
+  ]
+}

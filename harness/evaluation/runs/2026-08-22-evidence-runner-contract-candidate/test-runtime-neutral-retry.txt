@@ -1,0 +1,43 @@
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B scripts/test_runtime_neutral_contract.py
+changed_attempt: sequential execution after shared .test-work cleanup race
+exit_code: 0
+wall_time_seconds: 7.628326
+
+test_all_seven_factory_skills_have_runtime_parity (__main__.RuntimeNeutralContractTests.test_all_seven_factory_skills_have_runtime_parity) ... ok
+test_bilingual_readmes_keep_english_as_the_default (__main__.RuntimeNeutralContractTests.test_bilingual_readmes_keep_english_as_the_default) ... ok
+test_canonical_skill_instruction_budget (__main__.RuntimeNeutralContractTests.test_canonical_skill_instruction_budget) ... ok
+test_communication_contract_is_optional_and_strict (__main__.RuntimeNeutralContractTests.test_communication_contract_is_optional_and_strict) ... ok
+test_default_render_passes_english_prose_validation (__main__.RuntimeNeutralContractTests.test_default_render_passes_english_prose_validation) ... ok
+test_english_artifact_prose_allows_code_and_machine_tokens (__main__.RuntimeNeutralContractTests.test_english_artifact_prose_allows_code_and_machine_tokens) ... ok
+test_english_artifact_prose_rejects_non_english_text (__main__.RuntimeNeutralContractTests.test_english_artifact_prose_rejects_non_english_text) ... ok
+test_english_memory_index_rejects_non_english_routing_prose (__main__.RuntimeNeutralContractTests.test_english_memory_index_rejects_non_english_routing_prose) ... ok
+test_english_memory_index_requires_english_headers (__main__.RuntimeNeutralContractTests.test_english_memory_index_requires_english_headers) ... ok
+test_english_spec_prose_is_enforced_without_breaking_legacy (__main__.RuntimeNeutralContractTests.test_english_spec_prose_is_enforced_without_breaking_legacy) ... ok
+test_harness_skills_must_use_self_evaluation_evaluator (__main__.RuntimeNeutralContractTests.test_harness_skills_must_use_self_evaluation_evaluator) ... ok
+test_internal_instruction_sources_are_english (__main__.RuntimeNeutralContractTests.test_internal_instruction_sources_are_english) ... ok
+test_legacy_korean_memory_index_remains_compatible (__main__.RuntimeNeutralContractTests.test_legacy_korean_memory_index_remains_compatible) ... ok
+test_memory_index_contract (__main__.RuntimeNeutralContractTests.test_memory_index_contract) ... ok
+test_provider_path_preflight_rejects_resolved_escape_fail_closed (__main__.RuntimeNeutralContractTests.test_provider_path_preflight_rejects_resolved_escape_fail_closed) ... ok
+test_provider_path_preflight_rejects_symlink_escape (__main__.RuntimeNeutralContractTests.test_provider_path_preflight_rejects_symlink_escape) ... skipped "directory symlink unavailable: [WinError 1314] Ŭ���̾�Ʈ�� �ʿ��� ������ ������ ���� �ʽ��ϴ�: 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\outside-provider-5743aecf49764841b9b4b28b2ea483e1' -> 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\runtime-contract-58829e81c6094d73a116876302ce3a2e\\\\.claude'"
+test_provider_registry_and_plugin_manifests (__main__.RuntimeNeutralContractTests.test_provider_registry_and_plugin_manifests) ... ok
+test_report_terminology_and_legacy_fallback_are_forward_contracts (__main__.RuntimeNeutralContractTests.test_report_terminology_and_legacy_fallback_are_forward_contracts) ... ok
+test_reporting_policy_is_optional_but_strict_when_present (__main__.RuntimeNeutralContractTests.test_reporting_policy_is_optional_but_strict_when_present) ... ok
+test_schema_10_fixture_remains_compatible (__main__.RuntimeNeutralContractTests.test_schema_10_fixture_remains_compatible) ... ok
+test_schema_10_requires_retro_interval (__main__.RuntimeNeutralContractTests.test_schema_10_requires_retro_interval) ... ok
+test_schema_11_fixture_passes_all_three_provider_adapters (__main__.RuntimeNeutralContractTests.test_schema_11_fixture_passes_all_three_provider_adapters) ... ok
+test_schema_11_requires_verification_skill_kind (__main__.RuntimeNeutralContractTests.test_schema_11_requires_verification_skill_kind) ... ok
+test_schema_and_template_encode_version_11_policy (__main__.RuntimeNeutralContractTests.test_schema_and_template_encode_version_11_policy) ... ok
+test_validator_rejects_each_provider_skill_drift (__main__.RuntimeNeutralContractTests.test_validator_rejects_each_provider_skill_drift) ... ok
+test_validator_rejects_gemini_write_tool_on_read_only_agent (__main__.RuntimeNeutralContractTests.test_validator_rejects_gemini_write_tool_on_read_only_agent) ... ok
+test_validator_rejects_invalid_targeted_suite_shape (__main__.RuntimeNeutralContractTests.test_validator_rejects_invalid_targeted_suite_shape) ... ok
+test_validator_rejects_missing_mandatory_event (__main__.RuntimeNeutralContractTests.test_validator_rejects_missing_mandatory_event) ... ok
+test_validator_rejects_missing_self_evaluation_contract_file (__main__.RuntimeNeutralContractTests.test_validator_rejects_missing_self_evaluation_contract_file) ... ok
+test_validator_rejects_non_experiment_harness_evaluator (__main__.RuntimeNeutralContractTests.test_validator_rejects_non_experiment_harness_evaluator) ... ok
+test_validator_rejects_skill_evaluator_reference_and_scope (__main__.RuntimeNeutralContractTests.test_validator_rejects_skill_evaluator_reference_and_scope) ... ok
+test_validator_rejects_watched_path_directory_expansion (__main__.RuntimeNeutralContractTests.test_validator_rejects_watched_path_directory_expansion) ... ok
+
+----------------------------------------------------------------------
+Ran 32 tests in 7.434s
+
+OK (skipped=1)
+

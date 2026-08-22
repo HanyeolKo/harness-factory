@@ -1,0 +1,8 @@
+{
+  "manifest_path": "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate-final/effect-blocked/manifest.json",
+  "validation_status": "valid",
+  "checks_not_run": [
+    "command not started: approval gate publish-or-release is unresolved"
+  ],
+  "next_role": "contract-evaluator"
+}

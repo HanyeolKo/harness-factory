@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "run_id": "2026-08-22-evidence-runner-contract-candidate-final",
+  "scope": "generated-harness-artifacts-only",
+  "hypothesis": "A split request-execute-validate-verdict contract makes evidence collection executable across provider adapters without expanding agent permissions or topology.",
+  "baseline": {
+    "provider_neutral_executable_evidence_paths": 0,
+    "required_manifest_fields": 0,
+    "completed_flow_validated": false,
+    "blocked_flow_validated": false,
+    "workspace_write_agents": 2,
+    "agents": 6,
+    "handoffs": 4
+  },
+  "candidate": {
+    "provider_neutral_executable_evidence_paths": 3,
+    "required_manifest_fields": 12,
+    "completed_flow_validated": true,
+    "blocked_flow_validated": true,
+    "workspace_write_agents": 2,
+    "agents": 6,
+    "handoffs": 4
+  },
+  "result": {
+    "target_metric": "improved",
+    "permission_non_regression": true,
+    "topology_non_regression": true,
+    "structural_regression": false,
+    "cost_proxy_regression": false,
+    "verdict": "improved"
+  },
+  "invalid_trials_excluded": [
+    "parallel shared .test-work cleanup race",
+    "read-only sandbox fixture creation denial"
+  ],
+  "telemetry_limits": [
+    "No native Claude or Gemini end-to-end execution was run.",
+    "No raw token, wall-clock, or monetary cost telemetry was available."
+  ]
+}

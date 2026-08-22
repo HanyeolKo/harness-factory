@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "environment": "Codex desktop ChatGPT account",
+  "probes": [
+    {
+      "agent_profile": "harness-factory-dev-evidence-runner",
+      "status": "failed-before-task",
+      "http_status": 400,
+      "error_type": "invalid_request_error",
+      "message": "The 'runtime-selected' model is not supported when using Codex with a ChatGPT account."
+    },
+    {
+      "agent_profile": "harness-factory-dev-contract-evaluator",
+      "status": "failed-before-task",
+      "http_status": 400,
+      "error_type": "invalid_request_error",
+      "message": "The 'runtime-selected' model is not supported when using Codex with a ChatGPT account."
+    }
+  ],
+  "fallback": {
+    "agent_type": "explorer",
+    "role_contracts_applied": [
+      "evidence-runner",
+      "contract-evaluator"
+    ],
+    "status": "completed"
+  },
+  "classification": "environment-runtime-compatibility",
+  "harness_attribution": false
+}

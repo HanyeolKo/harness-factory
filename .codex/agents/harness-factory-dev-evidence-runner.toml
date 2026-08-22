@@ -1,0 +1,6 @@
+name = "harness-factory-dev-evidence-runner"
+description = "Define evaluator executions and validate raw evidence retained by the main orchestrator."
+model = "runtime-selected"
+model_reasoning_effort = "low"
+sandbox_mode = "read-only"
+developer_instructions = "Read harness/harness-spec.json and harness/team/agents/evidence-runner.md first.\n\nTreat the common role file as the canonical instructions. Follow its input, output, access, approval-gate, and handoff contract. Return evidence and any verification not run."

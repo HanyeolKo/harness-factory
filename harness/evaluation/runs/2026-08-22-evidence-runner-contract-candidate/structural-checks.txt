@@ -1,0 +1,162 @@
+===== check_self_evaluation =====
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B harness/triggers/check_self_evaluation.py harness
+exit_code: 0
+wall_time_seconds: 0.0000025
+
+{"acknowledgement":{"coldstart_fail":false,"fail_counts":{}},"current_adapter_hash":"446f8d4ffbf2f986dcb713aa6568949352b0c6002510de99b019f82d0d82d44c","current_canonical_hash":"7be195bce7c4a8185baa7dabd780f4e020ba55ed48323371d4fda549fe4e9319","decision":"full","deferred_reasons":[],"mandatory":true,"reasons":["adapter-change","agent-change","canonical-contract-change","evaluator-change"]}
+
+===== validate_runtime_neutral =====
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B scripts/validate_runtime_neutral.py .
+exit_code: 0
+wall_time_seconds: 0.000003
+
+runtime-neutral harness validation passed: D:\workspace\Harness Factory
+
+===== test_runtime_neutral_contract =====
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B scripts/test_runtime_neutral_contract.py
+exit_code: 1
+wall_time_seconds: 8.0629091
+
+test_all_seven_factory_skills_have_runtime_parity (__main__.RuntimeNeutralContractTests.test_all_seven_factory_skills_have_runtime_parity) ... ok
+test_bilingual_readmes_keep_english_as_the_default (__main__.RuntimeNeutralContractTests.test_bilingual_readmes_keep_english_as_the_default) ... ok
+test_canonical_skill_instruction_budget (__main__.RuntimeNeutralContractTests.test_canonical_skill_instruction_budget) ... ok
+test_communication_contract_is_optional_and_strict (__main__.RuntimeNeutralContractTests.test_communication_contract_is_optional_and_strict) ... ok
+test_default_render_passes_english_prose_validation (__main__.RuntimeNeutralContractTests.test_default_render_passes_english_prose_validation) ... ok
+test_english_artifact_prose_allows_code_and_machine_tokens (__main__.RuntimeNeutralContractTests.test_english_artifact_prose_allows_code_and_machine_tokens) ... ok
+test_english_artifact_prose_rejects_non_english_text (__main__.RuntimeNeutralContractTests.test_english_artifact_prose_rejects_non_english_text) ... ok
+test_english_memory_index_rejects_non_english_routing_prose (__main__.RuntimeNeutralContractTests.test_english_memory_index_rejects_non_english_routing_prose) ... ok
+test_english_memory_index_requires_english_headers (__main__.RuntimeNeutralContractTests.test_english_memory_index_requires_english_headers) ... ok
+test_english_spec_prose_is_enforced_without_breaking_legacy (__main__.RuntimeNeutralContractTests.test_english_spec_prose_is_enforced_without_breaking_legacy) ... ok
+test_harness_skills_must_use_self_evaluation_evaluator (__main__.RuntimeNeutralContractTests.test_harness_skills_must_use_self_evaluation_evaluator) ... ok
+test_internal_instruction_sources_are_english (__main__.RuntimeNeutralContractTests.test_internal_instruction_sources_are_english) ... ok
+test_legacy_korean_memory_index_remains_compatible (__main__.RuntimeNeutralContractTests.test_legacy_korean_memory_index_remains_compatible) ... ok
+test_memory_index_contract (__main__.RuntimeNeutralContractTests.test_memory_index_contract) ... ok
+test_provider_path_preflight_rejects_resolved_escape_fail_closed (__main__.RuntimeNeutralContractTests.test_provider_path_preflight_rejects_resolved_escape_fail_closed) ... ok
+test_provider_path_preflight_rejects_symlink_escape (__main__.RuntimeNeutralContractTests.test_provider_path_preflight_rejects_symlink_escape) ... skipped "directory symlink unavailable: [WinError 1314] Ŭ���̾�Ʈ�� �ʿ��� ������ ������ ���� �ʽ��ϴ�: 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\outside-provider-4f11f59788464f5ea8fadee1d75eadf0' -> 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\runtime-contract-470c066ab0084e5bac9772df3ca4eccd\\\\.claude'"
+test_provider_registry_and_plugin_manifests (__main__.RuntimeNeutralContractTests.test_provider_registry_and_plugin_manifests) ... ok
+test_report_terminology_and_legacy_fallback_are_forward_contracts (__main__.RuntimeNeutralContractTests.test_report_terminology_and_legacy_fallback_are_forward_contracts) ... ok
+test_reporting_policy_is_optional_but_strict_when_present (__main__.RuntimeNeutralContractTests.test_reporting_policy_is_optional_but_strict_when_present) ... ok
+test_schema_10_fixture_remains_compatible (__main__.RuntimeNeutralContractTests.test_schema_10_fixture_remains_compatible) ... ok
+test_schema_10_requires_retro_interval (__main__.RuntimeNeutralContractTests.test_schema_10_requires_retro_interval) ... ok
+test_schema_11_fixture_passes_all_three_provider_adapters (__main__.RuntimeNeutralContractTests.test_schema_11_fixture_passes_all_three_provider_adapters) ... ok
+test_schema_11_requires_verification_skill_kind (__main__.RuntimeNeutralContractTests.test_schema_11_requires_verification_skill_kind) ... ok
+test_schema_and_template_encode_version_11_policy (__main__.RuntimeNeutralContractTests.test_schema_and_template_encode_version_11_policy) ... ok
+test_validator_rejects_each_provider_skill_drift (__main__.RuntimeNeutralContractTests.test_validator_rejects_each_provider_skill_drift) ... ok
+test_validator_rejects_gemini_write_tool_on_read_only_agent (__main__.RuntimeNeutralContractTests.test_validator_rejects_gemini_write_tool_on_read_only_agent) ... ok
+test_validator_rejects_invalid_targeted_suite_shape (__main__.RuntimeNeutralContractTests.test_validator_rejects_invalid_targeted_suite_shape) ... ok
+test_validator_rejects_missing_mandatory_event (__main__.RuntimeNeutralContractTests.test_validator_rejects_missing_mandatory_event) ... ok
+test_validator_rejects_missing_self_evaluation_contract_file (__main__.RuntimeNeutralContractTests.test_validator_rejects_missing_self_evaluation_contract_file) ... ok
+test_validator_rejects_non_experiment_harness_evaluator (__main__.RuntimeNeutralContractTests.test_validator_rejects_non_experiment_harness_evaluator) ... ERROR
+test_validator_rejects_skill_evaluator_reference_and_scope (__main__.RuntimeNeutralContractTests.test_validator_rejects_skill_evaluator_reference_and_scope) ... ok
+test_validator_rejects_watched_path_directory_expansion (__main__.RuntimeNeutralContractTests.test_validator_rejects_watched_path_directory_expansion) ... ok
+
+======================================================================
+ERROR: test_validator_rejects_non_experiment_harness_evaluator (__main__.RuntimeNeutralContractTests.test_validator_rejects_non_experiment_harness_evaluator)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "D:\workspace\Harness Factory\scripts\test_runtime_neutral_contract.py", line 1428, in test_validator_rejects_non_experiment_harness_evaluator
+    with WorkspaceDirectory() as target:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "D:\workspace\Harness Factory\scripts\test_runtime_neutral_contract.py", line 189, in __enter__
+    self.path.mkdir()
+  File "C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\Lib\pathlib.py", line 1311, in mkdir
+    os.mkdir(self, mode)
+FileNotFoundError: [WinError 3] ������ ��θ� ã�� �� �����ϴ�: 'D:\\workspace\\Harness Factory\\.test-work\\runtime-contract-72fae47ea0e04defab0301cb6b6fc4c8'
+
+----------------------------------------------------------------------
+Ran 32 tests in 7.851s
+
+FAILED (errors=1, skipped=1)
+
+===== test_self_evaluation_trigger =====
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B scripts/test_self_evaluation_trigger.py
+exit_code: 0
+wall_time_seconds: 6.5127135
+
+test_adapter_drift_and_deletion_are_mandatory_full (__main__.SelfEvaluationTriggerTests.test_adapter_drift_and_deletion_are_mandatory_full) ... ok
+test_budget_and_cooldown_defer_nonmandatory_signals (__main__.SelfEvaluationTriggerTests.test_budget_and_cooldown_defer_nonmandatory_signals) ... ok
+test_canonical_hash_excludes_operational_and_memory_content (__main__.SelfEvaluationTriggerTests.test_canonical_hash_excludes_operational_and_memory_content) ... ok
+test_explicit_full_override_preserves_original_and_records (__main__.SelfEvaluationTriggerTests.test_explicit_full_override_preserves_original_and_records) ... ok
+test_failure_reset_below_ack_uses_zero_effective_ack (__main__.SelfEvaluationTriggerTests.test_failure_reset_below_ack_uses_zero_effective_ack) ... ok
+test_full_for_success_regression_and_interval (__main__.SelfEvaluationTriggerTests.test_full_for_success_regression_and_interval) ... ok
+test_full_record_acknowledges_only_frozen_failure_count (__main__.SelfEvaluationTriggerTests.test_full_record_acknowledges_only_frozen_failure_count) ... ok
+test_full_record_acknowledges_same_mandatory_signal (__main__.SelfEvaluationTriggerTests.test_full_record_acknowledges_same_mandatory_signal) ... ok
+test_full_record_does_not_ack_coldstart_created_after_freeze (__main__.SelfEvaluationTriggerTests.test_full_record_does_not_ack_coldstart_created_after_freeze) ... ok
+test_full_record_preserves_events_added_after_frozen_decision (__main__.SelfEvaluationTriggerTests.test_full_record_preserves_events_added_after_frozen_decision) ... ok
+test_full_recorder_does_not_create_operational_hash_loop (__main__.SelfEvaluationTriggerTests.test_full_recorder_does_not_create_operational_hash_loop) ... ok
+test_malformed_input_fails_closed_with_compact_json (__main__.SelfEvaluationTriggerTests.test_malformed_input_fails_closed_with_compact_json) ... ok
+test_mandatory_event_bypasses_budget_and_cooldown (__main__.SelfEvaluationTriggerTests.test_mandatory_event_bypasses_budget_and_cooldown) ... ok
+test_new_failure_increment_retriggers_after_full_ack (__main__.SelfEvaluationTriggerTests.test_new_failure_increment_retriggers_after_full_ack) ... ok
+test_presentation_preferences_do_not_change_effect_hash (__main__.SelfEvaluationTriggerTests.test_presentation_preferences_do_not_change_effect_hash) ... ok
+test_recorder_rejects_decision_mismatch_without_writing (__main__.SelfEvaluationTriggerTests.test_recorder_rejects_decision_mismatch_without_writing) ... ok
+test_recorder_rejects_direct_budget_bypass (__main__.SelfEvaluationTriggerTests.test_recorder_rejects_direct_budget_bypass) ... ok
+test_recorder_rejects_direct_cooldown_bypass (__main__.SelfEvaluationTriggerTests.test_recorder_rejects_direct_cooldown_bypass) ... ok
+test_recorder_rejects_stale_hash_without_writing (__main__.SelfEvaluationTriggerTests.test_recorder_rejects_stale_hash_without_writing) ... ok
+test_recorder_rejects_unmarked_full_decision_mutation (__main__.SelfEvaluationTriggerTests.test_recorder_rejects_unmarked_full_decision_mutation) ... ok
+test_repeated_failure_and_coldstart_are_mandatory (__main__.SelfEvaluationTriggerTests.test_repeated_failure_and_coldstart_are_mandatory) ... ok
+test_sample_rate_one_selects_targeted_and_zero_does_not (__main__.SelfEvaluationTriggerTests.test_sample_rate_one_selects_targeted_and_zero_does_not) ... ok
+test_stable_boundary_returns_none_without_writing (__main__.SelfEvaluationTriggerTests.test_stable_boundary_returns_none_without_writing) ... ok
+test_targeted_record_sets_cooldown_without_acknowledging_hashes (__main__.SelfEvaluationTriggerTests.test_targeted_record_sets_cooldown_without_acknowledging_hashes) ... ok
+test_targeted_record_uses_frozen_decision_after_metrics_change (__main__.SelfEvaluationTriggerTests.test_targeted_record_uses_frozen_decision_after_metrics_change) ... ok
+test_targeted_signals_are_deterministic (__main__.SelfEvaluationTriggerTests.test_targeted_signals_are_deterministic) ... ok
+test_templates_are_byte_identical_to_runtime_scripts (__main__.SelfEvaluationTriggerTests.test_templates_are_byte_identical_to_runtime_scripts) ... ok
+test_watched_symlink_escape_fails_closed_when_supported (__main__.SelfEvaluationTriggerTests.test_watched_symlink_escape_fails_closed_when_supported) ... skipped "symlink unavailable: [WinError 1314] Ŭ���̾�Ʈ�� �ʿ��� ������ ������ ���� �ʽ��ϴ�: 'D:\\\\workspace\\\\Harness Factory\\\\README.md' -> 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\self-eval-9f5cbb437c434a6c909b44fed08f0c63\\\\.claude\\\\escape'"
+test_watched_target_escape_fails_closed (__main__.SelfEvaluationTriggerTests.test_watched_target_escape_fails_closed) ... ok
+
+----------------------------------------------------------------------
+Ran 29 tests in 6.457s
+
+OK (skipped=1)
+
+===== test_learning_gate_contract =====
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B scripts/test_learning_gate_contract.py
+exit_code: 0
+wall_time_seconds: 2.5976742
+
+learning assist and learning gate contract: pass
+
+===== skill_smoke_build_harness =====
+command: & 'C:\Users\hanyu\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' -B scripts/skill_smoke_build_harness.py
+exit_code: 0
+wall_time_seconds: 8.1027648
+
+test_all_seven_factory_skills_have_runtime_parity (__main__.RuntimeNeutralContractTests.test_all_seven_factory_skills_have_runtime_parity) ... ok
+test_bilingual_readmes_keep_english_as_the_default (__main__.RuntimeNeutralContractTests.test_bilingual_readmes_keep_english_as_the_default) ... ok
+test_canonical_skill_instruction_budget (__main__.RuntimeNeutralContractTests.test_canonical_skill_instruction_budget) ... ok
+test_communication_contract_is_optional_and_strict (__main__.RuntimeNeutralContractTests.test_communication_contract_is_optional_and_strict) ... ok
+test_default_render_passes_english_prose_validation (__main__.RuntimeNeutralContractTests.test_default_render_passes_english_prose_validation) ... ok
+test_english_artifact_prose_allows_code_and_machine_tokens (__main__.RuntimeNeutralContractTests.test_english_artifact_prose_allows_code_and_machine_tokens) ... ok
+test_english_artifact_prose_rejects_non_english_text (__main__.RuntimeNeutralContractTests.test_english_artifact_prose_rejects_non_english_text) ... ok
+test_english_memory_index_rejects_non_english_routing_prose (__main__.RuntimeNeutralContractTests.test_english_memory_index_rejects_non_english_routing_prose) ... ok
+test_english_memory_index_requires_english_headers (__main__.RuntimeNeutralContractTests.test_english_memory_index_requires_english_headers) ... ok
+test_english_spec_prose_is_enforced_without_breaking_legacy (__main__.RuntimeNeutralContractTests.test_english_spec_prose_is_enforced_without_breaking_legacy) ... ok
+test_harness_skills_must_use_self_evaluation_evaluator (__main__.RuntimeNeutralContractTests.test_harness_skills_must_use_self_evaluation_evaluator) ... ok
+test_internal_instruction_sources_are_english (__main__.RuntimeNeutralContractTests.test_internal_instruction_sources_are_english) ... ok
+test_legacy_korean_memory_index_remains_compatible (__main__.RuntimeNeutralContractTests.test_legacy_korean_memory_index_remains_compatible) ... ok
+test_memory_index_contract (__main__.RuntimeNeutralContractTests.test_memory_index_contract) ... ok
+test_provider_path_preflight_rejects_resolved_escape_fail_closed (__main__.RuntimeNeutralContractTests.test_provider_path_preflight_rejects_resolved_escape_fail_closed) ... ok
+test_provider_path_preflight_rejects_symlink_escape (__main__.RuntimeNeutralContractTests.test_provider_path_preflight_rejects_symlink_escape) ... skipped "directory symlink unavailable: [WinError 1314] Ŭ���̾�Ʈ�� �ʿ��� ������ ������ ���� �ʽ��ϴ�: 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\outside-provider-ef223f10907741c0971df53076bcde0f' -> 'D:\\\\workspace\\\\Harness Factory\\\\.test-work\\\\runtime-contract-e1b0e3c6bfb543e585d9519c99445236\\\\.claude'"
+test_provider_registry_and_plugin_manifests (__main__.RuntimeNeutralContractTests.test_provider_registry_and_plugin_manifests) ... ok
+test_report_terminology_and_legacy_fallback_are_forward_contracts (__main__.RuntimeNeutralContractTests.test_report_terminology_and_legacy_fallback_are_forward_contracts) ... ok
+test_reporting_policy_is_optional_but_strict_when_present (__main__.RuntimeNeutralContractTests.test_reporting_policy_is_optional_but_strict_when_present) ... ok
+test_schema_10_fixture_remains_compatible (__main__.RuntimeNeutralContractTests.test_schema_10_fixture_remains_compatible) ... ok
+test_schema_10_requires_retro_interval (__main__.RuntimeNeutralContractTests.test_schema_10_requires_retro_interval) ... ok
+test_schema_11_fixture_passes_all_three_provider_adapters (__main__.RuntimeNeutralContractTests.test_schema_11_fixture_passes_all_three_provider_adapters) ... ok
+test_schema_11_requires_verification_skill_kind (__main__.RuntimeNeutralContractTests.test_schema_11_requires_verification_skill_kind) ... ok
+test_schema_and_template_encode_version_11_policy (__main__.RuntimeNeutralContractTests.test_schema_and_template_encode_version_11_policy) ... ok
+test_validator_rejects_each_provider_skill_drift (__main__.RuntimeNeutralContractTests.test_validator_rejects_each_provider_skill_drift) ... ok
+test_validator_rejects_gemini_write_tool_on_read_only_agent (__main__.RuntimeNeutralContractTests.test_validator_rejects_gemini_write_tool_on_read_only_agent) ... ok
+test_validator_rejects_invalid_targeted_suite_shape (__main__.RuntimeNeutralContractTests.test_validator_rejects_invalid_targeted_suite_shape) ... ok
+test_validator_rejects_missing_mandatory_event (__main__.RuntimeNeutralContractTests.test_validator_rejects_missing_mandatory_event) ... ok
+test_validator_rejects_missing_self_evaluation_contract_file (__main__.RuntimeNeutralContractTests.test_validator_rejects_missing_self_evaluation_contract_file) ... ok
+test_validator_rejects_non_experiment_harness_evaluator (__main__.RuntimeNeutralContractTests.test_validator_rejects_non_experiment_harness_evaluator) ... ok
+test_validator_rejects_skill_evaluator_reference_and_scope (__main__.RuntimeNeutralContractTests.test_validator_rejects_skill_evaluator_reference_and_scope) ... ok
+test_validator_rejects_watched_path_directory_expansion (__main__.RuntimeNeutralContractTests.test_validator_rejects_watched_path_directory_expansion) ... ok
+
+----------------------------------------------------------------------
+Ran 32 tests in 7.852s
+
+OK (skipped=1)
+runtime-neutral contract suite passed via the smoke entry point
+
+

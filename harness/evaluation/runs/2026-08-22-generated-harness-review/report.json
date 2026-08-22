@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "run_id": "2026-08-22-generated-harness-review",
+  "scope": "generated-harness-artifacts-only",
+  "decision": "full",
+  "verdict": "inconclusive",
+  "structural_verdict": "pass",
+  "operational_verdict": "fail",
+  "harness_attributed_defect": true,
+  "attribution_confidence": "high",
+  "score": {
+    "points": 20,
+    "maximum": 44,
+    "average_out_of_4": 1.8
+  },
+  "dimension_scores": {
+    "orchestration_intensity": 2,
+    "agent_contract_specificity": 1,
+    "capability_and_access": 1,
+    "handoff_artifact_viability": 1,
+    "evaluator_reproducibility": 0,
+    "failure_and_recovery": 1,
+    "cold_start_and_context_budget": 3,
+    "memory_routing": 2,
+    "approval_gates": 3,
+    "learning_assist_and_gate": 4,
+    "provider_semantic_parity": 2
+  },
+  "findings": [
+    {
+      "severity": "critical",
+      "key": "harness:eval-runner-command-capability-missing",
+      "summary": "The declared evidence runner cannot execute evaluator commands on Claude or Gemini."
+    },
+    {
+      "severity": "critical",
+      "key": "harness:eval-evidence-persistence-owner-missing",
+      "summary": "No evaluation-lane role can retain the raw evidence required by the pass condition."
+    },
+    {
+      "severity": "critical",
+      "key": "harness:harness-effect-runner-missing",
+      "summary": "The harness-effect command is prose and no comparable task corpus, metric computation, or telemetry writer exists."
+    },
+    {
+      "severity": "high",
+      "key": "harness:failure-state-schema-mismatch",
+      "summary": "Main state stores failure signals at the top level while the checker reads main_state.improve."
+    },
+    {
+      "severity": "high",
+      "key": "harness:role-contracts-generic",
+      "summary": "All six role contracts reuse the same generic input, output, and rules body."
+    },
+    {
+      "severity": "high",
+      "key": "harness:handoff-schema-missing",
+      "summary": "Handoff paths have no producer, consumer, freshness, provenance, or manifest schema."
+    },
+    {
+      "severity": "medium",
+      "key": "harness:small-task-fast-path-missing",
+      "summary": "The normal path serializes four roles and declares no read-only or small-change short circuit."
+    },
+    {
+      "severity": "low",
+      "key": "harness:reader-report-language-drift",
+      "summary": "Existing reader-facing Change Reports are English despite report_language ko."
+    }
+  ],
+  "evidence": [
+    "trigger.json",
+    "structural-checks.txt",
+    "runtime-role-probes.json",
+    "baseline.json",
+    "experiment-manifest.json"
+  ],
+  "checks_not_run": [
+    "Comparable pre-harness baseline arm",
+    "Native Claude and Gemini end-to-end evidence-runner execution",
+    "Windows symlink escape checks requiring SeCreateSymbolicLinkPrivilege"
+  ],
+  "next_handoff": "harness-improver"
+}
