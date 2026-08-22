@@ -1,0 +1,11 @@
+{
+  "stable_key": "environment:shared-test-work-race",
+  "attributed_to_harness_candidate": false,
+  "invalid_trial": "parallel test_runtime_neutral_contract and skill_smoke_build_harness shared .test-work cleanup",
+  "raw_failure": "structural-checks.txt",
+  "changed_attempt": "sequential execution",
+  "retry_evidence": "test-runtime-neutral-retry.txt",
+  "retry_exit_code": 0,
+  "candidate_handoff_retries": 0,
+  "reason": "The failing factory test does not read the installed candidate harness; another concurrent factory test removed its shared temporary root."
+}

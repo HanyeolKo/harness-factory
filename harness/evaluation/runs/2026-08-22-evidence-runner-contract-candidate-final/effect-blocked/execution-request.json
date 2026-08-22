@@ -1,0 +1,15 @@
+{
+  "execution_request": {
+    "unit_id": "2026-08-22-evidence-runner-contract-effect-blocked-final",
+    "evaluator": "factory-contract-tests",
+    "command": "& 'C:\\Users\\hanyu\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' scripts/validate_runtime_neutral.py .",
+    "evidence_root": "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate-final/effect-blocked/",
+    "expected_artifacts": [
+      "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate-final/effect-blocked/stdout.raw",
+      "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate-final/effect-blocked/stderr.raw",
+      "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate-final/effect-blocked/manifest.json"
+    ],
+    "approval_gate_status": "blocked:publish-or-release",
+    "return_role": "evidence-runner"
+  }
+}

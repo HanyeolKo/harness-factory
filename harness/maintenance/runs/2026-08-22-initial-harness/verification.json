@@ -1,0 +1,21 @@
+{
+  "change_id": "2026-08-22-initial-harness",
+  "mode": "create",
+  "provider_path_preflight": "pass",
+  "runtime_neutral_validator": "pass",
+  "repository_contract_tests": {
+    "runtime_neutral": "pass: 32 tests, 1 Windows symlink test skipped",
+    "self_evaluation_trigger": "pass: 29 tests, 1 Windows symlink test skipped",
+    "learning_assist_and_gate": "pass",
+    "build_harness_smoke": "pass: 32 tests, 1 Windows symlink test skipped"
+  },
+  "provider_parity": "pass: Claude, Codex, Gemini",
+  "cold_start": "pass: purpose, phase, next action, task evaluator, pending event, and memory route are recoverable from canonical files",
+  "checks_not_run": [
+    "full harness-effect experiment: no comparable historical baseline or five completed work-unit samples"
+  ],
+  "residual_risks": [
+    "Factory validator 0.2.1 applies artifact_language English checks to canonical Change Reports even when report_language is ko; the final user delivery is Korean while the Git report remains English."
+  ],
+  "residual_failures": []
+}

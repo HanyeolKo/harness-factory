@@ -1,0 +1,13 @@
+{
+  "request_hash": {
+    "expected": "b47ae6f8fd41ae9014f279dce42b5fcafdc63cab17bcf6fcdc5be30a1ab970a4",
+    "computed": "b47ae6f8fd41ae9014f279dce42b5fcafdc63cab17bcf6fcdc5be30a1ab970a4",
+    "match": true
+  },
+  "artifact_hash": {
+    "expected": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+    "computed": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+    "match": true
+  },
+  "verified": true
+}

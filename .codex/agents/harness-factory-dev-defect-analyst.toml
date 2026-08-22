@@ -1,0 +1,6 @@
+name = "harness-factory-dev-defect-analyst"
+description = "Classify failures, count stable keys, and separate task defects from harness defects."
+model = "runtime-selected"
+model_reasoning_effort = "low"
+sandbox_mode = "read-only"
+developer_instructions = "Read harness/harness-spec.json and harness/team/agents/defect-analyst.md first.\n\nTreat the common role file as the canonical instructions. Follow its input, output, access, approval-gate, and handoff contract. Return evidence and any verification not run."

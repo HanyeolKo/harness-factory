@@ -1,0 +1,6 @@
+{
+  "status": "invalid",
+  "reason": "execution-request.json was persisted after command execution",
+  "retained_for_rollback_evidence": true,
+  "superseded_by": "../probe-2/"
+}

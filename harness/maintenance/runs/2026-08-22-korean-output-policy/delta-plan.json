@@ -1,0 +1,27 @@
+{
+  "change_id": "2026-08-22-korean-output-policy",
+  "mode": "improve",
+  "deltas": [
+    {
+      "path": "harness/policies/KOREAN-OUTPUT.md",
+      "classification": "add",
+      "reason": "Apply the fluent-korean output rules to every Korean output."
+    },
+    {
+      "path": "harness/HARNESS.md and harness/team/agents/*.md",
+      "classification": "modify-proposed",
+      "reason": "Route main-agent and subagent Korean output through the common policy."
+    },
+    {
+      "path": "CLAUDE.md, AGENTS.md, GEMINI.md managed blocks",
+      "classification": "modify-proposed",
+      "reason": "Expose the same policy to all selected runtimes."
+    },
+    {
+      "path": "harness/policies/learning-gate.json and harness/policies/reporting.json",
+      "classification": "unchanged"
+    }
+  ],
+  "conflicts": [],
+  "approval_required": []
+}

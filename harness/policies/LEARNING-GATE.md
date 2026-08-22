@@ -1,0 +1,80 @@
+# LEARNING GATE
+
+The Learning Gate is installed with every new harness but starts disabled. It keeps its existing delivery-blocking semantics, but it uses Learning Assist as the explanation layer so the developer is tested on the implementation rather than on difficult wording.
+
+## User control
+
+- Configuration: `harness/policies/learning-gate.json`
+- Default: `enabled: false`
+- Only an explicit user instruction may change `enabled`.
+- Agents may explain or recommend the gate, but must not enable or disable it themselves.
+- When disabled, do not create gate-specific per-change artifacts and do not block review, pull request creation, or merge.
+
+## Shared explanation flow
+
+Every completed work unit should first have a short Change Report. When this gate is enabled and applicable, use the Learning Assist explanation contract to expand the actual diff into `learning/<change-id>/diff-explanation.md`.
+
+The order is:
+
+```text
+implementation
+-> validation
+-> Change Report
+-> Learning Assist explanation
+-> developer reads the explanation
+-> Learning Gate quiz
+-> pass or hint-based retry
+```
+
+Do not generate a second explanation style for the gate. Use plain language first: concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful.
+
+## Enabled workflow
+
+When the gate is enabled and the change matches its scope:
+
+1. Write `learning/<change-id>/brief.md` before implementation using concrete problem language.
+2. Implement and validate the change.
+3. Produce the normal short Change Report.
+4. Render `learning/<change-id>/diff-explanation.md` from the actual diff using the Learning Assist explanation contract.
+5. Let the developer read that explanation before the quiz.
+6. Create five medium-difficulty questions that test the developer's mental model, not vocabulary recall.
+7. The developer writes `answers.json` without agent-authored answers.
+8. Grade the attempt without immediately revealing final answers.
+   - First miss: give a directional hint.
+   - Second miss: give a concrete scenario or counterexample.
+   - Final miss: record the failed attempt, then explain the concept directly.
+   - If confusing wording or an undefined term caused the miss, rewrite the question/explanation before counting the attempt as a comprehension failure.
+9. Commit the source change together with `brief.md`, `diff-explanation.md`, `quiz.json`, and `answers.json`.
+10. Record that full source commit SHA, the score, the required-concept result, and the content hashes in `verification.json`.
+11. Commit only `verification.json`, then run the deterministic verifier before requesting review, creating a pull request, or merging.
+
+```text
+python harness/triggers/verify_learning_gate.py harness --change-id <change-id> --changed-lines <count> --risk-tag <tag>
+```
+
+## Required artifacts
+
+```text
+harness/learning/<change-id>/
+├── brief.md
+├── diff-explanation.md
+├── quiz.json
+├── answers.json
+└── verification.json
+```
+
+The quiz must test why the code exists, how data/control flows, realistic failure modes, and responsibility placement. Do not fail a developer for not recalling an unnecessary architecture term.
+
+## Reader-facing document destination
+
+The harness reporting configuration selects where human-readable Change Reports and Learning Assist copies are organized: `file` (default), `notion`, or `slack`.
+
+Even when the reader copy is published to Notion or Slack, the Git files above remain the canonical Learning Gate verification evidence. External publication failure must not rewrite or invalidate valid canonical evidence unless the user explicitly configures publication as a delivery requirement.
+
+## Scope and exemptions
+
+The default scope is risk-based. The gate applies when changed lines reach the configured threshold or the change has a configured risk tag. A matching risk tag always overrides a low-risk exemption. Typo, formatting, generated-file, and dependency-lockfile changes are exempt from threshold-only activation by default. The user may change scope or thresholds without changing the on/off ownership rule.
+
+## Integrity
+
+A passing verification binds the quiz and answers hashes to a committed source snapshot. The source commit contains the code and the first four learning artifacts; every later path through `HEAD` must be exactly this change's committed `verification.json`. The verifier also requires a clean worktree. Any later code or evidence change invalidates the result. Missing, stale, path-escaped, or ambiguous evidence is a failure, not a pass.

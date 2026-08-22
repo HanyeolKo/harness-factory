@@ -1,0 +1,21 @@
+{
+  "change_id": "2026-08-22-korean-output-policy",
+  "mode": "improve",
+  "provider_path_preflight": "pass",
+  "runtime_neutral_validator": "pass",
+  "task_evaluator": "pass: 32 tests, 1 Windows symlink fixture skipped",
+  "policy_contract": "pass: 1 canonical policy, 3 provider roots, 6 agent roles",
+  "learning_gate_verifier": "skip: learning-gate-disabled",
+  "boundary_checker": "full mandatory: adapter-change, agent-change, canonical-contract-change; no completed evaluation was ACKed",
+  "preservation": {
+    "harness_spec": "unchanged",
+    "reporting_policy": "unchanged",
+    "learning_gate_enabled": false,
+    "learning_gate_policy": "unchanged"
+  },
+  "git_diff_check": "pass with a line-ending normalization warning for GEMINI.md",
+  "checks_not_run": [
+    "full harness-effect experiment: pending under the existing no-baseline condition"
+  ],
+  "residual_failures": []
+}

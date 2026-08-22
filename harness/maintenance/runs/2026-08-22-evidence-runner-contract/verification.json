@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-08-22-evidence-runner-contract",
+  "mode": "improve",
+  "provider_path_preflight": "pass",
+  "runtime_neutral_validator": "pass",
+  "repository_contract_tests": {
+    "runtime_neutral": "pass: 32 tests, 1 Windows symlink fixture skipped",
+    "self_evaluation_trigger": "pass: 29 tests, 1 Windows symlink fixture skipped",
+    "learning_assist_and_gate": "pass",
+    "build_harness_smoke": "pass: 32 tests, 1 Windows symlink fixture skipped"
+  },
+  "git_diff_check": "pass",
+  "provider_parity": "pass: descriptions synchronized; evidence-runner access and tools remain read-only for Claude, Codex, and Gemini",
+  "permission_non_regression": "pass: spec workspace-write agents remain 2",
+  "topology_non_regression": "pass: agents 6, handoffs 4, normal success handoffs 3",
+  "probes": {
+    "completed": "pass: request persisted before execution, exit 0, 12 fields, request and artifact hashes match",
+    "blocked": "pass: unresolved publish-or-release gate, command not started, exit null, null encoding hash matches",
+    "rejected": "retained as invalid because request was persisted after execution"
+  },
+  "independent_contract_review": "pass",
+  "learning_gate_verifier": "skip: learning-gate-disabled",
+  "boundary_checker": "pass: full mandatory decision frozen after canonical evidence was written",
+  "full_comparison": "pass: provider-neutral evidence contract projection 0/3 to 3/3; completed and blocked flows validated; permissions and topology unchanged",
+  "checks_not_run": [
+    "native Claude end-to-end request-execution-validation probe",
+    "native Gemini end-to-end request-execution-validation probe",
+    "Windows symlink escape fixtures requiring SeCreateSymbolicLinkPrivilege"
+  ],
+  "residual_risks": [
+    "Evidence-root restriction is enforced by the main orchestrator contract rather than a dedicated path sandbox.",
+    "The main orchestrator computes hashes when a native read-only runner cannot do so."
+  ]
+}

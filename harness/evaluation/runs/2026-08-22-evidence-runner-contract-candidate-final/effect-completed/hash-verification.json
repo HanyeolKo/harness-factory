@@ -1,0 +1,13 @@
+{
+  "request_hash": {
+    "expected": "1be2a195547177a57dd21abe4849b7ccb77ecd32fb204ebf93db843e47c381b2",
+    "computed": "1be2a195547177a57dd21abe4849b7ccb77ecd32fb204ebf93db843e47c381b2",
+    "match": true
+  },
+  "artifact_hash": {
+    "expected": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+    "computed": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+    "match": true
+  },
+  "verified": true
+}

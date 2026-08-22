@@ -1,0 +1,14 @@
+{
+  "unit_id": "2026-08-22-evidence-runner-contract-probe",
+  "evaluator": "factory-contract-tests",
+  "command": "& 'C:\\Users\\hanyu\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' scripts/validate_runtime_neutral.py .",
+  "request_hash": "0ee38d21660b488f9c194a8289235090f4c3697808e658b4d790bcdc4a87fade",
+  "approval_gate_status": "none",
+  "stdout_path": "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate/probe/stdout.raw",
+  "stderr_path": "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate/probe/stderr.raw",
+  "exit_code": 0,
+  "artifact_hash": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+  "checks_not_run": [],
+  "status": "completed",
+  "next_role": "evidence-runner"
+}

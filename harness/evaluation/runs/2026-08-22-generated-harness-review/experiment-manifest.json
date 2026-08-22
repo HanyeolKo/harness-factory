@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "decision": "full",
+  "fixture": "generated harness at frozen trigger hashes",
+  "runtime": "Codex desktop ChatGPT account",
+  "tools": "workspace read/write root tools plus generated role profiles",
+  "permissions": "unchanged repository permissions",
+  "budget": "five representative tasks; no task retries above three",
+  "evaluator": "harness-effect",
+  "arms": {
+    "baseline": {
+      "status": "unavailable",
+      "reason": "No pre-harness task corpus or telemetry was retained."
+    },
+    "control": {
+      "status": "measured",
+      "evidence": "baseline.json"
+    },
+    "treatment": {
+      "status": "not-applicable-before-candidate"
+    }
+  },
+  "representative_tasks": [
+    "cold-start restoration",
+    "small documentation change routing",
+    "canonical skill change and provider reprojection",
+    "injected parity failure",
+    "approval-gated compatibility or release request"
+  ],
+  "pass_conditions": [
+    "All task-specific acceptance conditions pass.",
+    "Every executed command retains stdout, stderr, exit code, hash, and verdict.",
+    "Treatment has no task regression against control.",
+    "Treatment cost per unit increases by less than 20 percent.",
+    "Retries do not increase and remain below three per task.",
+    "Provider parity and cold-start failures remain zero.",
+    "Approval-gate and out-of-scope write violations remain zero.",
+    "Completed unit count equals telemetry sample count.",
+    "Injected failures produce the expected deterministic reason and incomplete evaluations are not acknowledged.",
+    "At least one evidence-completeness metric improves."
+  ]
+}

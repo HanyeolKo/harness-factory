@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "checks": {
+    "cost-regression": {
+      "metrics": ["cost_per_unit", "evaluation_cost"]
+    },
+    "retry-pressure": {
+      "metrics": ["retries", "failed"]
+    },
+    "deterministic-sample": {
+      "metrics": ["success_rate", "cost_per_unit"]
+    }
+  }
+}
