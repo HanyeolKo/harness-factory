@@ -1,7 +1,7 @@
-# SKILL-EVALUATION — 0.2.0 평가 계약
+# SKILL-EVALUATION — 0.3.0 평가 계약
 
-기준일: 2026-07-24
-대상: 일곱 factory skill, schema 1.1, Claude·Codex·Gemini adapter, event-driven harness evaluation
+기준일: 2026-08-22
+대상: 일곱 factory skill, schema 1.0·1.1 호환성, schema 1.2 profile, 선택 runtime adapter
 
 실제 pass는 자동 검사와 fixture evidence가 있을 때만 기록합니다.
 
@@ -10,11 +10,14 @@
 | 영역 | 통과 조건 |
 |---|---|
 | 프로젝트 소유권 | state·ledger·report가 대상에 남고 factory가 중앙 수집하지 않는다. |
+| 구축 결정 | create receipt가 목적과 profile 제안·사용자 확인을 기록하고 spec과 일치한다. |
+| 용도별 범위 | core·adaptive·governed가 각 필수 계층만 설치하며 profile을 자동 변경하지 않는다. |
 | 기존 하네스 보존 | mode·baseline·소유권·preservation manifest와 delta plan으로 제자리에서 융화한다. |
 | memory index | 7열·active 경로·중복·line budget을 결정 검증하고 state/ledger를 복제하지 않는다. |
 | 스킬 surface | 일곱 스킬이 설치 runtime에 노출된다. |
 | evaluator link | 모든 `skills[].evaluator`가 존재하고 kind별 scope/type 계약과 일치한다. |
 | provider 중립성 | Claude, Codex, Gemini가 같은 의미이며 canonical skill과 byte-identical하다. |
+| 문서 예산 | 런타임 Markdown은 통상 50줄이며 51~100줄은 유효한 사유가 있고 101줄은 실패한다. |
 | watched path | exact managed artifact drift·삭제는 검출하고 unrelated user 파일은 무시한다. |
 | 저비용 trigger | checker가 읽기 전용이고 `none|targeted|full`만 반환하며 LLM을 호출하지 않는다. |
 | 안전 라우팅 | input-invalid는 구조 복구로, adapter/parity는 verify-first로 간다. |
@@ -24,7 +27,7 @@
 
 ## Schema와 스킬별 평가
 
-schema 1.1 매핑:
+schema 1.1과 schema 1.2 `adaptive|governed` 매핑:
 
 - entry/evaluation/verification/domain skill → `scope: task`; verification은 구조 validator
 - harness-evaluation/improvement skill → `self_evaluation.evaluator`, `scope: harness`, `type: experiment`

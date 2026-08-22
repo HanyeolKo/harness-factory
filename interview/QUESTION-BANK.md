@@ -1,27 +1,30 @@
 # INTERVIEW QUESTION BANK — Phase 1
 
-Use this bank to configure a project-owned harness quickly. Inspect first; ask only for decisions that cannot be established safely from the repository or an approved prior decision.
+Use this bank to complete a project-owned schema 1.2 construction receipt in at most two batches. In `create`, Phase 2 cannot start and managed harness artifacts cannot be written until `interview_receipt.status` is `complete` and profile confirmation is recorded.
 
 ## Operating rules
 
-1. **At most two batches** — Batch one contains core Q1–Q4. Batch two contains at most four relevant conditional questions.
-2. **Inspect before asking** — Read root rules, README and docs, build/test/lint/CI, existing harness files, state, evaluators, memory index, reporting policy, and Learning Gate policy when present.
-3. **Reuse approved decisions** — Do not repeat an unchanged purpose or boundary already recorded in the spec or D-001.
-4. **Apply disclosed defaults** — If the user delegates a choice, use the defaults below and list them in the delivery report.
-5. **Prefer bounded choices** — Offer concise options plus a short free-text correction.
-6. **Record decisions** — Write answers and applied defaults to `ledger/DECISIONS.md` D-001.
-7. **Keep project ownership fixed** — Do not ask whether to move an installed harness into the factory. Preserve and improve it inside the target project.
-8. **Protect invariants** — User direction may change design choices, but never permits evidence-free pass, evaluator removal, gate bypass, evidence deletion, provider semantic drift, or guessed external report targets.
-9. **Separate artifacts from presentation** — Internal canonical prose is concise English. Report language and terminology affect user-facing narrative only; technical tokens are never translated. Reader copies in Notion or Slack never replace canonical Git evidence.
+1. **Inspect before asking** — Read the current request, root rules, README/docs, build/test/lint/CI, existing harness, state, evaluators, memory, reporting, and Learning Gate policy first.
+2. **Do not re-ask request values** — Record a value explicitly supplied in the current request with source `request`.
+3. **Prefer structured input** — Use the runtime's structured question/input mechanism with bounded options and a free-text correction; use plain text only when unavailable.
+4. **No purpose default** — State a repository-based hypothesis, but obtain purpose from request text or explicit user confirmation.
+5. **At most two batches** — Batch one contains unresolved parts of Q1–Q4. Batch two contains at most four relevant conditional questions.
+6. **Explicit delegation only** — Silence is not delegation. Apply a default only after explicit delegation and record source `default-delegated`.
+7. **Reuse approved decisions** — In `improve|reconcile`, do not repeat an unchanged spec, D-001, or policy decision; record `approved-decision`. Create forbids that source.
+8. **Recommend, then confirm profile** — Recommend the lowest sufficient `core|adaptive|governed`, disclose installed and omitted capabilities, and require confirmation. Never change profile automatically.
+9. **Record the receipt** — Write required values and sources to `maintenance/runs/<change-id>/delta-plan.json.interview_receipt`; set `harness.construction_receipt` to that file and keep D-001 as a concise pointer/summary.
+10. **Protect invariants** — Never permit evidence-free pass, evaluator removal, gate bypass, evidence deletion, provider drift, guessed external targets, or a second canonical profile policy.
+11. **Keep project ownership fixed** — Preserve and improve an installed harness in its target project.
+12. **Separate presentation** — Canonical prose is concise English. Reader copies and localized narrative never replace exact Git evidence or machine tokens.
 
 ## Core batch — four questions
 
 ### Q1. Target, purpose, and deliverable
 
-> The repository suggests that this harness should manage `<scope>` for `<purpose hypothesis>`. Is that correct, and is the main deliverable code, documentation, data, or a mix?
+> The repository suggests `<purpose hypothesis>` and a `<code|documentation|data|mixed>` deliverable. Is that purpose correct? Based on it, I recommend `<profile>` because `<reason codes>`; it installs `<included>` and omits `<excluded>`. Confirm or correct each value.
 
-- **Default** — Current repository. Reuse a matching approved purpose; require input only for a new, conflicting, or unresolved purpose.
-- **Maps to** — `harness.id`, `harness.purpose`, domain graph, task evaluator candidates.
+- **No default** — Repository evidence may form a hypothesis but cannot confirm purpose. Reuse a matching approved purpose only in `improve|reconcile`.
+- **Maps to** — `harness.id`, `harness.purpose`, `profile`, domain graph, and task evaluator candidates.
 
 ### Q2. Task completion
 
@@ -38,19 +41,29 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 - **Default** — (a) attended sessions.
 - **Maps to** — Recovery escalation, checkpoint frequency, full interval, cooldown, and approval boundaries.
 
-### Q4. Cost and report presentation
+### Q4. Cost, presentation, runtime, and reporting
 
-> Choose cost sensitivity: (a) tight, (b) balanced, or (c) loose. Also choose the user-facing report language tag and terminology style: `technical-english` or `localized`. Finally, where should reader-facing Change Reports and Learning Assist copies be organized: `file`, `notion`, or `slack`?
+> Choose cost sensitivity, report language, `technical-english|localized`, runtime targets, and the `file|notion|slack` reporting destination and target.
 
-- **Defaults** — (b), `communication.report_language: en`, `communication.terminology: technical-english`, and `reader_destination: file` with `reader_target: harness/reports`.
+- **Delegated defaults** — balanced, `communication.report_language: en`, `communication.terminology: technical-english`, the invoking runtime only, and `file` with `reader_target: harness/reports`.
 - **External target** — If `notion` or `slack` is selected, ask for the page/database/channel/conversation identifier or URL. Never infer or guess it.
 - **Fixed contract** — `communication.artifact_language: en`; canonical skills, roles, memory, loops, and machine-readable prose remain concise English with no bilingual duplicate. `canonical_evidence: file` remains fixed in `harness/policies/reporting.json`.
 - **`technical-english`** — Use the selected report language's grammar, but keep stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
 - **`localized`** — Translate explanatory technical nouns when a conventional local term exists. Use localized prose once, without a parallel bilingual copy.
 - **Readability** — Reader-facing reports use `plain-language-first`: concrete behavior, reason, execution flow, relevant code, then technical terminology only when useful.
-- **Maps to** — Work budget, `targeted_sample_rate`, `cooldown_units`, `budget_ratio`, `full_interval_units`, report presentation, terminology, and `harness/policies/reporting.json`.
+- **Maps to** — Work budget, runtime targets, report presentation, terminology, required schema 1.2 `harness/policies/reporting.json`, and adaptive/governed evaluation settings.
 - **Guard** — Report language, terminology, and reader destination do not replace Git evidence. IDs, paths, commands, evidence, JSON keys, status values, reasons, and verdicts remain exact.
-- **Cost note** — Each task boundary runs the deterministic checker. `targeted` uses fixed metrics; `full` uses the harness experiment and is ACKed. Invalid input and unresolved parity never enter effect evaluation.
+- **Cost note** — Adaptive/governed task boundaries run the deterministic checker. `targeted` uses fixed metrics; `full` uses the harness experiment and is ACKed. Core stops after task evaluation and structural verification.
+
+## Profile recommendation
+
+| Profile | Recommendation signals | Active layer |
+|---|---|---|
+| `core` | bounded task execution | routing, execution, task evaluation, structural verification, verdict, defect counting, short reporting |
+| `adaptive` | durable memory, recurring workflow, long-running/unattended work, harness-effect measurement, or evidence-gated improvement | core plus memory, self-evaluation, harness experiment, improvement |
+| `governed` | enabled/applicable Learning Gate, audit/education evidence, or blocking review/release control | adaptive plus installed Learning Assist and user-controlled Learning Gate support |
+
+Reporting is common to all schema 1.2 profiles and does not raise profile by itself. Lower profiles may provide a one-off explanation without installing Learning Assist. Ordinary destructive/external approval gates and multiple runtime targets also do not imply governed.
 
 ## Conditional batch — ask at most four
 
@@ -100,7 +113,7 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 
 > Does the project need domain coordinators or specialized workers, and which of Claude, Codex, and Gemini should receive adapters?
 
-- **Default** — Derive dynamic roles that cover `routing`, `execution`, `verification`, `verdict`, `defect-counting`, and `improvement`; generate all three providers.
+- **Delegated default** — Derive the smallest profile-valid role set and generate the invoking runtime only. Do not infer governed or all providers from provider count.
 - **Maps to** — Domains, agents, skills, orchestration, evaluators, runtime targets, and provider adapters.
 - **Guard** — Even when one agent fills several roles, separate deliverable, evidence, and verdict stages.
 
@@ -127,16 +140,19 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 | `HARNESS_OWNERSHIP` | Target project owns canonical files, state, ledger, memory, reports, learning evidence, and policies |
 | `EXISTING_HARNESS_MODE` | None → `create`; valid spec → `improve`; partial/legacy → `reconcile` |
 | `CHANGE_POLICY` | Baseline + ownership + preservation manifest + classified delta plan |
-| `SCHEMA_VERSION` | `1.1` |
+| `SCHEMA_VERSION` | New harness: `1.2`; compatible existing harness: preserve `1.0|1.1` until an approved migration |
+| `PROFILE` | Recommend the lowest sufficient `core|adaptive|governed`; no automatic selection or change |
 | `ARTIFACT_LANGUAGE` | `communication.artifact_language: en` |
 | `REPORT_LANGUAGE` | `communication.report_language: en` |
 | `REPORT_TERMINOLOGY` | `communication.terminology: technical-english` |
-| `REPORT_DESTINATION` | `harness/policies/reporting.json`: `reader_destination: file`, `reader_target: harness/reports` |
+| `REPORT_DESTINATION` | Required for schema 1.2. Delegated file target: `harness/reports` |
 | `REPORT_STYLE` | `plain-language-first` |
 | `CANONICAL_REPORT_EVIDENCE` | `file`; Notion/Slack are reader copies only |
 | `COMMUNICATION_COMPATIBILITY` | Existing 1.0/1.1 may omit `communication`; use English defaults until additively configured |
 | `REPORTING_COMPATIBILITY` | Existing harnesses may omit `policies/reporting.json`; add it only through a preservation-aware delta |
-| `MAX_INSTRUCTION_LINES` | `limits.max_instruction_lines: 120` for new harnesses |
+| `TARGET_MARKDOWN_LINES` | `limits.target_markdown_lines: 50` for new harnesses |
+| `MAX_MARKDOWN_LINES` | `limits.max_markdown_lines: 100` hard maximum after rendering |
+| `MAX_INSTRUCTION_LINES` | `limits.max_instruction_lines: 100` for new harnesses |
 | `MEMORY_INDEX` | `harness/memory/INDEX.md`; read selected entries only; do not duplicate state or events |
 | `MEMORY_POLICY` | `preserve-and-reconcile` |
 | `MEMORY_MAX_DOCUMENT_LINES` | `memory.max_document_lines: 80` for new harnesses |
@@ -157,6 +173,7 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 | `TARGETED_SAMPLE_RATE` | `0.05`, adjusted from project evidence |
 | `TARGETED_SUITE` | Fixed cost/retry/sample deterministic metrics at `self_evaluation.targeted_suite` |
 | `EVALUATION_ACK` | Freeze checker JSON in run `trigger.json`; record every completed `targeted|full` |
+| `INITIAL_SELF_EVALUATION` | Adaptive/governed create stores verified canonical/provider hashes with `pending_events: []`; installation alone opens no mandatory full |
 | `FULL_INTERVAL_UNITS` | `10` |
 | `COOLDOWN_UNITS` | `2` completed units after the last evaluation |
 | `EVALUATION_BUDGET_RATIO` | At most `0.10` of the total work budget |
@@ -169,10 +186,17 @@ Use this bank to configure a project-owned harness quickly. Inspect first; ask o
 | `MEMORY_TRIGGER` | Content/index row → deterministic verify; policy/routing → canonical full |
 | `PRESENTATION_TRIGGER` | Report language/terminology/reader destination only → no harness-effect change unless effect-bearing instructions change |
 | `TEAM_ARCHITECTURE` | Capability backbone with roles derived from project boundaries |
-| `RUNTIME_TARGETS` | Claude + Codex + Gemini unless the user narrows them |
+| `RUNTIME_TARGETS` | Invoking runtime only after explicit default delegation; otherwise ask |
 | `WATCHED_PATHS` | Canonical hash plus exact selected-provider managed artifacts only |
 
 Numeric defaults are starting points. When reliable historical evidence exists, adjust them and record the reason in D-001. A report-presentation preference never changes experiment thresholds.
+
+## Receipt and transition guards
+
+- Required decisions are `purpose`, `deliverable_type`, `task_evaluator`, `operation_mode`, `cost_sensitivity`, `report_language`, `terminology`, `runtime_targets`, `approval_gates`, and `reporting`. An ordinary decision is `{value, source}` with source `request|user-answer|repository-confirmed|default-delegated|approved-decision`.
+- Profile records `current`, `recommended`, `selected`, `reason_codes`, `confirmation_source`, and `override_reason`; create uses `current: null`. Selected must match `harness-spec.json.profile`; a mismatch with recommended needs a non-empty reason.
+- Never infer a downgrade from inactivity. Record exact removed layers and paths, retained/archive evidence paths, and explicit approval. `default-delegated` cannot approve removal.
+- Governed to adaptive requires retired governance need, disabled Gate, and no active gate evidence. Adaptive to core also requires no pending events, non-template memory, completed evaluation/ACK, or improvement history. Direct governed to core requires both removal sets.
 
 ## Fields derived without asking
 

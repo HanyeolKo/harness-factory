@@ -56,6 +56,11 @@ DEFAULT_COMMUNICATION = {
     "report_language": "en",
     "terminology": "technical-english",
 }
+PROFILES_12 = ("core", "adaptive", "governed")
+MARKDOWN_BUDGET_EXCEPTION = (
+    "<!-- document-budget exception: atomic-project-contract | "
+    "Keep this bounded runtime contract whole. -->"
+)
 ENGLISH_MEMORY_INDEX = (
     "# Memory Index\n\n"
     "| ID | Path | Summary | Read when | Source | Last verified | Status |\n"
@@ -270,7 +275,11 @@ def self_evaluation_policy(
     }
 
 
-def make_spec(schema_version: str = "1.1") -> dict[str, Any]:
+def make_spec(
+    schema_version: str = "1.1",
+    profile: str | None = None,
+    runtime_targets: list[str] | None = None,
+) -> dict[str, Any]:
     skills = json.loads(json.dumps(SKILLS_11))
     evaluators = [
         {
@@ -299,7 +308,7 @@ def make_spec(schema_version: str = "1.1") -> dict[str, Any]:
         "improvement_owner": "harness-improver",
         "fail_threshold": 3,
     }
-    runtimes = ["claude", "codex", "gemini"]
+    runtimes = list(runtime_targets or ["claude", "codex", "gemini"])
     if schema_version == "1.0":
         skills = [
             skill
@@ -315,7 +324,8 @@ def make_spec(schema_version: str = "1.1") -> dict[str, Any]:
             {key: value for key, value in evaluators[0].items() if key != "scope"}
         ]
         loops["retro_interval"] = 10
-        runtimes = ["claude", "codex"]
+        if runtime_targets is None:
+            runtimes = ["claude", "codex"]
     spec: dict[str, Any] = {
         "schema_version": schema_version,
         "harness": {
@@ -370,16 +380,80 @@ def make_spec(schema_version: str = "1.1") -> dict[str, Any]:
         ],
         "loops": loops,
     }
-    if schema_version == "1.1":
-        spec["limits"]["max_instruction_lines"] = 120
+    if schema_version in {"1.1", "1.2"}:
+        spec["limits"]["max_instruction_lines"] = (
+            100 if schema_version == "1.2" else 120
+        )
         spec["communication"] = dict(DEFAULT_COMMUNICATION)
+        if schema_version == "1.2":
+            selected_profile = profile or "adaptive"
+            spec["profile"] = selected_profile
+            spec["harness"]["construction_receipt"] = (
+                "harness/maintenance/runs/create-fixture/delta-plan.json"
+            )
+            spec["limits"].update(
+                {"target_markdown_lines": 50, "max_markdown_lines": 100}
+            )
+            if selected_profile == "core":
+                retained_agents = {
+                    "billing-router",
+                    "api-worker",
+                    "contract-evaluator",
+                }
+                spec["agents"] = [
+                    agent for agent in spec["agents"] if agent["id"] in retained_agents
+                ]
+                contract_evaluator = next(
+                    agent
+                    for agent in spec["agents"]
+                    if agent["id"] == "contract-evaluator"
+                )
+                contract_evaluator["capabilities"] = [
+                    "verification",
+                    "verdict",
+                    "defect-counting",
+                ]
+                spec["skills"] = [
+                    skill
+                    for skill in spec["skills"]
+                    if skill["kind"] not in {"harness-evaluation", "improvement"}
+                ]
+                for skill in spec["skills"]:
+                    if skill["kind"] in {"evaluation", "verification"}:
+                        skill["entry_agent"] = "contract-evaluator"
+                spec["evaluators"] = [
+                    evaluator
+                    for evaluator in spec["evaluators"]
+                    if evaluator["scope"] == "task"
+                ]
+                spec["evaluators"][0]["runner"] = "contract-evaluator"
+                spec["orchestration"]["handoffs"] = [
+                    handoff
+                    for handoff in spec["orchestration"]["handoffs"]
+                    if handoff["from"] in retained_agents
+                    and handoff["to"] in retained_agents
+                ]
+                spec["orchestration"]["handoffs"].append(
+                    {
+                        "from": "api-worker",
+                        "to": "contract-evaluator",
+                        "when": "implementation is ready for verification",
+                        "artifacts": ["harness/state/state.json"],
+                    }
+                )
+                spec["loops"].pop("improvement")
+                spec["loops"].pop("improvement_owner")
+                return spec
+
         spec["memory"] = {
             "index": "harness/memory/INDEX.md",
             "policy": "preserve-and-reconcile",
             "max_document_lines": 80,
             "max_summary_chars": 160,
         }
-        spec["self_evaluation"] = self_evaluation_policy(runtimes, skills, spec["agents"])
+        spec["self_evaluation"] = self_evaluation_policy(
+            runtimes, spec["skills"], spec["agents"]
+        )
     return spec
 
 
@@ -392,21 +466,26 @@ def codex_instructions(role_id: str) -> str:
     )
 
 
-def common_files(harness: Path, schema_version: str) -> None:
+def common_files(
+    harness: Path, schema_version: str, profile: str | None = None
+) -> None:
     files = {
         "HARNESS.md": "# Harness\n\nRead harness-spec.json first.",
         "ENVIRONMENT.md": "# Environment\n\nEvaluator: python -m unittest",
         "team/TEAM-ARCHITECTURE.md": "# Team\n\nThe spec is canonical.",
         "loops/EXECUTION-LOOP.md": "# Execution\n\nExecute, task-evaluate, then trigger-check.",
         "loops/EVAL-LOOP.md": "# Task evaluation\n\nPreserve raw evidence.",
-        "loops/IMPROVE-LOOP.md": "# Improvement\n\nRequire full effect evidence.",
         "recovery/RECOVERY-PLAYBOOK.md": "# Recovery\n\nEscalate after bounded retry.",
         "recovery/CHECKPOINT.md": "# Checkpoint\n\nPersist next action.",
         "ledger/JOURNAL-FORMAT.md": "# Journal\n\nAppend only.",
         "ledger/DECISIONS.md": "# Decisions\n\nD-001 fixture.",
         "budget/CONTEXT-BUDGET.md": "# Budget\n\nEvaluation has a separate cap.",
     }
-    if schema_version == "1.1":
+    if schema_version != "1.2" or profile != "core":
+        files["loops/IMPROVE-LOOP.md"] = (
+            "# Improvement\n\nRequire full effect evidence."
+        )
+    if schema_version in {"1.1", "1.2"} and profile != "core":
         files.update(
             {
                 "loops/HARNESS-EVAL-LOOP.md": "# Harness effect evaluation\n\nCompare baseline, control, treatment.",
@@ -414,24 +493,95 @@ def common_files(harness: Path, schema_version: str) -> None:
                 "memory/INDEX.md": ENGLISH_MEMORY_INDEX,
             }
         )
+    if schema_version == "1.2":
+        files["reports/_templates/CHANGE-REPORT.md.tmpl"] = render(
+            (ROOT / "templates/reports/CHANGE-REPORT.md.tmpl").read_text(
+                encoding="utf-8"
+            ),
+            {
+                "CHANGE_ID": "CHG-001",
+                "CHANGE_SUMMARY": "Summarize the bounded change.",
+                "CHANGE_REASON": "State the evidence-backed reason.",
+                "CHANGE_IMPACT": "Describe the observable impact.",
+                "FLOW_SUMMARY": "request -> change -> validation",
+                "KEY_FILES": "List only relevant files.",
+                "VALIDATION_SUMMARY": "List checks actually run.",
+                "NEED_TO_KNOW": "Record the immediate next fact.",
+            },
+        )
+        write_json(
+            harness / "policies/reporting.json",
+            {
+                "schema_version": "1.0",
+                "reader_destination": "file",
+                "reader_target": "harness/reports",
+                "canonical_evidence": "file",
+                "style": "plain-language-first",
+            },
+        )
+    if schema_version == "1.2" and profile in {"adaptive", "governed"}:
+        files["maintenance/COMPONENT-MUTATION-PROTOCOL.md"] = (
+            ROOT / "templates/maintenance/COMPONENT-MUTATION-PROTOCOL.md.tmpl"
+        ).read_text(encoding="utf-8").replace("{{TARGET}}", NAMESPACE)
+    if schema_version == "1.2" and profile == "governed":
+        files.update(
+            {
+                "learning-assist/_templates/explanation.md.tmpl": (
+                    "# Learning Assist explanation\n\n"
+                    "Explain changed behavior from the actual diff and evidence."
+                ),
+                "policies/LEARNING-GATE.md": (
+                    ROOT / "templates/policies/LEARNING-GATE.md.tmpl"
+                ).read_text(encoding="utf-8").replace("{{HARNESS_ROOT}}", "harness"),
+                "learning/_templates/brief.md.tmpl": (
+                    "# Change Brief\n\nDescribe current behavior and the planned change."
+                ),
+                "learning/_templates/diff-explanation.md.tmpl": (
+                    "# Diff Explanation\n\nExplain the actual behavior change."
+                ),
+            }
+        )
+        write_json(
+            harness / "learning-assist/_templates/quiz.json.tmpl",
+            {"purpose": "comprehension", "blocking": False, "questions": []},
+        )
+        write_json(
+            harness / "learning-assist/_templates/comprehension.json.tmpl",
+            {"status": "in-progress", "concepts": [], "notes": []},
+        )
+        for name, payload in {
+            "quiz.json": {"questions": []},
+            "answers.json": {"author": "developer", "answers": []},
+            "verification.json": {"required_concepts_passed": False},
+        }.items():
+            write_json(harness / "learning/_templates" / f"{name}.tmpl", payload)
+        learning_gate = json.loads(
+            (ROOT / "templates/policies/learning-gate.json.tmpl").read_text(
+                encoding="utf-8"
+            )
+        )
+        write_json(harness / "policies/learning-gate.json", learning_gate)
+        write_text(
+            harness / "triggers/verify_learning_gate.py",
+            "#!/usr/bin/env python3\n\"\"\"Verify governed Learning Gate evidence.\"\"\"",
+        )
     for relative, text in files.items():
         write_text(harness / relative, text)
     write_text(harness / "ledger/journal.jsonl", '{"event":"session_start","unit":"U-001"}')
-    write_json(
-        harness / "state/state.json",
-        {
-            "phase": "ready",
-            "queue": [{"id": "U-001", "status": "todo", "evaluator": "task-tests"}],
-            "next_action": "Run U-001",
-            "improve": {
-                "fail_counts": {},
-                "units_since_retro": 0,
-                "coldstart_fail": False,
-                "last_retro_targets": [],
-            },
-        },
-    )
-    if schema_version == "1.1":
+    state: dict[str, Any] = {
+        "phase": "ready",
+        "queue": [{"id": "U-001", "status": "todo", "evaluator": "task-tests"}],
+        "next_action": "Run U-001",
+    }
+    if schema_version != "1.2" or profile != "core":
+        state["improve"] = {
+            "fail_counts": {},
+            "units_since_retro": 0,
+            "coldstart_fail": False,
+            "last_retro_targets": [],
+        }
+    write_json(harness / "state/state.json", state)
+    if schema_version in {"1.1", "1.2"} and profile != "core":
         (harness / "triggers").mkdir(parents=True, exist_ok=True)
         shutil.copyfile(
             ROOT / "scripts/check_self_evaluation.py",
@@ -564,11 +714,39 @@ def render_adapters(target: Path, spec: dict[str, Any]) -> None:
         "codex": ("AGENTS.md", "templates/adapters/codex/AGENTS.md.block.tmpl"),
         "gemini": ("GEMINI.md", "templates/adapters/gemini/GEMINI.md.block.tmpl"),
     }
+    profile = spec.get("profile")
+    profile_workflows = ""
+    if profile in {"adaptive", "governed"} or spec["schema_version"] != "1.2":
+        profile_workflows = (
+            f"- Harness effect evaluation: `/{NAMESPACE}-evaluate`\n"
+            f"- Evidence-gated improvement: `/{NAMESPACE}-improve`"
+        )
+    profile_runtime_rules = {
+        "core": (
+            "Keep work bounded to execution, task evidence, verdict, and structural "
+            "verification. Do not activate memory, harness-effect evaluation, "
+            "improvement, or installed learning files. Leave the short Change Report."
+        ),
+        "adaptive": (
+            "Use durable memory, the mutation protocol, Change Reports, and "
+            "event-driven harness evaluation only when their trigger applies."
+        ),
+        "governed": (
+            "Use the adaptive lifecycle plus Learning Assist. Read the Learning Gate "
+            "policy at review boundaries; only explicit user instruction may change it."
+        ),
+    }.get(profile, "Follow the installed lifecycle declared by the canonical spec.")
     for runtime in spec["runtime_targets"]:
         filename, template_path = blocks[runtime]
         block = render(
             (ROOT / template_path).read_text(encoding="utf-8"),
-            {"SKILL_NAME": NAMESPACE, "HARNESS_ROOT": "harness"},
+            {
+                "SKILL_NAME": NAMESPACE,
+                "HARNESS_ROOT": "harness",
+                "PROFILE": profile or f"legacy-{spec['schema_version']}",
+                "PROFILE_WORKFLOWS": profile_workflows,
+                "PROFILE_RUNTIME_RULES": profile_runtime_rules,
+            },
         )
         write_text(target / filename, f"# Existing {runtime} rules\n\n{block}")
     if "codex" in spec["runtime_targets"]:
@@ -579,14 +757,165 @@ def render_adapters(target: Path, spec: dict[str, Any]) -> None:
         write_text(target / ".codex/config.toml", config)
 
 
-def build_fixture(target: Path, schema_version: str = "1.1") -> dict[str, Any]:
-    spec = make_spec(schema_version)
+def build_fixture(
+    target: Path,
+    schema_version: str = "1.1",
+    profile: str | None = None,
+    runtime_targets: list[str] | None = None,
+) -> dict[str, Any]:
+    spec = make_spec(schema_version, profile, runtime_targets)
     write_json(target / "harness/harness-spec.json", spec)
-    common_files(target / "harness", schema_version)
+    common_files(target / "harness", schema_version, spec.get("profile"))
     render_agents(target, spec)
     render_skills(target, spec)
     render_adapters(target, spec)
+    if schema_version == "1.2":
+        write_delta_plan(
+            target,
+            spec["profile"],
+            runtime_targets=spec["runtime_targets"],
+        )
     return spec
+
+
+def interview_receipt(
+    profile: str,
+    runtime_targets: list[str] | None = None,
+) -> dict[str, Any]:
+    def decision(value: Any, source: str) -> dict[str, Any]:
+        return {"value": value, "source": source}
+
+    return {
+        "status": "complete",
+        "decisions": {
+            "purpose": decision(
+                "Validate a provider-neutral generated harness.", "request"
+            ),
+            "deliverable_type": decision("project harness", "request"),
+            "task_evaluator": decision(
+                "task-tests", "repository-confirmed"
+            ),
+            "operation_mode": decision("attended", "default-delegated"),
+            "cost_sensitivity": decision("balanced", "default-delegated"),
+            "report_language": decision("en", "default-delegated"),
+            "terminology": decision("technical-english", "default-delegated"),
+            "runtime_targets": decision(
+                list(runtime_targets or ["claude", "codex", "gemini"]), "request"
+            ),
+            "approval_gates": decision(
+                ["production-change"], "repository-confirmed"
+            ),
+            "reporting": {
+                "enabled": decision(True, "default-delegated"),
+                "reader_destination": decision("file", "default-delegated"),
+                "reader_target": decision(
+                    "harness/reports", "default-delegated"
+                ),
+            },
+        },
+        "profile": {
+            "current": None,
+            "recommended": profile,
+            "selected": profile,
+            "reason_codes": {
+                "core": ["bounded-task-work"],
+                "adaptive": ["durable-memory-needed"],
+                "governed": ["learning-gate-requested"],
+            }[profile],
+            "confirmation_source": "user-answer",
+            "override_reason": None,
+        },
+    }
+
+
+def write_delta_plan(
+    target: Path,
+    profile: str,
+    receipt: dict[str, Any] | None = None,
+    runtime_targets: list[str] | None = None,
+) -> Path:
+    path = target / "harness/maintenance/runs/create-fixture/delta-plan.json"
+    write_json(
+        path,
+        {
+            "schema_version": "1.0",
+            "change_id": "create-fixture",
+            "mode": "create",
+            "interview_receipt": receipt
+            or interview_receipt(profile, runtime_targets),
+            "deltas": [],
+            "conflicts": [],
+            "approval_required": [],
+        },
+    )
+    return path
+
+
+def validator_cli(
+    target: Path,
+    *extra_args: str,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts/validate_runtime_neutral.py"),
+            str(target),
+            *extra_args,
+        ],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+
+def markdown_document(line_count: int, exception: str | None = None) -> str:
+    lines = [exception] if exception else []
+    lines.extend(
+        "# Runtime contract" if index == 0 else f"Bounded rule {index}."
+        for index in range(line_count - len(lines))
+    )
+    assert len(lines) == line_count
+    return "\n".join(lines)
+
+
+def root_guidance_document(
+    managed_line_count: int,
+    exception: str | None = None,
+    user_prefix_lines: int = 1,
+    user_suffix_lines: int = 1,
+) -> str:
+    start = f"<!-- harness-factory:start {NAMESPACE} -->"
+    end = f"<!-- harness-factory:end {NAMESPACE} -->"
+    managed = [start]
+    if exception:
+        managed.append(exception)
+    remaining = managed_line_count - len(managed) - 1
+    if remaining < 0:
+        raise ValueError("managed line count is too small")
+    managed.extend(f"Managed rule {index}." for index in range(remaining))
+    managed.append(end)
+    prefix = [f"User prefix {index}." for index in range(user_prefix_lines)]
+    suffix = [f"User suffix {index}." for index in range(user_suffix_lines)]
+    lines = prefix + managed + suffix
+    assert len(managed) == managed_line_count
+    return "\n".join(lines)
+
+
+def sync_canonical_skill(target: Path, spec: dict[str, Any], skill_id: str) -> None:
+    skill = next(item for item in spec["skills"] if item["id"] == skill_id)
+    canonical = target / skill["instructions"]
+    provider_roots = {
+        "claude": ".claude/skills",
+        "codex": ".agents/skills",
+        "gemini": ".gemini/skills",
+    }
+    for runtime in spec["runtime_targets"]:
+        shutil.copyfile(
+            canonical,
+            target / provider_roots[runtime] / skill_id / "SKILL.md",
+        )
 
 
 class RuntimeNeutralContractTests(unittest.TestCase):
@@ -606,13 +935,18 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             self.assertEqual(len(contract["capabilities"]), len(set(contract["capabilities"])))
 
         claude = json.loads((ROOT / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        marketplace = json.loads(
+            (ROOT / ".claude-plugin/marketplace.json").read_text(encoding="utf-8")
+        )
         codex = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
         gemini = json.loads((ROOT / "gemini-extension.json").read_text(encoding="utf-8"))
         self.assertEqual("harness-factory", claude["name"])
         self.assertEqual(claude["name"], codex["name"])
-        self.assertEqual("0.2.1", claude["version"])
+        self.assertEqual("0.3.0", claude["version"])
         self.assertEqual(claude["version"], codex["version"])
         self.assertEqual(claude["version"], gemini["version"])
+        self.assertEqual(claude["version"], marketplace["metadata"]["version"])
+        self.assertEqual(claude["version"], marketplace["plugins"][0]["version"])
         self.assertEqual("./skills/", codex["skills"])
 
     def test_internal_instruction_sources_are_english(self) -> None:
@@ -685,15 +1019,9 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(
-            "If `communication` is absent in a compatible existing spec",
+            "Format user-facing reports with `communication`",
             harness_template,
         )
-        for marker in (
-            "`artifact_language=en`",
-            "`report_language=en`",
-            "`terminology=technical-english`",
-        ):
-            self.assertIn(marker, harness_template)
 
         shared_skill = (
             ROOT / "templates/adapters/shared/SKILL.md.tmpl"
@@ -903,10 +1231,18 @@ class RuntimeNeutralContractTests(unittest.TestCase):
             )
         )
 
-        expected = make_spec()
+        expected = make_spec("1.2", "adaptive")
+        profile_optional_fields = (
+            ",\n  \"memory\": "
+            + json_scalar(expected["memory"])
+            + ",\n  \"self_evaluation\": "
+            + json_scalar(expected["self_evaluation"])
+        )
         rendered = render(
             (ROOT / "templates/harness-spec.json.tmpl").read_text(encoding="utf-8"),
             {
+                "PROFILE": expected["profile"],
+                "CHANGE_ID": "create-fixture",
                 "SKILL_NAME": NAMESPACE,
                 "PURPOSE_JSON": json_scalar(expected["harness"]["purpose"]),
                 "HARNESS_ROOT": "harness",
@@ -921,24 +1257,545 @@ class RuntimeNeutralContractTests(unittest.TestCase):
                 "APPROVAL_GATES_JSON": json_scalar(expected["approval_gates"]),
                 "HANDOFFS_JSON": json_scalar(expected["orchestration"]["handoffs"]),
                 "EVALUATORS_JSON": json_scalar(expected["evaluators"]),
-                "IMPROVEMENT_OWNER": expected["loops"]["improvement_owner"],
-                "FAIL_THRESHOLD": "3",
-                "HARNESS_EVALUATOR_ID": "harness-effect",
-                "SELF_EVAL_WATCHED_PATHS_JSON": json_scalar(
-                    expected["self_evaluation"]["watched_paths"]
-                ),
-                "SELF_EVAL_SAMPLE_RATE": "0.05",
-                "FULL_EVAL_INTERVAL": "20",
-                "SELF_EVAL_COOLDOWN": "3",
-                "SELF_EVAL_BUDGET_RATIO": "0.1",
-                "SUCCESS_DROP_POINTS": "5",
-                "COST_INCREASE_RATIO": "0.25",
-                "SELF_EVAL_RETRY_THRESHOLD": "3",
-                "SELF_EVAL_MINIMUM_SAMPLES": "5",
+                "LOOPS_JSON": json_scalar(expected["loops"]),
+                "PROFILE_OPTIONAL_FIELDS": profile_optional_fields,
             },
         )
         self.assertNotIn("{{", rendered)
         self.assertEqual(expected, json.loads(rendered))
+
+    def test_release_030_declares_profile_and_interview_contracts(self) -> None:
+        schema = json.loads(
+            (ROOT / "schema/harness-spec.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("1.2", schema["properties"]["schema_version"]["enum"])
+        self.assertEqual(
+            {"core", "adaptive", "governed"},
+            set(schema["properties"]["profile"]["enum"]),
+        )
+        limits = schema["properties"]["limits"]["properties"]
+        self.assertEqual(50, limits["target_markdown_lines"]["default"])
+        self.assertEqual(100, limits["max_markdown_lines"]["default"])
+
+        spec_template = (ROOT / "templates/harness-spec.json.tmpl").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('\"schema_version\": \"1.2\"', spec_template)
+        self.assertIn('\"profile\": \"{{PROFILE}}\"', spec_template)
+        self.assertIn('\"construction_receipt\"', spec_template)
+
+        delta_plan = (
+            ROOT / "templates/maintenance/DELTA-PLAN.json.tmpl"
+        ).read_text(encoding="utf-8")
+        for marker in (
+            '\"interview_receipt\"',
+            '\"recommended\"',
+            '\"selected\"',
+            '\"reason_codes\"',
+            '\"confirmation_source\"',
+        ):
+            self.assertIn(marker, delta_plan)
+
+        build_skill = (ROOT / "skills/build-harness/SKILL.md").read_text(
+            encoding="utf-8"
+        )
+        question_bank = (ROOT / "interview/QUESTION-BANK.md").read_text(
+            encoding="utf-8"
+        )
+        for text in (build_skill, question_bank):
+            self.assertIn("interview_receipt", text)
+            self.assertIn("default-delegated", text)
+            self.assertIn("core", text)
+            self.assertIn("adaptive", text)
+            self.assertIn("governed", text)
+
+        harness_template = (ROOT / "templates/HARNESS.md.tmpl").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Only the user may confirm a profile change", harness_template)
+        self.assertLessEqual(len(harness_template.splitlines()), 100)
+        self.assertFalse((ROOT / "templates/policies/profile.json.tmpl").exists())
+
+    def test_factory_runtime_markdown_respects_the_50_100_contract(self) -> None:
+        runtime_sources = [
+            ROOT / "skills/build-harness/SKILL.md",
+            *(ROOT / "templates").rglob("*.md.tmpl"),
+        ]
+        marker = re.compile(
+            r"^<!-- document-budget exception: "
+            r"(?:required-sequential-instruction|atomic-project-contract|"
+            r"higher-routing-overhead) \| \S(?:.*\S)? -->$"
+        )
+        for path in runtime_sources:
+            with self.subTest(path=path.relative_to(ROOT)):
+                lines = path.read_text(encoding="utf-8").splitlines()
+                self.assertLessEqual(len(lines), 100)
+                if len(lines) <= 50:
+                    continue
+                marker_index = 0
+                if lines and lines[0] == "---":
+                    marker_index = lines.index("---", 1) + 1
+                while marker_index < len(lines) and not lines[marker_index].strip():
+                    marker_index += 1
+                self.assertLess(marker_index, len(lines))
+                self.assertRegex(lines[marker_index], marker)
+
+    def test_schema_12_profiles_install_only_their_declared_topology(self) -> None:
+        common = {
+            "policies/reporting.json",
+            "reports/_templates/CHANGE-REPORT.md.tmpl",
+        }
+        adaptive = {
+            "memory/INDEX.md",
+            "loops/IMPROVE-LOOP.md",
+            "loops/HARNESS-EVAL-LOOP.md",
+            "evaluation/EVALUATION-CONTRACT.md",
+            "triggers/check_self_evaluation.py",
+            "triggers/record_self_evaluation.py",
+            "state/self-evaluation.json",
+            "maintenance/COMPONENT-MUTATION-PROTOCOL.md",
+        }
+        governed = {
+            "learning-assist/_templates/explanation.md.tmpl",
+            "learning-assist/_templates/quiz.json.tmpl",
+            "learning-assist/_templates/comprehension.json.tmpl",
+            "policies/learning-gate.json",
+            "policies/LEARNING-GATE.md",
+            "learning/_templates/brief.md.tmpl",
+            "learning/_templates/diff-explanation.md.tmpl",
+            "learning/_templates/quiz.json.tmpl",
+            "learning/_templates/answers.json.tmpl",
+            "learning/_templates/verification.json.tmpl",
+            "triggers/verify_learning_gate.py",
+        }
+
+        for profile in PROFILES_12:
+            with self.subTest(profile=profile), WorkspaceDirectory() as target:
+                spec = build_fixture(target, "1.2", profile)
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertEqual([], errors, "\n".join(errors))
+                for relative in common:
+                    self.assertTrue((target / "harness" / relative).is_file(), relative)
+                for relative in adaptive:
+                    self.assertEqual(
+                        profile in {"adaptive", "governed"},
+                        (target / "harness" / relative).is_file(),
+                        relative,
+                    )
+                for relative in governed:
+                    self.assertEqual(
+                        profile == "governed",
+                        (target / "harness" / relative).is_file(),
+                        relative,
+                    )
+                if profile == "core":
+                    self.assertEqual(3, len(spec["agents"]))
+                    evaluator = next(
+                        agent
+                        for agent in spec["agents"]
+                        if agent["id"] == "contract-evaluator"
+                    )
+                    self.assertEqual(
+                        {"verification", "verdict", "defect-counting"},
+                        set(evaluator["capabilities"]),
+                    )
+
+    def test_schema_12_profile_files_reject_missing_and_forbidden_layers(self) -> None:
+        missing_cases = {
+            "core": "reports/_templates/CHANGE-REPORT.md.tmpl",
+            "adaptive": "maintenance/COMPONENT-MUTATION-PROTOCOL.md",
+            "governed": "policies/learning-gate.json",
+        }
+        for profile, relative in missing_cases.items():
+            with self.subTest(profile=profile, missing=relative), WorkspaceDirectory() as target:
+                build_fixture(target, "1.2", profile)
+                (target / "harness" / relative).unlink()
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertTrue(
+                    any(relative in error and "missing" in error for error in errors),
+                    errors,
+                )
+
+        with WorkspaceDirectory() as target:
+            build_fixture(target, "1.2", "core")
+            write_text(target / "harness/memory/INDEX.md", ENGLISH_MEMORY_INDEX)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any(
+                    "core" in error and "memory/INDEX.md" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+        with WorkspaceDirectory() as target:
+            build_fixture(target, "1.2", "adaptive")
+            gate = json.loads(
+                (ROOT / "templates/policies/learning-gate.json.tmpl").read_text(
+                    encoding="utf-8"
+                )
+            )
+            write_json(target / "harness/policies/learning-gate.json", gate)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any(
+                    "adaptive" in error and "policies/learning-gate.json" in error
+                    for error in errors
+                ),
+                errors,
+            )
+
+    def test_schema_12_profile_shape_rejects_missing_or_forbidden_spec_fields(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target, "1.2", "adaptive")
+            spec.pop("profile")
+            write_json(target / "harness/harness-spec.json", spec)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(any("profile" in error for error in errors), errors)
+
+        for profile, field in (("adaptive", "memory"), ("governed", "self_evaluation")):
+            with self.subTest(profile=profile, missing=field), WorkspaceDirectory() as target:
+                spec = build_fixture(target, "1.2", profile)
+                spec.pop(field)
+                write_json(target / "harness/harness-spec.json", spec)
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertTrue(any(field in error for error in errors), errors)
+
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target, "1.2", "core")
+            spec["memory"] = {
+                "index": "harness/memory/INDEX.md",
+                "policy": "preserve-and-reconcile",
+                "max_document_lines": 80,
+                "max_summary_chars": 160,
+            }
+            write_json(target / "harness/harness-spec.json", spec)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any("core" in error and "memory" in error for error in errors),
+                errors,
+            )
+
+    def test_schema_12_projects_only_selected_runtime_adapters(self) -> None:
+        for runtime in PROVIDERS:
+            with self.subTest(runtime=runtime), WorkspaceDirectory() as target:
+                spec = build_fixture(
+                    target, "1.2", "adaptive", runtime_targets=[runtime]
+                )
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertEqual([], errors, "\n".join(errors))
+                self.assertEqual(
+                    watched_paths_for([runtime], spec["skills"], spec["agents"]),
+                    spec["self_evaluation"]["watched_paths"],
+                )
+                for provider_id, provider in PROVIDERS.items():
+                    self.assertEqual(
+                        provider_id == runtime,
+                        (target / provider["root_guidance"]).is_file(),
+                        provider_id,
+                    )
+
+    def test_schema_12_construction_receipt_auto_and_cli_parity(self) -> None:
+        for profile in PROFILES_12:
+            with self.subTest(profile=profile), WorkspaceDirectory() as target:
+                spec = build_fixture(target, "1.2", profile)
+                delta_plan = target / spec["harness"]["construction_receipt"]
+                result = validator_cli(
+                    target,
+                    "--construction-mode",
+                    "create",
+                    "--delta-plan",
+                    str(delta_plan),
+                )
+                self.assertEqual(
+                    0, result.returncode, result.stdout + result.stderr
+                )
+
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target, "1.2", "adaptive")
+            delta_plan = target / spec["harness"]["construction_receipt"]
+            plan = json.loads(delta_plan.read_text(encoding="utf-8"))
+            plan["interview_receipt"]["profile"].update(
+                {
+                    "recommended": "core",
+                    "selected": "adaptive",
+                    "reason_codes": ["bounded-task-work"],
+                    "confirmation_source": "user-answer",
+                    "override_reason": "Durable memory is explicitly required.",
+                }
+            )
+            write_json(delta_plan, plan)
+            result = validator_cli(
+                target,
+                "--construction-mode",
+                "create",
+                "--delta-plan",
+                str(delta_plan),
+            )
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_schema_12_construction_receipt_rejects_missing_decisions_and_mismatch(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target, "1.2", "core")
+            delta_plan = target / spec["harness"]["construction_receipt"]
+            receipt = interview_receipt("core")
+            receipt["decisions"] = {}
+            write_delta_plan(target, "core", receipt)
+            result = validator_cli(
+                target,
+                "--construction-mode",
+                "create",
+                "--delta-plan",
+                str(delta_plan),
+            )
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("decisions", result.stderr)
+
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target, "1.2", "core")
+            delta_plan = target / spec["harness"]["construction_receipt"]
+            plan = json.loads(delta_plan.read_text(encoding="utf-8"))
+            plan["interview_receipt"]["profile"]["selected"] = "adaptive"
+            plan["interview_receipt"]["profile"]["override_reason"] = (
+                "The user selected the larger profile."
+            )
+            write_json(delta_plan, plan)
+            result = validator_cli(
+                target,
+                "--construction-mode",
+                "create",
+                "--delta-plan",
+                str(delta_plan),
+            )
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("spec.profile", result.stderr)
+
+    def test_construction_cli_requires_exact_mode_and_receipt_path_pair(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(target, "1.2", "adaptive")
+            delta_plan = target / spec["harness"]["construction_receipt"]
+            wrong_path = target / "harness/maintenance/runs/other/delta-plan.json"
+            write_json(
+                wrong_path,
+                json.loads(delta_plan.read_text(encoding="utf-8")),
+            )
+            wrong_mode = validator_cli(
+                target,
+                "--construction-mode",
+                "improve",
+                "--delta-plan",
+                str(delta_plan),
+            )
+            wrong_receipt = validator_cli(
+                target,
+                "--construction-mode",
+                "create",
+                "--delta-plan",
+                str(wrong_path),
+            )
+            only_mode = validator_cli(
+                target, "--construction-mode", "create"
+            )
+            only_receipt = validator_cli(
+                target, "--delta-plan", str(delta_plan)
+            )
+            self.assertNotEqual(0, wrong_mode.returncode)
+            self.assertNotEqual(0, wrong_receipt.returncode)
+            self.assertNotEqual(0, only_mode.returncode)
+            self.assertNotEqual(0, only_receipt.returncode)
+
+    def test_legacy_cli_without_construction_arguments_remains_compatible(self) -> None:
+        for schema_version in ("1.0", "1.1"):
+            with self.subTest(schema_version=schema_version), WorkspaceDirectory() as target:
+                build_fixture(target, schema_version)
+                result = validator_cli(target)
+                self.assertEqual(
+                    0, result.returncode, result.stdout + result.stderr
+                )
+
+    def test_schema_12_markdown_budget_boundaries_50_51_100_101(self) -> None:
+        cases = (
+            (50, None, True),
+            (51, None, False),
+            (51, MARKDOWN_BUDGET_EXCEPTION, True),
+            (100, MARKDOWN_BUDGET_EXCEPTION, True),
+            (101, MARKDOWN_BUDGET_EXCEPTION, False),
+        )
+        for line_count, exception, valid in cases:
+            with self.subTest(
+                line_count=line_count, exception=bool(exception)
+            ), WorkspaceDirectory() as target:
+                build_fixture(target, "1.2", "core", runtime_targets=["claude"])
+                write_text(
+                    target / "harness/ENVIRONMENT.md",
+                    markdown_document(line_count, exception),
+                )
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                if valid:
+                    self.assertEqual([], errors, "\n".join(errors))
+                else:
+                    self.assertTrue(
+                        any("ENVIRONMENT.md" in error for error in errors),
+                        errors,
+                    )
+
+    def test_schema_12_markdown_exception_marker_placement_and_type(self) -> None:
+        invalid_documents = {
+            "mid-body": "\n".join(
+                markdown_document(51, MARKDOWN_BUDGET_EXCEPTION).splitlines()[1:3]
+                + [MARKDOWN_BUDGET_EXCEPTION]
+                + markdown_document(51, MARKDOWN_BUDGET_EXCEPTION).splitlines()[3:]
+            ),
+            "duplicate": "\n".join(
+                [MARKDOWN_BUDGET_EXCEPTION, MARKDOWN_BUDGET_EXCEPTION]
+                + markdown_document(50).splitlines()
+            ),
+            "invalid-type": markdown_document(
+                51,
+                "<!-- document-budget exception: convenient | "
+                "Keep this bounded runtime contract whole. -->",
+            ),
+            "empty-reason": markdown_document(
+                51,
+                "<!-- document-budget exception: atomic-project-contract |  -->",
+            ),
+        }
+        for name, document in invalid_documents.items():
+            with self.subTest(name=name), WorkspaceDirectory() as target:
+                build_fixture(target, "1.2", "core", runtime_targets=["claude"])
+                write_text(target / "harness/ENVIRONMENT.md", document)
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                self.assertTrue(
+                    any("ENVIRONMENT.md" in error for error in errors),
+                    errors,
+                )
+
+    def test_schema_12_markdown_marker_follows_frontmatter(self) -> None:
+        with WorkspaceDirectory() as target:
+            spec = build_fixture(
+                target, "1.2", "core", runtime_targets=["claude"]
+            )
+            skill_id = NAMESPACE
+            header = [
+                "---",
+                f"name: {json_scalar(skill_id)}",
+                f"description: {json_scalar('Execute the entry fixture workflow.')}",
+                "---",
+            ]
+            body = [
+                MARKDOWN_BUDGET_EXCEPTION,
+                f"# {skill_id}",
+                "Read `harness/harness-spec.json` first.",
+            ]
+            body.extend(
+                f"Bounded skill rule {index}."
+                for index in range(51 - len(header) - len(body))
+            )
+            canonical = target / f"harness/skills/{skill_id}/SKILL.md"
+            write_text(canonical, "\n".join(header + body))
+            sync_canonical_skill(target, spec, skill_id)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
+
+            invalid_body = [body[1], body[0], *body[2:]]
+            write_text(canonical, "\n".join(header + invalid_body))
+            sync_canonical_skill(target, spec, skill_id)
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any(skill_id in error and "budget" in error.lower() for error in errors),
+                errors,
+            )
+
+    def test_schema_12_root_budget_counts_only_the_managed_block(self) -> None:
+        cases = (
+            (50, None, True),
+            (51, None, False),
+            (51, MARKDOWN_BUDGET_EXCEPTION, True),
+            (100, MARKDOWN_BUDGET_EXCEPTION, True),
+            (101, MARKDOWN_BUDGET_EXCEPTION, False),
+        )
+        for managed_lines, exception, valid in cases:
+            with self.subTest(
+                managed_lines=managed_lines, exception=bool(exception)
+            ), WorkspaceDirectory() as target:
+                build_fixture(target, "1.2", "core", runtime_targets=["claude"])
+                write_text(
+                    target / "CLAUDE.md",
+                    root_guidance_document(
+                        managed_lines,
+                        exception,
+                        user_prefix_lines=125,
+                        user_suffix_lines=125,
+                    ),
+                )
+                errors = Validator(
+                    target, target / "harness/harness-spec.json"
+                ).validate()
+                if valid:
+                    self.assertEqual([], errors, "\n".join(errors))
+                else:
+                    self.assertTrue(
+                        any("CLAUDE.md" in error for error in errors),
+                        errors,
+                    )
+
+    def test_schema_12_root_marker_scope_and_managed_boundaries(self) -> None:
+        with WorkspaceDirectory() as target:
+            build_fixture(target, "1.2", "core", runtime_targets=["claude"])
+            scoped_outside = root_guidance_document(51, None).splitlines()
+            scoped_outside.insert(0, MARKDOWN_BUDGET_EXCEPTION)
+            write_text(target / "CLAUDE.md", "\n".join(scoped_outside))
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(any("CLAUDE.md" in error for error in errors), errors)
+
+        with WorkspaceDirectory() as target:
+            build_fixture(target, "1.2", "core", runtime_targets=["claude"])
+            misplaced = root_guidance_document(
+                51, MARKDOWN_BUDGET_EXCEPTION
+            ).splitlines()
+            marker_index = misplaced.index(MARKDOWN_BUDGET_EXCEPTION)
+            misplaced[marker_index], misplaced[marker_index + 1] = (
+                misplaced[marker_index + 1],
+                misplaced[marker_index],
+            )
+            write_text(target / "CLAUDE.md", "\n".join(misplaced))
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(any("CLAUDE.md" in error for error in errors), errors)
+
+        with WorkspaceDirectory() as target:
+            build_fixture(target, "1.2", "core", runtime_targets=["claude"])
+            missing_end = root_guidance_document(50).splitlines()
+            missing_end.remove(f"<!-- harness-factory:end {NAMESPACE} -->")
+            write_text(target / "CLAUDE.md", "\n".join(missing_end))
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertTrue(
+                any("CLAUDE.md" in error and "managed" in error for error in errors),
+                errors,
+            )
+
+    def test_schema_12_markdown_budget_excludes_reports_runs_and_user_files(self) -> None:
+        with WorkspaceDirectory() as target:
+            build_fixture(target, "1.2", "adaptive", runtime_targets=["claude"])
+            for relative in (
+                "harness/reports/CHG-001/CHANGE-REPORT.md",
+                "harness/evaluation/runs/run-001/ASSESSMENT.md",
+                ".claude/skills/user-owned/SKILL.md",
+            ):
+                write_text(target / relative, markdown_document(101))
+            errors = Validator(target, target / "harness/harness-spec.json").validate()
+            self.assertEqual([], errors, "\n".join(errors))
 
     def test_communication_contract_is_optional_and_strict(self) -> None:
         with WorkspaceDirectory() as target:

@@ -1,6 +1,6 @@
 # 운영·평가·개선 가이드
 
-생성된 하네스는 프로젝트가 직접 소유하는 하나의 공통 계약과 최대 세 개의 네이티브 어댑터로 운영합니다. 팩토리는 중앙 control plane이나 하네스 상태 저장소가 아닙니다.
+생성된 하네스는 프로젝트가 직접 소유하는 하나의 공통 계약과 선택한 네이티브 어댑터로 운영합니다. 기본값은 호출 중인 런타임 하나이며 필요하면 최대 세 개까지 추가합니다. 팩토리는 중앙 control plane이나 하네스 상태 저장소가 아닙니다.
 
 ```text
 harness/harness-spec.json
@@ -12,15 +12,15 @@ harness/harness-spec.json
 
 ## 정본과 쓰기 순서
 
-`harness/harness-spec.json` schema 1.1에는 domain, agent, skill, orchestration, evaluator, approval gate, loop, runtime target, memory index, self-evaluation 정책이 들어갑니다. 각 skill 본문은 `skills[].instructions`가 가리키는 `harness/skills/<skill-id>/SKILL.md`가 정본입니다.
+`harness/harness-spec.json` schema 1.2에는 `core|adaptive|governed` 범위와 domain, agent, skill, orchestration, evaluator, approval gate, loop, runtime target이 들어갑니다. `adaptive|governed`에는 memory와 self-evaluation 정책이 추가됩니다. 각 skill 본문은 `skills[].instructions`가 가리키는 `harness/skills/<skill-id>/SKILL.md`가 정본입니다.
 
 의미를 바꾸는 순서는 항상 같습니다.
 
 1. 대상 프로젝트의 spec과 공통 파일 변경
 2. 선택된 Claude·Codex·Gemini 어댑터 재투영
 3. `verify-harness`로 구조와 parity 검증
-4. 변경 이벤트를 self-evaluation state에 기록
-5. 필요한 수준만 `evaluate-harness`로 효과 검증
+4. 적응형 이상이면 변경 이벤트를 self-evaluation state에 기록
+5. 적응형 이상에서 필요한 수준만 `evaluate-harness`로 효과 검증
 
 어댑터만 직접 바꾸거나 factory 저장소에 프로젝트 state를 복사하지 않습니다.
 
@@ -32,7 +32,7 @@ harness/harness-spec.json
 
 ## 일곱 스킬의 운영 역할
 
-- `build-harness`: 아직 schema 1.1 정본이 없거나 전체 재설계가 필요한 경우
+- `build-harness`: 새 schema 1.2 하네스를 만들거나 기존 구조·범위를 전체 재설계하는 경우
 - `build-agent`: agent, role 문서, handoff, provider wrapper를 원자적으로 변경
 - `build-skill`: 공통 SKILL과 각 provider 투영본을 원자적으로 변경
 - `build-evaluator`: task 또는 harness-effect evaluator와 계약을 추가·수정
@@ -41,6 +41,16 @@ harness/harness-spec.json
 - `improve-harness`: full 평가가 하네스 결함을 귀속했거나 사용자가 근거 있는 개선을 명시한 경우에만 개선
 
 기존 하네스의 일부만 바꿀 때 `build-harness`를 다시 호출할 필요는 없습니다.
+
+## 설치 범위 전환
+
+하네스는 요청한 기능이 현재 범위 밖일 때만 가장 작은 상위 범위를 제안한다.
+
+- 기본형 → 적응형: 지속 메모리, 반복·장기 운영, 하네스 효과 측정이나 증거 기반 개선이 필요할 때
+- 적응형 → 통제형: 감사·규정 준수, 개발자 이해 증거, Learning Gate가 필요할 때
+- 축소: 상위 기능의 필요가 사라지고 보존할 메모리·평가·학습 증거를 정확히 분류했을 때
+
+일반 작업마다 범위를 다시 평가하지 않는다. `build-harness improve|reconcile` 경계나 작은 build skill이 현재 범위 밖 기능을 만났을 때만 제안한다. 실제 전환은 사용자가 확인해야 하며, 축소는 보존·보관·삭제 경로를 적은 계획과 구조 재검증이 필요하다. reporting 대상이나 runtime 수만으로 통제형을 강제하지 않는다.
 
 ## 프로젝트별 팀 구성
 
@@ -53,9 +63,9 @@ harness/harness-spec.json
 - `verification`
 - `verdict`
 - `defect-counting`
-- `improvement`
+- `improvement` (`adaptive|governed`만)
 
-실행자는 산출물을 만들고, evaluator runner가 원본 증거를 만들며, verdict owner가 기준과 대조합니다. schema 1.1의 모든 `skills[].evaluator`는 존재하는 evaluator를 참조합니다: entry/evaluation/verification/domain은 `scope: task`, harness-evaluation/improvement는 `scope: harness`, `type: experiment`입니다. 작은 구성에서 한 agent가 여러 역할을 맡더라도 입력·출력·기록 단계는 분리합니다.
+실행자는 산출물을 만들고, evaluator runner가 원본 증거를 만들며, verdict owner가 기준과 대조합니다. 모든 `skills[].evaluator`는 존재하는 evaluator를 참조합니다. entry/evaluation/verification/domain은 `scope: task`를 사용하고, 적응형 이상의 harness-evaluation/improvement는 `scope: harness`, `type: experiment`를 사용합니다. 작은 구성에서 한 agent가 여러 역할을 맡더라도 입력·출력·기록 단계는 분리합니다.
 
 ## 두 평가 레인
 
@@ -65,7 +75,7 @@ harness/harness-spec.json
 
 ### Harness-effect evaluation
 
-하네스 변경이 실제 성과를 개선했는지를 판정합니다. 성공률, 비용, 재시도, cold-start, provider parity를 baseline/control/treatment로 비교합니다. task가 실패했다는 이유만으로 하네스 결함이라고 단정하지 않습니다.
+`adaptive|governed`에서 하네스 변경이 실제 성과를 개선했는지 판정합니다. 성공률, 비용, 재시도, cold-start, provider parity를 baseline/control/treatment로 비교합니다. `core`에는 이 평가 레인을 설치하지 않습니다. task가 실패했다는 이유만으로 하네스 결함이라고 단정하지 않습니다.
 
 | 구분 | Task evaluation | Harness-effect evaluation |
 |---|---|---|

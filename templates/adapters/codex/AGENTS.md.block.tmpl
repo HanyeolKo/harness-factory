@@ -2,27 +2,18 @@
 ## {{SKILL_NAME}} harness
 
 - Canonical contract: `{{HARNESS_ROOT}}/harness-spec.json`
+- Profile: `{{PROFILE}}` in `{{HARNESS_ROOT}}/harness-spec.json`
 - Entry: `${{SKILL_NAME}}`
-- Task evaluation: `${{SKILL_NAME}}-eval` (internal/compatibility)
+- Task evaluation: `${{SKILL_NAME}}-eval`
 - Structural verification: `${{SKILL_NAME}}-verify`
-- Harness effect evaluation: `${{SKILL_NAME}}-evaluate`
-- Evidence-gated improvement: `${{SKILL_NAME}}-improve`
-- Trigger: `python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}`
-- ACK: `python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>`
-- Targeted suite: `{{HARNESS_ROOT}}/evaluation/suites/targeted.json`
-- Reporting policy: `{{HARNESS_ROOT}}/policies/reporting.json` (`file` default; optional `notion|slack`; Git remains canonical evidence)
-- Learning Assist: start from the short Change Report and expand only the relevant actual diff/source using plain-language-first wording
-- Learning gate policy: `{{HARNESS_ROOT}}/policies/learning-gate.json` (installed disabled; only the user may change `enabled`)
-- Learning gate verifier: `python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --change-id <change-id> --changed-lines <count> --risk-tag <tag>`
-- Reports: follow `communication.report_language` and `communication.terminology`; if absent, use `en` and `technical-english`
-- `technical-english`: report-language grammar with stable technical nouns kept in English; `localized`: conventional local explanatory nouns
-- In both modes, keep machine tokens exact and do not duplicate bilingual prose
+{{PROFILE_WORKFLOWS}}
+- Reports follow `communication`; if absent, use `en` and `technical-english`.
+- `technical-english`: report-language grammar with stable technical nouns kept in English; `localized`: conventional local explanatory nouns.
+- In both modes, keep machine tokens exact and do not duplicate bilingual prose.
 - Skills: `.agents/skills/{{SKILL_NAME}}*/SKILL.md`
 - Agents: `.codex/agents/{{SKILL_NAME}}-*.toml`
 
-Every completed work unit leaves a short Change Report. If the user asks for deeper understanding, use Learning Assist without blocking delivery. At review, pull request, and merge boundaries, read the learning gate policy. When disabled, do not create gate-specific blocking work. When enabled and applicable, use the Learning Assist explanation first, let the developer read it, then require the five-question quiz, developer-authored answers, and committed source-snapshot/hash verification. Wrong answers receive progressive hints before the final concept explanation. A matching risk tag overrides a low-risk exemption. Agents may recommend enabling or disabling the gate but must not change `enabled` without an explicit user instruction.
+Run the task evaluator for every completed unit. When requested work needs a capability outside `{{PROFILE}}`, recommend the lowest sufficient profile and explain its added scope. Only the user may confirm a profile change. Rebuild the canonical contract before projecting selected providers.
 
-Every schema 1.1 skill has an evaluator link. At task boundaries run only the deterministic checker. Route `input-invalid:*` to structural verification/recovery without effect evaluation or LLM. For `adapter-change|parity-fail`, require provider parity verification before effect evaluation and append a new `parity-fail` pending event on a pass-to-fail transition. Targeted evaluation may run only the deterministic reason mapping in `targeted.json`.
-
-Before evaluation, freeze the checker JSON at `{{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json`. After every completed targeted/full evaluation, run the recorder with that decision file. A full ACK updates managed canonical/provider hashes and clears only the processed pending-event snapshot, preventing the same mandatory signal from reopening evaluation; newly arrived events remain pending. Load improvement after full evidence attributes a regression to the harness or an explicit evidence-backed user request; the request path must establish baseline/full evidence before applying a candidate. Update the canonical contract before regenerating every selected provider adapter.
+{{PROFILE_RUNTIME_RULES}}
 <!-- harness-factory:end {{SKILL_NAME}} -->
