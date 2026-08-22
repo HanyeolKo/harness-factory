@@ -2,7 +2,7 @@
 
 Render each preset through `SKILL.md.tmpl`. Create the canonical `harness/skills/<skill-id>/SKILL.md` once and copy it byte-for-byte to every selected provider skill root. Provider adapters never rewrite skill meaning.
 
-In schema 1.1 every skill object has `evaluator`. Link entry/evaluation/verification/domain skills to a `scope: task` evaluator. Link harness-evaluation/improvement skills to the `self_evaluation.evaluator`, which is `scope: harness`, `type: experiment`.
+In schema 1.1 and schema 1.2 every skill object has `evaluator`. Link entry/evaluation/verification/domain skills to a `scope: task` evaluator. Adaptive and governed harness-evaluation/improvement skills link to `self_evaluation.evaluator`, which is `scope: harness`, `type: experiment`; core omits those skills.
 
 Write fixed skill instructions in concise English and keep each canonical skill within limits.max_instruction_lines. Load references and indexed memory only when relevant. Format only user-facing narrative with communication.report_language and communication.terminology. If communication is absent, use `artifact_language=en`, `report_language=en`, and `terminology=technical-english`.
 

@@ -9,14 +9,14 @@ Define skill meaning once in `harness/skills/<skill-id>/SKILL.md`. Provider copi
 
 ## Procedure
 
-1. Resolve `FACTORY_ROOT`; read the runtime contract, target spec, report settings, and only task-relevant memory.
+1. Resolve `FACTORY_ROOT`; read the runtime contract, target spec/profile, report settings, and only task-relevant memory when installed. If the requested workflow needs a capability outside the current profile, recommend the lowest sufficient profile and route the confirmed topology change to `build-harness reconcile`; do not install that layer here.
 2. Record the validator/evaluator baseline, ownership, and preservation manifest. Prefer extending an existing responsibility over a duplicate skill.
 3. Define purpose, kind, domains, entry agent, inputs, outputs, and entry conditions.
 4. Link `skills[].evaluator`: entry/evaluation/verification/domain to `scope: task`; harness-evaluation/improvement to the `self_evaluation.evaluator` (`scope: harness`, `type: experiment`).
 5. Update the spec and orchestration references first.
 6. Write a concise English canonical SKILL within `limits.max_instruction_lines`. Put optional or detailed material in references and load it conditionally; do not store bilingual copies.
 7. Require provider-path preflight, then copy the canonical file byte-for-byte to every selected provider skill root.
-8. Keep only each exact projection in `self_evaluation.watched_paths`; never watch a whole provider skill directory.
+8. In adaptive or governed profiles, keep only each exact projection in `self_evaluation.watched_paths`; never watch a whole provider skill directory.
 9. Update managed guidance/team projections, record `skill-change` and any real `adapter-change`, then run `verify-harness`, parity, memory/preservation checks, and the linked task evaluator.
 
 ## Atomicity and reporting

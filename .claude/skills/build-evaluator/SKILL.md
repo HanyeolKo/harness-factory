@@ -10,11 +10,11 @@ Keep task completion separate from harness effect. Human approval is a gate, not
 ## Types
 
 - `scope: task`: judges one unit or entry/evaluation/verification/domain skill. Structural verification uses the validator.
-- `scope: harness`: compares baseline/control/treatment, uses `type: experiment`, and is linked by self-evaluation plus harness-evaluation/improvement skills.
+- `scope: harness`: adaptive or governed only; compares baseline/control/treatment, uses `type: experiment`, and is linked by self-evaluation plus harness-evaluation/improvement skills.
 
 ## Procedure
 
-1. Resolve `FACTORY_ROOT`; read evaluation principles, the target spec, existing commands, report settings, and relevant indexed memory.
+1. Resolve `FACTORY_ROOT`; read evaluation principles, the target spec/profile, existing commands, report settings, and relevant indexed memory when installed. A harness-effect evaluator requested for core requires a proposed and user-confirmed adaptive transition through `build-harness reconcile`.
 2. Freeze the baseline and preservation manifest. Never weaken an existing pass condition to make a candidate pass.
 3. Define target, raw evidence, runner, verdict owner, command, and pass condition. Prefer deterministic evidence; use a written rubric only when deterministic checks cannot exist.
 4. Link task evaluators to affected queue units and skills. Link one harness experiment ID consistently through `self_evaluation` and harness workflows.

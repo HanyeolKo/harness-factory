@@ -5,7 +5,7 @@ description: Incrementally improve an installed project harness from completed f
 
 # improve-harness
 
-Keep all improvement state and evidence in the target project. The factory does not centralize installed harnesses.
+Keep all improvement state and evidence in the target project. This workflow requires an adaptive or governed profile. If the installed profile is core, recommend a user-confirmed adaptive transition through `build-harness reconcile`; do not install improvement files here. The factory does not centralize installed harnesses.
 
 ## Entry gate
 
