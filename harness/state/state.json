@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "phase": "ready",
+  "queue": [
+    {
+      "id": "2026-08-22-initial-harness",
+      "status": "done",
+      "evaluator": "factory-contract-tests"
+    },
+    {
+      "id": "2026-08-22-korean-output-policy",
+      "status": "done",
+      "evaluator": "factory-contract-tests"
+    },
+    {
+      "id": "2026-08-22-generated-harness-review",
+      "status": "done",
+      "evaluator": "harness-effect"
+    },
+    {
+      "id": "2026-08-22-evidence-runner-contract",
+      "status": "done",
+      "evaluator": "factory-contract-tests"
+    }
+  ],
+  "current_unit": null,
+  "next_action": "Route the next bounded Harness Factory work unit through the deterministic checker.",
+  "fail_counts": {},
+  "coldstart_fail": false,
+  "parity_fail": false
+}

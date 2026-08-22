@@ -1,0 +1,58 @@
+{
+  "change_id": "2026-08-22-evidence-runner-contract",
+  "mode": "improve",
+  "hypothesis": "A read-only evidence-runner request and validation contract, with execution and persistence owned by the existing main orchestrator, increases evidence-complete handoffs without broader agent permissions or structural, parity, and cold-start regression.",
+  "target_metrics": {
+    "provider_neutral_evidence_handoff": "0/3 -> 3/3",
+    "required_manifest_fields": "0/12 -> 12/12",
+    "spec_workspace_write_agent_count": "2 -> 2",
+    "agent_count": "6 -> 6",
+    "normal_success_handoffs": "3 -> 3"
+  },
+  "components": [
+    {
+      "id": "evidence-runner-agent-contract",
+      "classification": "modify-proposed",
+      "paths": [
+        "harness/harness-spec.json",
+        "harness/team/agents/evidence-runner.md",
+        ".claude/agents/harness-factory-dev-evidence-runner.md",
+        ".codex/agents/harness-factory-dev-evidence-runner.toml",
+        ".gemini/agents/harness-factory-dev-evidence-runner.md"
+      ]
+    },
+    {
+      "id": "evidence-handoff-contract",
+      "classification": "add",
+      "paths": [
+        "harness/evaluation/EVIDENCE-CONTRACT.md",
+        "harness/evaluation/EVALUATION-CONTRACT.md",
+        "harness/loops/EVAL-LOOP.md",
+        "harness/team/TEAM-ARCHITECTURE.md"
+      ]
+    }
+  ],
+  "unchanged": [
+    "harness spec agent access values",
+    "agent count and IDs",
+    "orchestration edges and depth",
+    "evaluator pass conditions",
+    "reporting policy",
+    "learning-gate enabled state",
+    "state and ledger history",
+    "root guidance and skill projections"
+  ],
+  "conflicts": [
+    {
+      "key": "path-scoped-write-not-expressible",
+      "resolution": "Keep the evidence runner read-only and use the existing main orchestrator as the exact-command executor and evidence persistence owner.",
+      "residual_risk": "The main orchestrator must enforce the evidence-root restriction and must not combine source edits with the execution step."
+    }
+  ],
+  "rejected_alternative": {
+    "proposal": "Change evidence-runner to workspace-write and add shell tools to every provider wrapper.",
+    "reason": "This would expand a read-only evaluation role to workspace-wide writes without an enforceable path sandbox."
+  },
+  "approval_required": [],
+  "rollback_condition": "Revert the candidate if structural checks, provider parity, cold start, task evaluator, or the fixed evidence-capability metrics regress or remain inconclusive."
+}

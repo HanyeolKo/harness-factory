@@ -1,159 +1,58 @@
+<!-- document-budget exception: atomic-project-contract | Profile and lifecycle invariants must remain in one root contract. -->
 # HARNESS — {{TARGET}}
 
-> This is the single entry point for the project-owned harness. The factory does not collect its state.
-> Created: {{CREATED_DATE}} / Last revised: {{CREATED_DATE}}
+Purpose: {{PURPOSE}}
+Profile: `{{PROFILE}}`
+Created: {{CREATED_DATE}}
 
-## Purpose
+## Start
 
-{{PURPOSE}}
+Read only these items first:
 
-## Design direction
+1. `HARNESS.md` and `harness-spec.json`.
+2. `team/TEAM-ARCHITECTURE.md` and `state/state.json`.
+3. The current skill, its task evaluator, and `budget/CONTEXT-BUDGET.md`.
+{{PROFILE_COLD_START_STEPS}}
 
-{{DESIGN_ORIENTATION}}
+Open optional evaluation, improvement, memory, reporting, or learning files only when the current profile and task require them.
 
-## Communication and reading cost
+## Operating contract
 
-- Write canonical skills, roles, memory, and machine-readable narrative in concise English, as required by `communication.artifact_language`.
-- Format only user-facing reports with `communication.report_language` and `communication.terminology`.
-- If `communication` is absent in a compatible existing spec, use `artifact_language=en`, `report_language=en`, and `terminology=technical-english`.
-- `technical-english` uses the report language's grammar but keeps stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
-- `localized` translates explanatory technical nouns when a conventional local term exists. Both modes keep machine tokens exact and avoid bilingual duplication.
-- Reader-facing Change Reports and Learning Assist explanations follow `policies/reporting.json` and use plain-language-first wording: concrete behavior, reason, execution flow, relevant code, then technical terminology only when useful. In `localized` mode, use natural report-language prose and preserve exact machine tokens without surrounding every explanation with untranslated jargon.
-- Wrap an exact non-English project name or machine token in backticks and keep its surrounding canonical prose English.
-- Keep IDs, commands, paths, evidence, JSON keys, reasons, status values, and verdicts unchanged. Do not store bilingual copies.
-- Obey the instruction and memory budgets in the spec. Read indexes first and open only references needed for the current unit.
+- Run execution through `loops/EXECUTION-LOOP.md` and preserve task evidence through `loops/EVAL-LOOP.md`.
+- Use `{{SKILL_NAME}}-verify` after a structural or provider change.
+- Keep canonical prose concise English. Format user-facing reports with `communication` while preserving machine tokens.
+- In `localized` mode, use natural report-language prose and preserve exact machine tokens without surrounding every explanation with untranslated jargon.
+- Before publishing a Learning Assist explanation, check for one main idea per sentence, no more than three new concepts, and no unexplained mixed-language nouns outside machine tokens.
+- Keep runtime-facing Markdown within the declared 50-line target and 100-line hard maximum.
+- Write a short Change Report when reporting is installed.
+{{PROFILE_OPERATING_RULES}}
 
-## Start a session
+## Profile review
 
-Read only these items first, in order:
-
-1. `HARNESS.md`
-2. `harness-spec.json`
-3. `policies/reporting.json` when present
-4. `policies/learning-gate.json`
-5. `team/TEAM-ARCHITECTURE.md`
-6. `state/state.json`
-7. Pending events and the last verdict in `state/self-evaluation.json`
-8. Only durable memory needed for the current unit, selected through `memory/INDEX.md`
-9. Remaining budget in `budget/CONTEXT-BUDGET.md`
-10. Files selected by `state.current.refs` and the memory index for the current unit
-
-If the purpose, phase, immediate next action, linked task evaluator, selected memory, pending events, or last verdict cannot be restored and `coldstart_fail` changes from false to true, the main orchestrator adds `coldstart-fail` once to `state/self-evaluation.json.pending_events`. Open long evaluation, improvement, or learning documents only when the current policy and task require them.
-
-## Operating lanes
-
-| Lane | Document | When |
-|---|---|---|
-| Execution | `loops/EXECUTION-LOOP.md` | Every work unit |
-| Change report | `policies/reporting.json` and `reports/<change-id>/CHANGE-REPORT.md` | After every completed work unit |
-| Learning Assist | reporting contract plus actual diff/source | Only on user request, or before an applicable enabled Learning Gate quiz |
-| Task evaluation | `loops/EVAL-LOOP.md` | After every unit |
-| Structural verification | validator and `{{SKILL_NAME}}-verify` | After a component change |
-| Learning gate | `policies/learning-gate.json` and `triggers/verify_learning_gate.py` | Only when user-enabled and applicable |
-| Harness-effect evaluation | `loops/HARNESS-EVAL-LOOP.md` | Valid targeted or full trigger |
-| Improvement | `loops/IMPROVE-LOOP.md` | After full evidence identifies a harness defect |
-| Recovery | `recovery/` | Task or structural failure |
-| Durable memory | `memory/INDEX.md` | Load selected entries only |
-| Records and budget | `ledger/`, `budget/`, `state/` | At each boundary |
-
-Every schema 1.1 `skills[].evaluator` references an existing evaluator. Entry, evaluation, verification, and domain skills use `scope: task`; harness-evaluation and improvement skills use a `scope: harness`, `type: experiment` evaluator.
-
-## Reporting and Learning Assist
-
-- Every completed work unit writes a short `reports/<change-id>/CHANGE-REPORT.md` with what changed, why, important flow, key files, validation, and anything the developer needs next.
-- `policies/reporting.json` selects the reader destination: `file` by default, or user-selected `notion|slack` when configured.
-- For Notion or Slack, publish only a reader copy. Git files remain canonical evidence.
-- On a user request for deeper understanding, Learning Assist starts from the Change Report and reads only the relevant actual diff/source.
-- Learning Assist questions test the implementation mental model rather than terminology recall.
-- Before publishing an explanation, check for one main idea per sentence, no more than three new concepts, and no unexplained mixed-language nouns outside machine tokens.
-- On a wrong answer, give a directional hint first, then a concrete scenario/counterexample, and reveal the concept only after the final failed attempt is recorded.
-- If confusing wording or an undefined term caused the miss, rewrite before treating it as a comprehension failure.
-
-## User-controlled learning gate
-
-- The gate is installed in every generated harness and starts with `policies/learning-gate.json.enabled: false`.
-- Only an explicit user instruction may change `enabled`. Agents may recommend a state but must not change it.
-- When disabled, do not create gate-specific blocking work and do not block review, pull request creation, or merge.
-- When enabled and applicable, follow `policies/LEARNING-GATE.md`: write the brief before implementation, produce the normal Change Report, render the actual-diff explanation through Learning Assist, let the developer read it, then run the five-question understanding check and bind the passing result to a committed source snapshot and content hashes. A matching risk tag overrides a low-risk exemption.
-- The implementation agent must not write the developer's answers or serve as the sole semantic judge of an ambiguous answer.
-
-```text
-python {{HARNESS_ROOT}}/triggers/verify_learning_gate.py {{HARNESS_ROOT}} --change-id <change-id> --changed-lines <count> --risk-tag <tag>
-```
-
-A `skip` result is valid only when the gate is disabled or the enabled policy is not applicable. A missing, stale, or failed result blocks only the delivery steps declared in the enabled policy. Learning verification is separate from harness-effect evaluation.
-
-## Low-cost trigger and ACK
-
-```text
-python {{HARNESS_ROOT}}/triggers/check_self_evaluation.py {{HARNESS_ROOT}}
-python {{HARNESS_ROOT}}/triggers/record_self_evaluation.py {{HARNESS_ROOT}} --decision <targeted|full> --decision-file {{HARNESS_ROOT}}/evaluation/runs/<run-id>/trigger.json --verdict <improved|neutral|regressed|inconclusive>
-```
-
-- For `input-invalid:*`, do not open effect evaluation or an LLM. Run `{{SKILL_NAME}}-verify`, repair the structure, then rerun the checker.
-- For `adapter-change|parity-fail`, require parity verification before effect evaluation. Add a pending event when parity newly fails.
-- On `none`, do not load evaluation or improvement skills. On `targeted`, run only the reason mapping in `evaluation/suites/targeted.json`.
-- Before evaluation, freeze the checker JSON at `evaluation/runs/<run-id>/trigger.json`. For an explicit full request, preserve the raw checker JSON in `override.original`; set the effective top-level `decision: full`, `mandatory: false`, `override.kind: explicit-user-request`; append the marker after the original reasons; and preserve the original deferred reasons, hashes, and `acknowledgement`. The evaluator and recorder read the same top-level decision and reject a simple decision edit. ACK each completed targeted or full run with that decision file. A full ACK consumes only the processed pending events and frozen failure snapshot, then updates hashes, units, and cooldown so the same mandatory signal does not reopen evaluation.
-
-The checker hashes the canonical contract separately. Ordinary `memory/` content and index-row edits are excluded from that hash and receive deterministic structural verification. `harness-spec.json` and this file are canonical for memory policy and read routing. `self_evaluation.watched_paths` lists only exact managed artifacts for selected providers: root guidance files, each spec skill projection, namespaced agent wrappers, and generated config. Do not watch whole provider roots, unrelated user skills or agents, unselected providers, the factory repository, or per-change learning answers.
+- Review profile scope only during harness construction or when a requested capability falls outside the installed profile.
+- Recommend `adaptive` when work becomes recurring, long-running, memory-dependent, or requires measured harness improvement.
+- Recommend `governed` when work requires audit controls, developer-understanding evidence, or a Learning Gate.
+- Recommend a lower scope when optional capabilities remain unused or maintenance cost exceeds their value.
+- Only the user may confirm a profile change. Never add or remove profile-owned files automatically.
+- A downgrade requires an exact preservation and removal plan before user confirmation.
 
 ## File map
 
 ```text
-{{HARNESS_ROOT}}/
-├── HARNESS.md
-├── harness-spec.json
-├── ENVIRONMENT.md
-├── team/                   # provider-neutral agent source
-├── skills/                 # canonical skill source
-├── policies/
-│   ├── reporting.json      # reader destination and plain-language report style
-│   ├── learning-gate.json  # installed disabled; user controls enabled
-│   └── LEARNING-GATE.md
-├── reports/
-│   └── <change-id>/CHANGE-REPORT.md
-├── learning-assist/
-│   ├── _templates/
-│   │   ├── explanation.md.tmpl
-│   │   ├── quiz.json.tmpl
-│   │   └── comprehension.json.tmpl
-│   └── <change-id>/        # created only for user-requested durable Assist output
-├── learning/
-│   ├── _templates/
-│   └── <change-id>/        # created only when the enabled gate applies
-├── loops/                  # execution, task eval, harness eval, improve
-├── triggers/
-│   ├── check_self_evaluation.py
-│   ├── record_self_evaluation.py
-│   └── verify_learning_gate.py
-├── evaluation/
-│   ├── suites/targeted.json
-│   ├── baselines/
-│   ├── runs/
-│   └── reports/
-├── maintenance/
-├── memory/INDEX.md         # durable-memory paths, summaries, sources, status
-├── recovery/
-├── ledger/
-├── budget/
-└── state/                  # task and self-evaluation state
+{{PROFILE_FILE_MAP}}
 ```
 
-## End a session
+## End
 
-1. Update state using the checkpoint contract.
-2. Append or update the journal and budget ledger. After a memory change, validate active paths, duplicates, and orphaned entries in `memory/INDEX.md`.
-3. {{COMMIT_POLICY}}
+1. Update `state/state.json` with one immediate next action.
+2. Append task evidence and decisions without deleting history.
+3. Record a profile recommendation only when this work exposes a scope mismatch.
+4. {{COMMIT_POLICY}}
 
 ## Invariants
 
-- Never pass without raw evidence from the task evaluator.
-- Never bypass a human approval gate.
-- Never change the learning gate's enabled state without an explicit user instruction.
-- A disabled learning gate must not create gate-specific blocking work or block delivery.
-- Never guess a Notion or Slack report target; use only the user-selected destination and target.
-- Reader copies outside Git never replace canonical Learning Gate evidence.
-- Apply semantic changes to the common spec or canonical file first.
-- Never report completion while selected provider adapters lack parity.
-- Never send state, ledger, evaluation history, or learning evidence outside the target project automatically except the reader-facing report copies explicitly selected in the reporting policy.
-- Improve an existing harness in place using a baseline, preservation manifest, and delta plan. Never delete, overwrite, or rename user configuration, durable memory, learning evidence, or reporting policy without approval.
+- No raw evidence means no pass.
+- Human approval gates remain separate from evaluators.
+- Canonical changes precede selected-provider projection.
+- Profile changes require user confirmation and structural revalidation.
+- External reader copies never replace canonical Git evidence.

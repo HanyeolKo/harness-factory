@@ -1,0 +1,334 @@
+{
+  "schema_version": "1.1",
+  "harness": {
+    "id": "harness-factory-dev",
+    "purpose": "Develop and verify Harness Factory's runtime-neutral contracts, templates, skills, provider adapters, and release documentation.",
+    "root": "harness"
+  },
+  "runtime_targets": [
+    "claude",
+    "codex",
+    "gemini"
+  ],
+  "limits": {
+    "max_parallelism": 2,
+    "max_delegation_depth": 2,
+    "max_instruction_lines": 120
+  },
+  "communication": {
+    "artifact_language": "en",
+    "report_language": "ko",
+    "terminology": "technical-english"
+  },
+  "domains": [
+    {
+      "id": "factory-development",
+      "paths": [
+        "schema",
+        "providers",
+        "templates",
+        "scripts",
+        "skills",
+        "docs",
+        "principles",
+        "interview",
+        "examples"
+      ],
+      "coordinator": "factory-builder"
+    }
+  ],
+  "agents": [
+    {
+      "id": "factory-router",
+      "description": "Route Harness Factory changes to the smallest safe project workflow.",
+      "lane": "control",
+      "capabilities": [
+        "routing"
+      ],
+      "domains": [
+        "factory-development"
+      ],
+      "model_tier": "fast",
+      "access": "read-only"
+    },
+    {
+      "id": "factory-builder",
+      "description": "Implement runtime-neutral factory, template, provider, and documentation changes.",
+      "lane": "execution",
+      "capabilities": [
+        "execution"
+      ],
+      "domains": [
+        "factory-development"
+      ],
+      "model_tier": "balanced",
+      "access": "workspace-write"
+    },
+    {
+      "id": "evidence-runner",
+      "description": "Define evaluator executions and validate raw evidence retained by the main orchestrator.",
+      "lane": "evaluation",
+      "capabilities": [
+        "verification"
+      ],
+      "domains": [
+        "factory-development"
+      ],
+      "model_tier": "fast",
+      "access": "read-only"
+    },
+    {
+      "id": "contract-evaluator",
+      "description": "Compare raw evidence with task and harness-effect pass conditions.",
+      "lane": "evaluation",
+      "capabilities": [
+        "verdict"
+      ],
+      "domains": [
+        "factory-development"
+      ],
+      "model_tier": "deep",
+      "access": "read-only"
+    },
+    {
+      "id": "defect-analyst",
+      "description": "Classify failures, count stable keys, and separate task defects from harness defects.",
+      "lane": "evaluation",
+      "capabilities": [
+        "defect-counting"
+      ],
+      "domains": [
+        "factory-development"
+      ],
+      "model_tier": "fast",
+      "access": "read-only"
+    },
+    {
+      "id": "harness-improver",
+      "description": "Apply only evidence-attributed harness improvements and preserve rollback evidence.",
+      "lane": "improvement",
+      "capabilities": [
+        "improvement"
+      ],
+      "domains": [
+        "factory-development"
+      ],
+      "model_tier": "balanced",
+      "access": "workspace-write"
+    }
+  ],
+  "skills": [
+    {
+      "id": "harness-factory-dev",
+      "kind": "entry",
+      "entry_agent": "factory-router",
+      "domains": [
+        "factory-development"
+      ],
+      "instructions": "harness/skills/harness-factory-dev/SKILL.md",
+      "evaluator": "factory-contract-tests"
+    },
+    {
+      "id": "harness-factory-dev-eval",
+      "kind": "evaluation",
+      "entry_agent": "contract-evaluator",
+      "domains": [
+        "factory-development"
+      ],
+      "instructions": "harness/skills/harness-factory-dev-eval/SKILL.md",
+      "evaluator": "factory-contract-tests"
+    },
+    {
+      "id": "harness-factory-dev-verify",
+      "kind": "verification",
+      "entry_agent": "evidence-runner",
+      "domains": [
+        "factory-development"
+      ],
+      "instructions": "harness/skills/harness-factory-dev-verify/SKILL.md",
+      "evaluator": "factory-contract-tests"
+    },
+    {
+      "id": "harness-factory-dev-evaluate",
+      "kind": "harness-evaluation",
+      "entry_agent": "contract-evaluator",
+      "domains": [
+        "factory-development"
+      ],
+      "instructions": "harness/skills/harness-factory-dev-evaluate/SKILL.md",
+      "evaluator": "harness-effect"
+    },
+    {
+      "id": "harness-factory-dev-improve",
+      "kind": "improvement",
+      "entry_agent": "harness-improver",
+      "domains": [
+        "factory-development"
+      ],
+      "instructions": "harness/skills/harness-factory-dev-improve/SKILL.md",
+      "evaluator": "harness-effect"
+    },
+    {
+      "id": "harness-factory-dev-factory-development",
+      "kind": "domain",
+      "entry_agent": "factory-builder",
+      "domains": [
+        "factory-development"
+      ],
+      "instructions": "harness/skills/harness-factory-dev-factory-development/SKILL.md",
+      "evaluator": "factory-contract-tests"
+    }
+  ],
+  "orchestration": {
+    "entry_skill": "harness-factory-dev",
+    "handoffs": [
+      {
+        "from": "factory-router",
+        "to": "factory-builder",
+        "when": "the requested change and task evaluator are recorded",
+        "artifacts": [
+          "harness/state/state.json"
+        ]
+      },
+      {
+        "from": "factory-builder",
+        "to": "evidence-runner",
+        "when": "implementation is ready for deterministic checks",
+        "artifacts": [
+          "harness/state/state.json"
+        ]
+      },
+      {
+        "from": "evidence-runner",
+        "to": "contract-evaluator",
+        "when": "raw command evidence is available",
+        "artifacts": [
+          "harness/evaluation/task-evidence",
+          "harness/evaluation/runs"
+        ]
+      },
+      {
+        "from": "contract-evaluator",
+        "to": "defect-analyst",
+        "when": "the task verdict is fail or blocked",
+        "artifacts": [
+          "harness/ledger/journal.jsonl"
+        ]
+      }
+    ]
+  },
+  "evaluators": [
+    {
+      "id": "factory-contract-tests",
+      "scope": "task",
+      "owner": "contract-evaluator",
+      "runner": "evidence-runner",
+      "type": "deterministic",
+      "command": "python scripts/test_runtime_neutral_contract.py",
+      "pass_condition": "exit code is zero and raw output is retained"
+    },
+    {
+      "id": "harness-effect",
+      "scope": "harness",
+      "owner": "contract-evaluator",
+      "runner": "evidence-runner",
+      "type": "experiment",
+      "command": "compare baseline control treatment using the frozen repository contract suite",
+      "pass_condition": "no regression within the declared success, cost, retry, parity, and cold-start thresholds"
+    }
+  ],
+  "approval_gates": [
+    {
+      "id": "publish-or-release",
+      "trigger": "a task publishes a package, plugin, extension, release, pull request, or external message",
+      "owner": "human",
+      "required_action": "obtain explicit user approval before the external write"
+    },
+    {
+      "id": "destructive-repository-change",
+      "trigger": "a task deletes, rewrites history, removes evidence, or changes compatibility semantics",
+      "owner": "human",
+      "required_action": "record the exact target and obtain explicit user approval"
+    }
+  ],
+  "loops": {
+    "execution": "harness/loops/EXECUTION-LOOP.md",
+    "evaluation": "harness/loops/EVAL-LOOP.md",
+    "improvement": "harness/loops/IMPROVE-LOOP.md",
+    "improvement_owner": "harness-improver",
+    "fail_threshold": 3
+  },
+  "memory": {
+    "index": "harness/memory/INDEX.md",
+    "policy": "preserve-and-reconcile",
+    "max_document_lines": 80,
+    "max_summary_chars": 160
+  },
+  "self_evaluation": {
+    "mode": "event-driven",
+    "checker": "harness/triggers/check_self_evaluation.py",
+    "state": "harness/state/self-evaluation.json",
+    "evaluation_loop": "harness/loops/HARNESS-EVAL-LOOP.md",
+    "evaluator": "harness-effect",
+    "watched_paths": [
+      ".agents/skills/harness-factory-dev-eval/SKILL.md",
+      ".agents/skills/harness-factory-dev-evaluate/SKILL.md",
+      ".agents/skills/harness-factory-dev-factory-development/SKILL.md",
+      ".agents/skills/harness-factory-dev-improve/SKILL.md",
+      ".agents/skills/harness-factory-dev-verify/SKILL.md",
+      ".agents/skills/harness-factory-dev/SKILL.md",
+      ".claude/agents/harness-factory-dev-contract-evaluator.md",
+      ".claude/agents/harness-factory-dev-defect-analyst.md",
+      ".claude/agents/harness-factory-dev-evidence-runner.md",
+      ".claude/agents/harness-factory-dev-factory-builder.md",
+      ".claude/agents/harness-factory-dev-factory-router.md",
+      ".claude/agents/harness-factory-dev-harness-improver.md",
+      ".claude/skills/harness-factory-dev-eval/SKILL.md",
+      ".claude/skills/harness-factory-dev-evaluate/SKILL.md",
+      ".claude/skills/harness-factory-dev-factory-development/SKILL.md",
+      ".claude/skills/harness-factory-dev-improve/SKILL.md",
+      ".claude/skills/harness-factory-dev-verify/SKILL.md",
+      ".claude/skills/harness-factory-dev/SKILL.md",
+      ".codex/agents/harness-factory-dev-contract-evaluator.toml",
+      ".codex/agents/harness-factory-dev-defect-analyst.toml",
+      ".codex/agents/harness-factory-dev-evidence-runner.toml",
+      ".codex/agents/harness-factory-dev-factory-builder.toml",
+      ".codex/agents/harness-factory-dev-factory-router.toml",
+      ".codex/agents/harness-factory-dev-harness-improver.toml",
+      ".codex/config.toml",
+      ".gemini/agents/harness-factory-dev-contract-evaluator.md",
+      ".gemini/agents/harness-factory-dev-defect-analyst.md",
+      ".gemini/agents/harness-factory-dev-evidence-runner.md",
+      ".gemini/agents/harness-factory-dev-factory-builder.md",
+      ".gemini/agents/harness-factory-dev-factory-router.md",
+      ".gemini/agents/harness-factory-dev-harness-improver.md",
+      ".gemini/skills/harness-factory-dev-eval/SKILL.md",
+      ".gemini/skills/harness-factory-dev-evaluate/SKILL.md",
+      ".gemini/skills/harness-factory-dev-factory-development/SKILL.md",
+      ".gemini/skills/harness-factory-dev-improve/SKILL.md",
+      ".gemini/skills/harness-factory-dev-verify/SKILL.md",
+      ".gemini/skills/harness-factory-dev/SKILL.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "GEMINI.md"
+    ],
+    "targeted_suite": "harness/evaluation/suites/targeted.json",
+    "targeted_sample_rate": 0.05,
+    "full_interval_units": 10,
+    "cooldown_units": 2,
+    "budget_ratio": 0.1,
+    "success_rate_drop_points": 5,
+    "cost_increase_ratio": 0.2,
+    "retry_threshold": 3,
+    "minimum_samples": 5,
+    "mandatory_events": [
+      "canonical-contract-change",
+      "agent-change",
+      "skill-change",
+      "evaluator-change",
+      "adapter-change",
+      "coldstart-fail",
+      "parity-fail"
+    ]
+  }
+}

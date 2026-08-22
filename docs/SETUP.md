@@ -1,6 +1,6 @@
 # 설치·업데이트 가이드
 
-이 문서는 `harness-factory` 0.2.1을 Claude Code, Codex, Gemini CLI에 설치하고 일곱 스킬이 보이는 상태까지 확인하는 절차입니다.
+이 문서는 `harness-factory` 0.3.0을 Claude Code, Codex, Gemini CLI에 설치하고 일곱 스킬이 보이는 상태까지 확인하는 절차입니다.
 
 설치되는 것은 **팩토리 도구**입니다. 이미 생성된 하네스의 state·ledger·평가 결과를 팩토리 저장소로 옮기지 않습니다. 각 하네스는 대상 프로젝트의 `harness/` 안에서 독립적으로 성장합니다.
 
@@ -105,19 +105,19 @@ Gemini extension 명령은 interactive session 밖의 터미널에서 실행합�
 Claude:
 
 ```powershell
-claude plugin marketplace add HanyeolKo/harness-factory@v0.2.1
+claude plugin marketplace add HanyeolKo/harness-factory@v0.3.0
 ```
 
 Codex:
 
 ```powershell
-codex plugin marketplace add HanyeolKo/harness-factory --ref v0.2.1
+codex plugin marketplace add HanyeolKo/harness-factory --ref v0.3.0
 ```
 
 Gemini:
 
 ```powershell
-gemini extensions install https://github.com/HanyeolKo/harness-factory --ref v0.2.1
+gemini extensions install https://github.com/HanyeolKo/harness-factory --ref v0.3.0
 ```
 
 ## 실제 호출
@@ -135,7 +135,13 @@ Gemini에서는 다음처럼 요청합니다.
 build-harness 스킬을 사용해 D:\workspace\step_fps에 하네스를 구성해줘.
 ```
 
-기본값은 Claude·Codex·Gemini 어댑터입니다. 필요한 런타임만 명시해 축소할 수 있습니다. 기존 state와 ledger가 있으면 새 package로 가져오는 대신 **대상 프로젝트에서 보존하며 schema 1.1로 점진 마이그레이션**합니다.
+기본값은 호출 중인 런타임의 어댑터 하나입니다. 새 schema 1.2 하네스는 목적에 따라 `core`, `adaptive`, `governed` 중 가장 작은 범위를 제안하고 사용자 확인 뒤 설치합니다. 기존 state와 ledger는 새 package로 가져오지 않고 **대상 프로젝트에서 보존**합니다. 기존 schema 1.0·1.1은 현재 의미 그대로 검증하며 자동 전환하지 않습니다.
+
+- `core`: 범위가 분명한 작업의 실행·증거·판정·구조 검증
+- `adaptive`: 반복·장기 작업용 메모리, 하네스 효과 평가, 증거 기반 개선
+- `governed`: 감사·규정 준수·개발자 이해 증명을 위한 Learning Assist와 Learning Gate
+
+작업 용도가 현재 범위를 벗어나면 하네스가 상향 또는 축소를 제안할 수 있지만 자동으로 변경하지 않습니다. 축소는 기존 증거의 보존·보관·삭제 계획을 먼저 사용자에게 확인합니다.
 같은 대상에서 `build-harness`를 다시 호출하면 현재 상태를 `improve|reconcile`로 판별하고 baseline·소유권·보존 목록을 만든 뒤 필요한 delta만 제안합니다. 단일 agent·skill·evaluator 변경에는 해당 원자적 build 스킬을 사용합니다.
 
 ## 변경 보고서와 Learning Assist
@@ -148,7 +154,7 @@ build-harness 스킬을 사용해 D:\workspace\step_fps에 하네스를 구성�
 
 Notion/Slack을 선택하면 대상 위치는 사용자가 직접 지정해야 하며 agent가 임의로 추측하지 않습니다. 외부 사본을 사용해도 Git 파일이 Learning Gate 검증 정본입니다.
 
-일반 작업은 구현과 검증 뒤에 짧은 Change Report를 남깁니다. 더 자세한 설명이나 이해도 확인을 요청하면 Learning Assist가 실제 diff와 관련 소스만 읽어 설명을 확장합니다. Learning Gate가 ON이고 적용 대상이면 같은 Learning Assist 설명을 먼저 읽은 뒤 Gate 퀴즈로 이어집니다. 오답은 바로 정답을 공개하지 않고 방향 힌트 → 구체적인 상황/반례 → 마지막 실패 기록 후 개념 설명 순서로 보정합니다.
+모든 범위는 구현과 검증 뒤에 짧은 Change Report를 남긴다. 통제형은 Learning Assist를 지속 사용 계층으로 설치하고, 하위 범위는 템플릿 없는 일회성 설명만 제공할 수 있다. Learning Assist는 실제 diff와 관련 소스만 읽어 설명을 확장한다. Learning Gate가 ON이고 적용 대상이면 같은 설명을 먼저 읽은 뒤 Gate 퀴즈로 이어진다. 오답은 바로 정답을 공개하지 않고 방향 힌트 → 구체적인 상황/반례 → 마지막 실패 기록 후 개념 설명 순서로 보정한다.
 
 ## 팩토리 source와 오프라인 설정
 
@@ -164,14 +170,14 @@ PowerShell:
 
 ```powershell
 $env:HARNESS_FACTORY_HOME = 'D:\workspace\harness-factory'
-$env:HARNESS_FACTORY_REF = 'v0.2.1'
+$env:HARNESS_FACTORY_REF = 'v0.3.0'
 ```
 
 Bash:
 
 ```bash
 export HARNESS_FACTORY_HOME=/workspace/harness-factory
-export HARNESS_FACTORY_REF=v0.2.1
+export HARNESS_FACTORY_REF=v0.3.0
 ```
 
 fork나 사설 저장소는 `HARNESS_FACTORY_REPO`를 지정합니다. 완전 오프라인 첫 실행에는 schema, providers, templates, scripts, skills를 포함한 전체 checkout을 `HARNESS_FACTORY_HOME`으로 제공해야 합니다.
@@ -197,7 +203,7 @@ Gemini:
 gemini extensions update harness-factory
 ```
 
-업데이트 후에는 새 세션을 시작하고 manifest가 0.2.1인지, 일곱 스킬이 모두 보이는지 확인합니다.
+업데이트 후에는 새 세션을 시작하고 manifest가 0.3.0인지, 일곱 스킬이 모두 보이는지 확인합니다.
 
 ## 문제 해결
 
@@ -206,7 +212,7 @@ gemini extensions update harness-factory
 - Claude: `/plugin`의 Installed/Errors 확인 후 `/reload-plugins`
 - Codex: marketplace와 enable 상태를 확인하고 새 작업 시작
 - Gemini: `/extensions list` 확인 후 CLI 재시작
-- 설치 source가 0.2.1이고 `skills/` 아래 일곱 폴더가 있는지 확인
+- 설치 source가 0.3.0이고 `skills/` 아래 일곱 폴더가 있는지 확인
 
 ### 템플릿 또는 provider 계약을 찾지 못함
 
@@ -218,6 +224,6 @@ gemini extensions update harness-factory
 
 ### 평가가 매번 LLM을 호출함
 
-정상 0.2.1 하네스는 작업 경계에서 결정적 trigger checker만 실행합니다. `harness/harness-spec.json`의 `self_evaluation` 정책과 `harness/state/self-evaluation.json`을 확인하고, 실행 루프가 checker의 `none|targeted|full` 결과를 건너뛰지 않는지 검사합니다.
+정상 0.3.0 `adaptive|governed` 하네스는 작업 경계에서 결정적 trigger checker만 실행합니다. `core`에는 이 checker가 없습니다. 적응형 이상에서는 `harness/harness-spec.json`의 `self_evaluation` 정책과 `harness/state/self-evaluation.json`을 확인하고, 실행 루프가 checker의 `none|targeted|full` 결과를 건너뛰지 않는지 검사합니다.
 
 일반 `harness/memory/` 내용이나 `memory/INDEX.md` 행 갱신은 full 평가 사유가 아닙니다. 이 경로는 결정적 `verify-harness`로 검사하고, memory schema·보존 정책·읽기 라우팅처럼 하네스 계약 의미가 바뀔 때만 canonical contract change로 full 평가합니다.

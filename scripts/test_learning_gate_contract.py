@@ -158,10 +158,15 @@ def assert_learning_assist_contract() -> None:
 
     for path in (
         ROOT / "docs" / "LEARNING-ASSIST.md",
-        ROOT / "templates" / "HARNESS.md.tmpl",
         ROOT / "skills" / "build-harness" / "references" / "RUNTIME-CONTRACT.md",
     ):
         assert "learning-assist" in path.read_text(encoding="utf-8")
+
+    harness_template = (ROOT / "templates" / "HARNESS.md.tmpl").read_text(
+        encoding="utf-8"
+    )
+    assert "Learning Assist explanation" in harness_template
+    assert "no unexplained mixed-language nouns" in harness_template
 
 
 def main() -> int:

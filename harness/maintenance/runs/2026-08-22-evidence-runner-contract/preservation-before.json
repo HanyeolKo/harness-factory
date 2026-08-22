@@ -1,0 +1,34 @@
+{
+  "change_id": "2026-08-22-evidence-runner-contract",
+  "mode": "improve",
+  "source_evaluation": "harness/evaluation/runs/2026-08-22-generated-harness-review/report.json",
+  "source_verdict": "inconclusive",
+  "attributed_defect": "harness:eval-runner-command-capability-missing",
+  "learning_gate_enabled": false,
+  "reporting_policy": {
+    "reader_destination": "file",
+    "reader_target": "harness/reports"
+  },
+  "provider_path_preflight": "pass",
+  "sha256": {
+    "harness/harness-spec.json": "75cdf6c0b1f0dc8924788f71f9e2767ecc563f50cc63c88375a1b01250c8315a",
+    "harness/team/agents/evidence-runner.md": "c9fdf697bf381c1444cfd654b9dd046e81ea1f6f4556af50976cfb28711b8544",
+    "harness/team/TEAM-ARCHITECTURE.md": "a89d996d146eadfb4b47e432df68dee1fa4a8858eea3fa90917a133b95926d8f",
+    "harness/evaluation/EVALUATION-CONTRACT.md": "5392247dd875858dd1ff4b9d63f163abf5765835ef45364b70c0914c37d7c9b4",
+    "harness/state/state.json": "c11039a62a1a7cbf52d115d7a41b99dc9cbcc95bcb5581c068e35bce8b7e1109",
+    "harness/state/self-evaluation.json": "7ca3c752e8e7ff7dbaf8804c4057243260aa3843c3a33f7113107be556cbf66c",
+    "harness/ledger/journal.jsonl": "775191e2219ddd71db0c51ca03fed8cb97ecb6d01d531480c8f4572e6941b750",
+    "harness/policies/reporting.json": "4fe8c868542d53fc610917169e3981ed9be5d6816c6ac45dcad040cfe0c5192b",
+    "harness/policies/learning-gate.json": "7c997e7018e8e2701476fca3bcd1ef1aa1e0865ae97b1306116311100acf48e0",
+    ".claude/agents/harness-factory-dev-evidence-runner.md": "de282eb5d284443febddbda9844106c3e0c1dbbdd55a2045a8d046e753f9fbff",
+    ".codex/agents/harness-factory-dev-evidence-runner.toml": "511f84c8f17448165c5ae6a911705565f1318bea8a3a10b0f2f046937c3fff0c",
+    ".gemini/agents/harness-factory-dev-evidence-runner.md": "c1b9a8f390a5609b2f3d0cce7d704c275075f8b1b70b6be80ee6588cc8a6db0c",
+    "CLAUDE.md": "f8db4760212f33c05614df3596147cea12113f24ac14c3d38d929a048aec66d0",
+    "AGENTS.md": "6acabf84c84bc75e517d797d1d82acd0963c6a71fd7366b50367cf49ed1600dc",
+    "GEMINI.md": "77f605fc042884415c7aa2bfb069457bcdcfc131625b40ebd1e6a64accf51346",
+    "harness/reports/2026-08-22-evidence-runner-contract/LEARNING-ASSIST.md": "efc72b5d0e28c4d2a261e955de2b35cd6ef3e4947393141eaa5b306761d25ca2"
+  },
+  "absent_before": [
+    "harness/evaluation/EVIDENCE-CONTRACT.md"
+  ]
+}

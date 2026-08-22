@@ -10,9 +10,9 @@ This protocol is shared by all seven factory skills. The constructor analyzes a 
 - The factory checkout contains reusable schema, provider contracts, templates, validators, and skills only.
 - Feeding project-specific observations back into factory templates is a separate user-approved task.
 
-Classify the target as `create` when no harness exists, `improve` when a valid runtime-neutral spec exists, or `reconcile` for a partial or legacy layout. Before changing an existing harness, capture its validators and evaluators, baseline, file ownership, and preservation manifest. Classify each delta as `unchanged|add|modify-proposed|conflict|approval-required`. Deletion, rename, split, merge, semantic replacement, Learning Gate state change, or reader-destination change requires explicit approval.
+Classify the target as `create` when no harness exists, `improve` when a valid runtime-neutral spec exists, or `reconcile` for a partial or legacy layout. Before changing an existing harness, capture its validators, evaluators, profile, baseline, file ownership, and preservation manifest. Classify each delta as `unchanged|add|modify-proposed|conflict|approval-required`. Deletion, rename, split, merge, semantic replacement, profile downgrade, Learning Gate state change, or reader-destination change requires exact-path approval.
 
-Schema 1.1 requires `memory` and event-driven `self_evaluation`. Existing schema 1.0 or 1.1 specs may omit `communication` and the newer reading-cost fields. Existing harnesses may also omit `policies/reporting.json`. Keep those harnesses valid, apply English presentation defaults, and add new fields or the reporting policy only through an explicit preservation-aware delta. Do not auto-translate existing project-owned content or silently change a previously selected report destination.
+New harnesses use schema 1.2 and one canonical top-level `profile`. Existing schema 1.0/1.1 specs remain valid without profile, communication, reporting, or newer reading fields until an explicit preservation-aware migration. Do not create a second profile policy source, auto-translate content, normalize existing state, or silently change a report destination.
 
 Every factory skill first runs its bundled `scripts/resolve_factory.py`. Read only a source whose resolver verifies the required contract. Record its path or repository/ref/commit provenance in D-001.
 
@@ -33,11 +33,24 @@ Do not use `build-harness` to reinitialize state for an atomic change.
 ## 2. Discover, then interview
 
 1. Read the factory principles, `interview/QUESTION-BANK.md`, and `CHECKLIST.md`.
-2. Inspect target root rules, README and docs, modules, build/test/lint/CI, data contracts, existing agents, skills, hooks, evaluators, state, memory indexes, reports, `policies/reporting.json` when present, and the Learning Gate policy when present.
-3. Derive a purpose hypothesis, deterministic task evaluators, domain graph, ownership boundaries, preservation requirements, and a harness-effect baseline.
-4. Do not ask for facts already established by files or prior approved D-001 decisions.
-5. Ask at most two batches: core Q1–Q4, then at most four relevant conditional questions. Q4 combines cost sensitivity with user-facing report language and terminology. For a new harness, also ask where reader-facing Change Reports and Learning Assist copies should be organized: `file|notion|slack`, defaulting to `file`. If `notion` or `slack` is selected, require a user-supplied page/database/channel/conversation identifier or URL; never guess it.
-6. When the user delegates choices, apply the schema 1.1 defaults, `file` reporting destination, and Claude, Codex, and Gemini targets, then disclose them in the delivery report.
+2. Inspect the current request before repository discovery. Never ask again for a value explicitly supplied in that request; record source `request`.
+3. Inspect root rules, README/docs, modules, build/test/lint/CI, data contracts, existing agents/skills/hooks, evaluators, state, memory, evidence, reporting, and Learning Gate state.
+4. Prefer the runtime structured input mechanism with bounded choices and free-text correction. Ask plain text only when structured input is unavailable.
+5. Purpose has no default. Derive and disclose a hypothesis, but accept it only from request text or explicit user confirmation.
+6. Silence is not delegation. Apply a default only after explicit delegation and record source `default-delegated`. In `improve|reconcile`, reuse an unchanged approved spec/D-001/policy value as `approved-decision`; create forbids that source.
+7. Ask unresolved parts of core Q1–Q4, then at most four conditional questions. Resolve purpose, deliverable type, task evaluator, operation mode, cost, report language, terminology, runtime targets, approval gates, and reporting.
+8. Recommend the lowest sufficient profile, disclose installed and omitted capabilities, and require confirmation. Record `current`, `recommended`, `selected`, reason codes, confirmation source, and override reason.
+9. In `create`, do not enter Phase 2 or write managed harness artifacts until `maintenance/runs/<change-id>/delta-plan.json.interview_receipt.status` is `complete`. The receipt is history; `harness-spec.json.profile` is current canonical state.
+
+### 2.1 Profile recommendation
+
+| Profile | Use when | Active layer |
+|---|---|---|
+| `core` | bounded task execution | routing, execution, task evaluation, structural verification, verdict, defect counting, short reporting |
+| `adaptive` | durable memory, recurring workflow, long-running/unattended operation, harness-effect measurement, or evidence-gated improvement | core plus memory, self-evaluation, harness experiment, improvement |
+| `governed` | enabled/applicable Learning Gate, audit/education evidence, or blocking review/release control | adaptive plus installed Learning Assist and user-controlled Learning Gate support |
+
+Reporting is common to every schema 1.2 profile and does not raise profile by itself. Lower profiles may provide an ordinary one-off explanation without installing the governed Learning Assist layer. Multiple providers and ordinary destructive/external approval gates also do not imply governed. A profile may be recommended but never changed automatically.
 
 ## 3. Common design contract
 
@@ -47,7 +60,11 @@ New harnesses include:
 
 ```json
 {
-  "limits": {"max_instruction_lines": 120},
+  "limits": {
+    "max_instruction_lines": 100,
+    "target_markdown_lines": 50,
+    "max_markdown_lines": 100
+  },
   "communication": {
     "artifact_language": "en",
     "report_language": "en",
@@ -60,7 +77,7 @@ New harnesses include:
 }
 ```
 
-They also include a separate project-owned reporting policy:
+Every schema 1.2 profile installs this separate project-owned policy:
 
 ```json
 {
@@ -78,26 +95,26 @@ They also include a separate project-owned reporting policy:
 - `technical-english` uses report-language grammar but keeps stable technical nouns such as `harness`, `agent`, `skill`, `evaluator`, `baseline`, `control`, and `treatment` in English.
 - `localized` translates explanatory technical nouns when a conventional local term exists. Use one natural prose style, not parallel bilingual output.
 - Report settings affect user-facing narrative only. Never translate IDs, paths, commands, evidence, JSON keys, status values, trigger reasons, or verdicts.
-- `policies/reporting.json` controls only where reader-facing copies are organized and the readability style. `file` is the default; `notion|slack` require an explicit user target. `canonical_evidence` remains `file` even for external reader copies.
+- Every schema 1.2 profile installs `policies/reporting.json`. `file` is an explicitly delegated default; `notion|slack` require a user-supplied target. `canonical_evidence` remains `file`.
 - `plain-language-first` means concrete behavior -> reason -> execution flow -> relevant code -> technical term only when useful. Prefer wording a developer would naturally use with a teammate and avoid literal translation-like nouns or unnecessary abstraction.
-- Every completed work unit leaves a short `reports/<change-id>/CHANGE-REPORT.md`. It is supporting documentation, not a delivery gate, and should stay to one screen or roughly one page instead of restating the full diff.
-- Learning Assist starts from the Change Report and reads only relevant actual diff/source. On ordinary work it runs only when the user asks for deeper explanation or a comprehension check.
+- Every completed work unit leaves a short `reports/<change-id>/CHANGE-REPORT.md`. It is supporting documentation, not a delivery gate, and does not restate the diff.
+- Governed installs Learning Assist, which starts from the Change Report and reads only relevant actual diff/source. Lower profiles may provide a one-off explanation without installing its durable templates.
 - When the Learning Gate is enabled and applicable, the Gate depends on Learning Assist: produce the Change Report, expand the actual diff with the same explanation contract, let the developer read it, then quiz. The Gate must not create a second denser vocabulary.
 - A Learning Assist quiz while the Gate is disabled is advisory and non-blocking. Wrong-answer remediation is progressive: first directional hint, second concrete scenario/counterexample, final failed attempt recorded before direct concept explanation. If confusing wording or an undefined term caused the miss, rewrite before counting it as a comprehension failure.
 - Exclude `communication.report_language` and `communication.terminology` from the harness-effect canonical hash. Reader-destination changes are presentation/routing changes unless they modify effect-bearing instructions.
-- Use index-first progressive disclosure. Split references before a configured limit, or record the correct English exception marker and reason.
+- Use index-first progressive disclosure. Schema 1.2 generated Markdown targets 50 lines and never exceeds 100 lines after placeholder rendering; split optional detail before the hard limit.
 
 ### 3.2 Domains and agents
 
 - Derive roles from project boundaries; do not copy a fixed team.
-- The capability union includes `routing`, `execution`, `verification`, `verdict`, `defect-counting`, and `improvement`.
+- Core capability union includes `routing`, `execution`, `verification`, `verdict`, and `defect-counting`; adaptive/governed also include `improvement`.
 - Each agent declares lane, capabilities, domains, access, and an abstract `fast|balanced|deep` tier.
 - Vendor model names live only in provider adapters.
 - Normal handoff is a DAG. Represent retry and improvement feedback as loops, not reverse DAG edges.
 
 ### 3.3 Evaluator links
 
-Every schema 1.1 `skills[].evaluator` is valid:
+Every schema 1.2 `skills[].evaluator` is valid:
 
 - `entry|evaluation|verification|domain` → `scope: task`; verification uses the structural validator.
 - `harness-evaluation|improvement` → `self_evaluation.evaluator` with `scope: harness` and `type: experiment`.
@@ -110,19 +127,14 @@ Record every human approval boundary in `approval_gates` with `id`, `trigger`, `
 
 ## 4. `build-harness` transaction
 
-1. Resolve `create|improve|reconcile`; freeze baseline, ownership, preservation manifest, existing reporting policy, Learning Gate state, and classified delta plan.
-2. Build or migrate the schema 1.1 spec with evaluator links, communication settings, memory, reading budgets, and event-driven self-evaluation.
-3. Validate JSON keys, IDs, relative paths, references, limits, and DAGs.
-4. Render concise English team, agent, skill, loop, recovery, budget, state, ledger, and `memory/INDEX.md` canonical artifacts.
-5. Render `policies/reporting.json`, the Change Report template, Learning Assist templates/contract, the disabled-by-default Learning Gate policy/templates, task evaluators, and the `scope: harness`, `type: experiment` evaluator.
-6. Map `cost-regression|retry-pressure|deterministic-sample` to fixed deterministic metrics in `evaluation/suites/targeted.json`.
-7. Render the checker, recorder, Learning Gate verifier, and self-evaluation state.
-8. Hash the effect-bearing canonical contract separately. Exclude ordinary memory content, index rows, per-change reports/learning answers, and presentation-only communication fields. Put only exact selected-provider managed artifacts in `watched_paths`.
-9. Project every selected provider adapter, including root guidance for the reporting/Learning Assist/Gate flow.
-10. Run the validator, instruction and memory budgets, provider parity, linked task evaluators, cold-start, Learning Assist/reporting contract checks, Learning Gate contract checks, and `CHECKLIST.md`.
-11. Run and ACK a baseline full evaluation, or explicitly leave the initial mandatory event pending.
-
-Initial self-evaluation state uses empty managed hashes and a `canonical-contract-change` pending event. Never watch an entire provider root or unrelated user agent/skill directory.
+1. Resolve mode and complete the interview hard stop. In `improve|reconcile`, freeze baseline, ownership, existing profile, preservation manifest, reporting, Learning Gate state, and classified delta first.
+2. Build schema 1.2 with confirmed profile and `harness.construction_receipt` pointing to that exact delta plan. Render reporting plus only profile-owned common files.
+3. Core renders task execution/evaluation/verification and short reporting. Adaptive adds memory, self-evaluation, harness experiment, improvement, targeted suite, checker, and recorder. Governed adds installed Learning Assist and disabled-by-default Learning Gate files.
+4. Validate keys, IDs, paths, receipt, limits, DAG, profile topology, evaluator links, and 50/100 Markdown budgets before adapters.
+5. Run provider-path preflight with `--construction-mode <mode> --delta-plan <path>`, then project only confirmed providers from common canonical files.
+6. Run final construction validation with the same paired flags, provider parity, linked task evaluators, cold-start, preservation, and applicable reporting/learning tests.
+7. For adaptive/governed create, store the verified canonical and selected-provider hashes and set `pending_events: []`; installation alone must not open a mandatory full evaluation. Never watch an entire provider root.
+8. In improve/reconcile, preserve existing schema 1.1 hashes, pending events, ACK state, evaluation evidence, and queues rather than reinitializing them.
 
 ## 5. Atomic build transaction
 
@@ -141,6 +153,13 @@ Initial self-evaluation state uses empty managed hashes and a `canonical-contrac
 
 Event mapping is agent → `agent-change`, skill → `skill-change`, evaluator → `evaluator-change`, common effect contract → `canonical-contract-change`, and provider artifact → `adapter-change`. A report-language, terminology, or reader-destination-only change is presentation/routing-only unless it changes effect-bearing instructions. Never reinitialize queues, append-only ledgers, evaluation runs, existing Learning Gate evidence, or an existing reporting target.
 
+### 5.1 Profile transitions
+
+- Recommend core to adaptive for durable memory, recurring workflow, long-running/unattended operation, harness-effect measurement, or evidence-gated improvement. Recommend adaptive to governed only for enabled/applicable Learning Gate, audit/education evidence, or blocking review/release control.
+- Do not infer a downgrade from inactivity. Governed to adaptive requires retired governance need, disabled Gate, and no active gate evidence. Adaptive to core also requires no pending events, non-template memory, completed evaluation/ACK, or improvement history.
+- Before any downgrade, list removed profile layers, every exact removal path, and every retained/archive evidence path in `approval_required`; require `request|user-answer` approval. `default-delegated` cannot approve removal. Direct governed to core requires both layer-removal sets.
+- A declined recommendation preserves the current profile and records an override reason. No agent or trigger changes profile automatically.
+
 ## 6. Provider projection
 
 Read IDs and paths from `providers/<id>/contract.json`.
@@ -150,7 +169,7 @@ Read IDs and paths from `providers/<id>/contract.json`.
 - Preserve content outside the managed block in `CLAUDE.md`.
 - Copy each canonical skill byte-identically to `.claude/skills/<skill-id>/SKILL.md`.
 - Generate `.claude/agents/<namespace>-<role-id>.md`.
-- Root guidance points to `policies/reporting.json`, Learning Assist, and the Learning Gate without changing their common semantics.
+- Root guidance points to common reporting and only the installed profile-owned learning contracts without changing their semantics.
 - A `read-only` agent receives no write or shell capability.
 
 ### Codex
@@ -159,21 +178,21 @@ Read IDs and paths from `providers/<id>/contract.json`.
 - Copy each canonical skill byte-identically to `.agents/skills/<skill-id>/SKILL.md`.
 - Generate `.codex/agents/<namespace>-<role-id>.toml`.
 - Structurally merge only related agent limits into `.codex/config.toml`; preserve unrelated settings.
-- Root guidance points to `policies/reporting.json`, Learning Assist, and the Learning Gate without changing their common semantics.
+- Root guidance points to common reporting and only the installed profile-owned learning contracts without changing their semantics.
 
 ### Gemini
 
 - Preserve content outside the managed block in `GEMINI.md`.
 - Copy each canonical skill byte-identically to `.gemini/skills/<skill-id>/SKILL.md`.
 - Generate `.gemini/agents/<namespace>-<role-id>.md`.
-- Root guidance points to `policies/reporting.json`, Learning Assist, and the Learning Gate without changing their common semantics.
+- Root guidance points to common reporting and only the installed profile-owned learning contracts without changing their semantics.
 - The entry or main orchestrator owns DAG sequencing. A wrapper references the common role contract and does not call another subagent.
 
 Adapters are thin wrappers. They do not duplicate role meaning as another source of truth.
 
 ## 7. Event-driven self-evaluation
 
-Schema 1.1 records checker, recorder, state, harness evaluator, targeted suite, sampling, interval, cooldown, budget, thresholds, mandatory events, and exact `watched_paths`. At each task boundary, route in this order:
+Adaptive/governed schema 1.2 records checker, recorder, state, harness evaluator, targeted suite, sampling, interval, cooldown, budget, thresholds, mandatory events, and exact `watched_paths`. At each task boundary, route in this order:
 
 1. `input-invalid:*` → block effect evaluation and LLM use; run `verify-harness`, structural recovery, and recheck.
 2. `adapter-change|parity-fail` → require provider parity to pass, then recheck. Record cold-start false-to-true and parity pass-to-fail transitions once.
@@ -220,7 +239,7 @@ Evaluator weakening, approval-gate bypass, evidence deletion, hidden failures, u
 Run:
 
 ```powershell
-python <FACTORY_ROOT>\scripts\validate_runtime_neutral.py <target>
+python <FACTORY_ROOT>\scripts\validate_runtime_neutral.py <target> --construction-mode <create|improve|reconcile> --delta-plan <target>\harness\maintenance\runs\<change-id>\delta-plan.json
 python <target>\harness\triggers\check_self_evaluation.py <target>\harness
 # After a completed targeted/full run, use the recorder command in section 8.
 ```
@@ -240,8 +259,9 @@ The delivery report follows `communication.report_language` and `communication.t
 7. Selected providers preserve equivalent agent, skill, evaluator, gate, handoff, reporting, and Learning Assist meaning.
 8. A trigger never modifies the harness by itself.
 9. The factory never centrally owns project state.
-10. User configuration, durable memory, reporting policy, learning evidence, and unknown-origin files are not deleted, overwritten, translated, renamed, or retargeted without approval.
+10. User configuration, profile, durable memory, reporting policy, learning evidence, and unknown-origin files are not deleted, overwritten, translated, renamed, or retargeted without approval.
 11. Internal canonical prose is concise English; user-facing presentation remains separate and plain-language-first.
 12. Presentation-only communication and reader-destination changes do not affect the harness-effect hash unless they change effect-bearing instructions.
 13. A disabled Learning Gate creates no gate-specific blocking work; an enabled applicable Gate uses Learning Assist before the quiz and never fails the user solely for unnecessary vocabulary recall.
 14. Notion or Slack reader copies never replace canonical Git evidence, and their target is never guessed.
+15. Profile recommendation never becomes a change without user confirmation and an exact preservation plan when removal is involved.

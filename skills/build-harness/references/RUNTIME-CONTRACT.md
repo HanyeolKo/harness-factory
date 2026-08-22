@@ -2,14 +2,23 @@
 
 The target project's `harness/` directory owns canonical meaning and operational state. Harness Factory is a construction tool; Claude, Codex, and Gemini files are discovery and delegation adapters.
 
-## Canonical layers
+## Canonical layers and profiles
 
-1. Schema 1.1 `harness/harness-spec.json` defines providers, communication, limits, domains, roles, skills, DAG, evaluators, gates, memory, loops, and self-evaluation.
-2. `team/agents/<role-id>.md` and `skills/<skill-id>/SKILL.md` hold provider-neutral meaning.
-3. `loops/` separates execution, task evaluation, harness-effect evaluation, and improvement.
-4. `policies/reporting.json`, `reports/`, the Learning Assist contract, `policies/learning-gate.json`, `policies/LEARNING-GATE.md`, `learning/`, and `triggers/verify_learning_gate.py` define change comprehension and the optional project-owned learning gate.
-5. `state/`, append-only `ledger/`, `evaluation/`, `learning/`, reports, and `memory/` remain in the target project and are never sent to the factory.
-6. `providers/<id>/contract.json` declares native projection paths and capabilities.
+1. A new harness uses schema 1.2. `harness-spec.json.profile` is the only canonical current profile; `harness.construction_receipt` points to its `delta-plan.json.interview_receipt` history. Do not install a second profile policy source.
+2. `core` installs routing, execution, task evaluation, structural verification, verdict, and defect counting. It omits active durable memory, self-evaluation, harness-effect evaluation, improvement, and Learning Gate files.
+3. Every profile installs reporting and a short Change Report. `adaptive` adds memory, self-evaluation, the harness experiment, and evidence-gated improvement. `governed` adds installed Learning Assist and the user-controlled Learning Gate.
+4. A reporting destination does not raise the profile by itself. Lower profiles may provide an ordinary one-off explanation without installing the governed learning layer.
+5. `team/agents/<role-id>.md`, `skills/<skill-id>/SKILL.md`, and profile-owned loops hold provider-neutral meaning. Project state, ledger, evaluation, learning, reports, and memory never move to the factory.
+6. `providers/<id>/contract.json` declares native projection paths and capabilities. Profile selection never implies all providers; explicit default delegation selects the invoking runtime only.
+
+## Create interview receipt
+
+- Inspect request and repository first; never re-ask a value explicitly supplied in the current request. Prefer the runtime structured input mechanism with bounded choices and a free-text correction.
+- Purpose has no default. Use request text or explicit confirmation of a stated purpose hypothesis. Silence is not delegation; record a default as `default-delegated` only after explicit delegation.
+- Resolve purpose, deliverable type, task evaluator, operation mode, cost sensitivity, report language, terminology, runtime targets, approval gates, and reporting settings.
+- Recommend the lowest sufficient `core|adaptive|governed` profile, disclose installed and omitted capabilities, and require confirmation. A profile may be recommended but never changed automatically.
+- Record values and `request|user-answer|repository-confirmed|default-delegated|approved-decision` sources in `interview_receipt`. Create forbids `approved-decision`, uses `profile.current: null`, and requires a non-empty `override_reason` when selected differs from recommended.
+- Do not enter Phase 2 or write managed harness artifacts until receipt status is `complete`. Construction validation pairs `--construction-mode` with `--delta-plan`.
 
 ## Language, readability, and reporting
 
@@ -28,19 +37,19 @@ The target project's `harness/` directory owns canonical meaning and operational
 - Prefer wording a developer would naturally use when explaining the change to a teammate. Avoid literal translation-like nouns and unnecessary architecture abstraction.
 - Keep identifiers, commands, paths, API names, table names, evidence tokens, status values, and conventional technical terms exact.
 - In `localized` mode, use natural report-language prose, preserve machine tokens rather than surrounding jargon, and introduce optional exact terminology once after the behavior is clear.
-- During new-harness setup, ask where reader-facing reports should be organized. Allowed destinations are `file|notion|slack`; default is `file`.
-- Store that choice in `harness/policies/reporting.json`.
+- Ask where reader-facing reports should be organized for every schema 1.2 profile. Allowed destinations are `file|notion|slack`; an explicitly delegated default is `file`.
+- Store that choice in `harness/policies/reporting.json` for every schema 1.2 profile.
 - For `file`, default `reader_target` to `harness/reports`. For `notion` or `slack`, require a user-supplied target identifier or URL. Never guess an external target.
 - `canonical_evidence` remains `file`: Git files are always the verification source even when a reader copy is published externally.
 - Existing 1.0/1.1 harnesses without `policies/reporting.json` remain valid. Add it only as a preservation-aware delta.
 - Presentation-only language, terminology, reader destination, and external publication do not by themselves establish harness-effect improvement.
-- `limits.max_instruction_lines`, `memory.max_document_lines`, and `memory.max_summary_chars` bound reading cost when present. Read an index first, then only relevant documents.
+- Schema 1.2 generated Markdown targets `limits.target_markdown_lines: 50` and never exceeds `limits.max_markdown_lines: 100` after rendering. Instruction and memory limits further bound their document classes. Read an index first, then only relevant documents.
 
 ## Common semantics
 
 - IDs are lower-kebab-case. Agent models use abstract `fast|balanced|deep` tiers.
 - Normal handoffs form a DAG; retries and improvement feedback live in loop contracts.
-- Every schema 1.1 skill links an evaluator:
+- Every schema 1.2 skill links an evaluator:
   - entry/evaluation/verification/domain -> `scope: task`
   - harness-evaluation/improvement -> `self_evaluation.evaluator`, `scope: harness`, `type: experiment`
 - Human approval is a stable-ID gate, not an evaluator.
@@ -60,7 +69,7 @@ If the reporting policy selects `notion` or `slack`, publish a reader copy to th
 
 ## Learning Assist
 
-Learning Assist is the shared comprehension layer. It starts from the Change Report and reads only the relevant actual diff/source.
+Governed installs Learning Assist as its durable comprehension layer. It starts from the Change Report and reads only the relevant actual diff/source. Lower profiles may still provide an ordinary one-off explanation without installing these templates.
 
 - On ordinary work, invoke it only when the user asks for deeper explanation or a comprehension check.
 - When the Learning Gate is enabled and applicable, invoke Learning Assist automatically before the gate quiz.
@@ -73,7 +82,7 @@ Learning Assist is the shared comprehension layer. It starts from the Change Rep
 
 ## Optional Learning Gate
 
-Every newly generated harness installs the Learning Gate but sets `policies/learning-gate.json.enabled` to `false`.
+Governed installs the Learning Gate and sets `policies/learning-gate.json.enabled` to `false` unless the user explicitly requests activation. Lower profiles install it only through a confirmed profile transition.
 
 - `control.owner` is `user`.
 - `control.agents_may_change_enabled` is `false`.
@@ -103,7 +112,7 @@ Matching risk tags override low-risk exemptions. Stale, uncommitted, path-escape
 
 Learning verification is task-understanding evidence and a delivery gate. It is separate from harness-effect evaluation and does not establish that the harness improved.
 
-Generated paths are:
+Governed paths are:
 
 ```text
 harness/
@@ -128,9 +137,11 @@ harness/
 
 ## Existing harnesses
 
-Classify no harness as `create`, a valid runtime-neutral spec as `improve`, and a partial/legacy harness as `reconcile`. Before `improve|reconcile`, freeze original validator/evaluator results, ownership, and `preservation-before.json`; apply only a classified `unchanged|add|modify-proposed|conflict|approval-required` delta.
+Classify no harness as `create`, a valid runtime-neutral spec as `improve`, and a partial/legacy harness as `reconcile`. Before `improve|reconcile`, freeze original validator/evaluator results, ownership, profile, and `preservation-before.json`; reuse unchanged approved decisions and apply only a classified `unchanged|add|modify-proposed|conflict|approval-required` delta.
 
-Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, durable memory, learning evidence, reports, the user's Learning Gate enabled value, and any existing reporting policy. Deletion, rename, semantic replacement, split, merge, gate-state change, or reader-destination change needs explicit approval. Upsert only namespaced managed blocks and generated adapters. Completion requires the new contract, original evaluators, and preservation comparison to pass.
+Preserve existing IDs, state, append-only ledger, evaluation runs, evaluators, gates, root rules, user-owned or unknown files, durable memory, learning evidence, reports, the user's Learning Gate enabled value, and any existing reporting policy. Deletion, rename, semantic replacement, split, merge, gate-state change, or reader-destination change needs exact-path approval. A downgrade also records removed layers, every removal path, and retained/archive evidence paths; `default-delegated` never approves removal.
+
+Recommend adaptive for durable memory, recurring workflows, long-running/unattended operation, harness-effect measurement, or evidence-gated improvement. Recommend governed only for an enabled/applicable Learning Gate, audit/education evidence, or blocking review/release control. Do not infer a downgrade from a quiet period. Governed to adaptive requires retired governance need, disabled Gate, and no active gate evidence. Adaptive to core additionally requires no pending events, non-template memory, completed evaluation/ACK, or improvement history. Direct governed to core requires both layer-removal sets. Every transition requires user confirmation.
 
 ## Memory
 
@@ -154,7 +165,7 @@ Create, move, rename, supersede, archive, and index updates are one transaction.
 
 Skills are byte-identical to canonical files. Agent wrappers contain only minimal native metadata and the common role path. The Gemini main orchestrator owns DAG sequencing; Gemini subagents do not recursively delegate.
 
-Each root guidance block points to `policies/reporting.json` when present and `policies/learning-gate.json`, states the current user-owned gate control rule, and invokes the verifier only when the gate is enabled and applicable. Provider adapters must not add runtime-specific Learning Gate meaning, invent an external report target, toggle gate state, or create provider-specific grading semantics.
+Each root guidance block points to the installed `policies/reporting.json` and, for governed, `policies/learning-gate.json`. It states the current user-owned gate control rule and invokes the verifier only when the gate is installed, enabled, and applicable. Provider adapters must not add runtime-specific Learning Gate meaning, invent an external report target, toggle gate state, or create provider-specific grading semantics.
 
 Before any provider write, require provider-path preflight. Reject absolute paths, lexical traversal, and symlink escape. On failure, do not create, write, move, or bypass the provider path.
 
@@ -170,6 +181,8 @@ The checker hashes effect-bearing `harness/` canonical files separately. `self_e
 Never watch a provider directory, unrelated user skill/agent, unselected provider, or the factory repository. Per-change reports, learning answers, and verification records are task evidence rather than provider parity artifacts.
 
 ## Event-driven self-evaluation
+
+For adaptive/governed create, verify canonical and selected-provider artifacts, store those verified hashes in initial state, and set `pending_events: []`. Initial installation alone must not open a mandatory full evaluation. Improve/reconcile preserves existing schema 1.1 hashes, pending events, ACK state, and evidence.
 
 1. At a task boundary, run only the read-only deterministic checker. It returns compact JSON `none|targeted|full`, never writes state, calls an LLM, or returns `improve`.
 2. `input-invalid:*` is not effect evidence. Run `verify-harness`, recover structure, and recheck without an LLM evaluator.
@@ -201,4 +214,4 @@ Open a candidate only after a full regression or attributed harness defect, or a
 
 ## Compatibility
 
-The validator reads schema 1.0 and 1.1. Version 1.0 does not require memory, self-evaluation files, skill evaluator links, communication, a reporting policy, or a Learning Gate. Existing 1.1 specs may omit communication, a reporting policy, and new reading-cost fields. New harnesses include memory, event-driven self-evaluation, a separate reporting policy, lightweight Change Reports, selectable reader destination, Learning Assist, the disabled-by-default user-controlled Learning Gate, concise-English canonical artifacts, and explicit instruction/memory budgets.
+The validator reads schema 1.0, 1.1, and 1.2. Older specs remain valid without profile or newer reading fields. New output installs common reporting plus only the confirmed profile-owned files; migration never rewrites state, evidence, reporting destination, or Learning Gate state merely to match a newer layout.

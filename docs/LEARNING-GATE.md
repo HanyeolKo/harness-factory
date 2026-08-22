@@ -1,12 +1,12 @@
 # Learning Gate
 
-The Learning Gate is an optional speed regulator for AI-assisted changes. It is installed with a generated harness but remains inactive until the user explicitly enables it.
+The Learning Gate is an optional speed regulator for AI-assisted changes. The governed profile installs it inactive until the user explicitly enables it.
 
 Its delivery-blocking semantics stay the same. What changes is the explanation flow: the gate now depends on Learning Assist so the developer reads one plain-language explanation before being quizzed.
 
 ## Default behavior
 
-Every new harness receives the Learning Gate, Learning Assist reporting templates, and the deterministic verifier.
+Every governed harness receives the Learning Gate, Learning Assist templates, and the deterministic verifier. Core and adaptive harnesses omit them until the user confirms a governed transition.
 
 The policy still starts with `enabled: false`. When disabled, gate-specific per-change learning artifacts are not required and the gate does not block review, pull request creation, or merge.
 

@@ -68,11 +68,23 @@ Gemini CLI를 다시 시작하고 설치 상태를 확인합니다.
 Use the build-harness skill to create a Claude, Codex, and Gemini harness in D:\workspace\step_fps.
 ```
 
-필요한 런타임을 따로 지정하지 않으면 `build-harness`가 세 런타임의 어댑터를 모두 생성합니다. 먼저 프로젝트를 분석한 뒤, 코드에서 안전하게 추론할 수 없는 목적, 승인 게이트, 완료 기준, 보고 방식, 문서 정리 위치만 짧게 확인합니다.
+기본값은 호출 중인 런타임의 어댑터 하나다. `build-harness`는 요청문에 이미 있는 답을 먼저 기록하고, 남은 구축 결정과 필요한 최소 설치 범위를 확인한 뒤 파일을 쓴다. 다른 런타임은 사용자가 요청하거나 확인한 경우에만 추가한다.
+
+## 용도에 맞춘 설치 범위
+
+schema 1.2는 작업 목적에 필요한 기능만 설치한다.
+
+| 범위 | 적합한 용도 | 설치 내용 |
+|---|---|---|
+| 기본형 `core` | 사람이 지켜보는 범위가 분명한 프로젝트 작업 | 실행, 작업 증거, 완료 판정, 구조 검증, 짧은 보고 |
+| 적응형 `adaptive` | 반복·장기 작업에 지속 메모리나 하네스 성과 측정이 필요할 때 | 기본형 + 메모리, 이벤트 기반 하네스 평가, 증거 기반 개선 |
+| 통제형 `governed` | 감사·규정 준수·개발자 이해 증명이 필요할 때 | 적응형 + 학습 보조, 사용자 통제 학습 관문 |
+
+구축기는 목적을 충족하는 가장 작은 범위를 제안하고, 제안과 사용자 확인을 변경 계획에 기록한다. 이후 작업이 현재 범위를 벗어나면 `adaptive`나 `governed` 전환을 제안할 수 있고, 필요가 사라지면 축소를 제안할 수 있다. 다만 범위를 자동으로 바꾸거나 증거 파일을 임의로 지우지 않는다. 축소에는 보존·보관·삭제 대상을 정확히 적은 계획과 사용자 승인이 필요하다.
 
 ## 언어와 읽기 비용 계약
 
-하네스 내부 문서는 기본적으로 간결한 영문을 사용합니다. 스킬, 에이전트 지침, 메모리 항목, 실행 루프 계약을 비롯한 런타임용 문서는 같은 규칙을 반복하지 않고 점진적 공개 원칙을 따릅니다. 먼저 인덱스를 읽고 현재 작업에 필요한 참조만 불러옵니다. 생성된 하네스 안에 같은 내부 내용을 여러 언어로 중복 저장하지 않습니다.
+하네스 내부 문서는 기본적으로 간결한 영문을 사용한다. 런타임용 Markdown은 통상 50줄을 목표로 하고 100줄을 넘길 수 없다. 51~100줄 문서는 구조상 필요한 이유를 명시해야 한다. 스킬, 에이전트 지침, 메모리 항목, 실행 루프 계약은 같은 규칙을 반복하지 않고 점진적 공개 원칙을 따른다. 먼저 인덱스를 읽고 현재 작업에 필요한 참조만 불러온다. 생성된 하네스 안에 같은 내부 내용을 여러 언어로 중복 저장하지 않는다.
 
 새 하네스는 언어 선택을 `harness/harness-spec.json`에 기록합니다.
 
@@ -96,7 +108,7 @@ Use the build-harness skill to create a Claude, Codex, and Gemini harness in D:\
 
 Notion이나 Slack을 선택하면 대상 위치는 사용자가 직접 지정해야 하며 agent가 임의로 추측하지 않습니다. 외부 사본을 사용하더라도 Git 파일이 검증 정본입니다.
 
-Learning Assist는 단독으로 사용할 때 작업 흐름을 막지 않습니다. 더 자세한 설명이나 이해도 확인을 요청하면 실제 diff와 관련 소스만 읽어 설명을 확장합니다. 문서는 **실제 동작 → 이유 → 처리 흐름 → 관련 코드 → 필요할 때 기술용어** 순서로 설명하고, 동료 개발자에게 구두로 설명할 때 잘 쓰지 않을 번역투·추상 표현은 피합니다.
+통제형은 Learning Assist를 지속 사용 계층으로 설치하며, 단독 사용은 작업 흐름을 막지 않는다. 하위 범위에서도 템플릿을 설치하지 않은 일회성 설명은 제공할 수 있다. 실행할 때는 실제 diff와 관련 소스만 읽어 설명을 확장한다. 문서는 **실제 동작 → 이유 → 처리 흐름 → 관련 코드 → 필요할 때 기술용어** 순서로 설명하고, 동료 개발자에게 구두로 설명할 때 잘 쓰지 않을 번역투·추상 표현은 피한다.
 
 현지화된 보고를 선택하면 설명 문장은 자연스러운 현지어를 우선합니다. 코드에서 다시 찾아야 하는 식별자·경로·명령·설정 키는 그대로 두되, 일반 설명까지 영문 절차 용어로 채우지 않습니다. 정확한 기술 용어가 필요하면 먼저 동작을 쉬운 말로 설명한 뒤 한 번만 괄호나 코드 표기로 소개합니다.
 
@@ -104,7 +116,7 @@ Learning Assist는 단독으로 사용할 때 작업 흐름을 막지 않습니�
 
 ## 선택형 Learning Gate
 
-새 하네스에는 Learning Gate 정책이 항상 설치되며 기본값은 그대로 `enabled: false`입니다.
+`governed` 범위는 Learning Gate 정책을 설치하며 기본값은 `enabled: false`다. `core`와 `adaptive`에는 사용자가 통제형 전환을 확인하기 전까지 Gate를 설치하지 않는다.
 
 - `enabled`는 사용자의 명시적 지시로만 바꿀 수 있습니다. agent는 활성화나 비활성화를 제안할 수 있지만 직접 전환할 수 없습니다.
 - OFF 상태에서는 Gate 때문에 추가 학습 작업을 강제하거나 리뷰 요청·PR 생성·병합을 막지 않습니다.
@@ -114,7 +126,7 @@ Learning Assist는 단독으로 사용할 때 작업 흐름을 막지 않습니�
 - 통과 증거는 기존과 동일하게 commit된 source snapshot, quiz/answers hash, `verification.json`에 묶입니다. Notion이나 Slack의 읽기용 사본은 이 Git 증거를 대체하지 않습니다.
 - 기존 하네스를 improve 또는 reconcile할 때 사용자가 정한 ON/OFF 값과 기존 학습 증거, reporting 정책을 보존합니다.
 
-정책 파일은 `harness/policies/reporting.json`과 `harness/policies/learning-gate.json`에 생성됩니다. 세부 흐름은 [Learning Assist](docs/LEARNING-ASSIST.md), [Reporting Contract](docs/REPORTING-CONTRACT.md), [Learning Gate](docs/LEARNING-GATE.md)를 참고합니다.
+보고 설정은 `harness/policies/reporting.json`에, 통제형 전용 Gate는 `harness/policies/learning-gate.json`에 둔다. 세부 흐름은 [Learning Assist](docs/LEARNING-ASSIST.md), [Reporting Contract](docs/REPORTING-CONTRACT.md), [Learning Gate](docs/LEARNING-GATE.md)를 참고한다.
 
 ## 역할이 분명한 일곱 스킬
 
@@ -142,7 +154,7 @@ Harness Factory는 설치된 하네스를 중앙에서 운영하는 제어면이
 
 ## LLM을 매번 호출하지 않는 평가
 
-작업 완료 판정과 하네스 효과 평가는 서로 분리됩니다. 각 작업은 연결된 작업 평가기로 완료 여부를 판정하고, 읽기 전용 결정적 검사기가 하네스 자체에 추가 평가가 필요한지 결정합니다.
+작업 완료 판정과 하네스 효과 평가는 서로 분리된다. 모든 작업은 연결된 작업 평가기로 완료 여부를 판정한다. `adaptive|governed`에서는 읽기 전용 결정적 검사기가 하네스 자체의 추가 평가 필요성을 판단하고, `core`는 작업·구조 평가에서 끝난다.
 
 ```text
 task boundary
@@ -162,17 +174,19 @@ Learning Gate 검증은 이 하네스 효과 평가 루프와 별개입니다. �
 
 ## 생성되는 구조
 
+아래 트리는 `governed` 전체 구조다. `core`는 메모리·하네스 효과평가·개선·학습 통제 경로를 생략하고, `adaptive`는 앞의 세 기능만 추가한다.
+
 ```text
 <target>/
 ├── harness/                              # Runtime-neutral source of truth
-│   ├── harness-spec.json                 # Schema 1.1
+│   ├── harness-spec.json                 # Schema 1.2 + core|adaptive|governed
 │   ├── HARNESS.md
 │   ├── team/agents/<role-id>.md
 │   ├── skills/<skill-id>/SKILL.md
 │   ├── policies/
 │   │   ├── reporting.json                # file|notion|slack 읽기 위치
-│   │   ├── learning-gate.json            # enabled=false로 설치
-│   │   └── LEARNING-GATE.md
+│   │   ├── learning-gate.json            # governed 전용, 초기 enabled=false
+│   │   └── LEARNING-GATE.md               # governed 전용
 │   ├── reports/
 │   │   └── <change-id>/CHANGE-REPORT.md
 │   ├── learning-assist/
@@ -250,4 +264,4 @@ python scripts\skill_smoke_build_harness.py
 python scripts\validate_runtime_neutral.py <target-project>
 ```
 
-이 검사는 플러그인 0.2.1 매니페스트, 일곱 스킬, Claude/Codex/Gemini 어댑터, 스키마 1.1, 투영 동등성, 결정적 trigger 정책, Learning Assist/reporting 계약, Learning Gate의 OFF/ON 무결성 계약을 확인합니다. 마지막 명령은 실제 대상 프로젝트에 생성된 하네스를 검증합니다.
+이 검사는 플러그인 0.3.0 매니페스트, 일곱 스킬, 선택한 런타임 어댑터, schema 1.0·1.1 호환성, schema 1.2 설치 범위, 인터뷰 기록, Markdown 길이, 투영 동등성, 결정적 trigger, reporting, 통제형 Learning Gate 무결성을 확인한다. 마지막 명령은 실제 대상 프로젝트에 생성된 하네스를 검증한다.

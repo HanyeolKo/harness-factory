@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "reader_destination": "file",
+  "reader_target": "harness/reports",
+  "canonical_evidence": "file",
+  "style": "plain-language-first"
+}

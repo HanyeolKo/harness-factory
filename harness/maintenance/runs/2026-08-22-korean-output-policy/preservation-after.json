@@ -1,0 +1,27 @@
+{
+  "change_id": "2026-08-22-korean-output-policy",
+  "mode": "improve",
+  "learning_gate_enabled": false,
+  "reporting_policy": {
+    "reader_destination": "file",
+    "reader_target": "harness/reports"
+  },
+  "sha256": {
+    "harness/harness-spec.json": "75cdf6c0b1f0dc8924788f71f9e2767ecc563f50cc63c88375a1b01250c8315a",
+    "harness/HARNESS.md": "56a574f52df41ad74658fc037bda1c17a9771152e3067c3973e714740ad5df4a",
+    "harness/state/state.json": "c11039a62a1a7cbf52d115d7a41b99dc9cbcc95bcb5581c068e35bce8b7e1109",
+    "harness/state/self-evaluation.json": "276d2c4cfeb8f3d3275ec11d33b72d1ec31ffced96b88c59616d4691ec4fc5ab",
+    "harness/policies/reporting.json": "4fe8c868542d53fc610917169e3981ed9be5d6816c6ac45dcad040cfe0c5192b",
+    "harness/policies/learning-gate.json": "7c997e7018e8e2701476fca3bcd1ef1aa1e0865ae97b1306116311100acf48e0",
+    "CLAUDE.md": "f8db4760212f33c05614df3596147cea12113f24ac14c3d38d929a048aec66d0",
+    "AGENTS.md": "6acabf84c84bc75e517d797d1d82acd0963c6a71fd7366b50367cf49ed1600dc",
+    "GEMINI.md": "77f605fc042884415c7aa2bfb069457bcdcfc131625b40ebd1e6a64accf51346"
+  },
+  "comparison": {
+    "harness_spec": "unchanged",
+    "reporting_policy": "unchanged",
+    "learning_gate_policy": "unchanged",
+    "state_and_ledger_history": "preserved and appended",
+    "provider_user_text": "preserved outside namespaced managed blocks"
+  }
+}

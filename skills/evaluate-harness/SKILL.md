@@ -5,7 +5,7 @@ description: Conditionally measure whether an installed harness improves quality
 
 # evaluate-harness
 
-In the automatic path, run the deterministic checker first. On `none`, do not load detailed evaluation references or an LLM judge. An explicit user full evaluation uses the structured override contract and never bypasses structural checks.
+This workflow requires an adaptive or governed profile. If the installed profile is core, explain the additional evaluation layer and recommend `build-harness reconcile`; do not add it or evaluate automatically. Otherwise run the deterministic checker first. On `none`, do not load detailed evaluation references or an LLM judge. An explicit user full evaluation uses the structured override contract and never bypasses structural checks.
 
 ## Procedure
 

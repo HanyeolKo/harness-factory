@@ -7,7 +7,7 @@ The factory creates and changes project-owned harnesses. It does not centralize 
 ## Rules
 
 1. **Separate task and harness verdicts** — Task evaluators judge deliverables. A harness experiment judges whether the harness changed outcomes.
-2. **Link every skill** — In schema 1.1, `entry|evaluation|verification|domain` skills link to a `scope: task` evaluator. `harness-evaluation|improvement` skills link to `self_evaluation.evaluator` with `scope: harness` and `type: experiment`.
+2. **Link every skill** — In schema 1.1 and schema 1.2, `entry|evaluation|verification|domain` skills link to a `scope: task` evaluator. Adaptive and governed `harness-evaluation|improvement` skills link to `self_evaluation.evaluator` with `scope: harness` and `type: experiment`.
 3. **Keep the checker read-only** — It returns only `none|targeted|full`; it never calls an LLM, writes state, or returns `improve`.
 4. **Reject damaged inputs** — Route `input-invalid:*` to `verify-harness`, structural recovery, and recheck. Do not open effect evaluation or an LLM judge.
 5. **Verify adapters first** — `adapter-change|parity-fail` requires provider parity to pass before effect evaluation.

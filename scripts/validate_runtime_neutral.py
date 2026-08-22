@@ -18,6 +18,11 @@ except ModuleNotFoundError as exc:  # pragma: no cover - Python < 3.11
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 LANGUAGE_TAG_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
+DOCUMENT_BUDGET_EXCEPTION_RE = re.compile(
+    r"^<!-- document-budget exception: "
+    r"(?P<type>[a-z0-9]+(?:-[a-z0-9]+)*) \| "
+    r"(?P<reason>[^<>\r\n]+) -->$"
+)
 MARKDOWN_LINK_TARGET_RE = re.compile(r"\]\([^)\n]*\)")
 URL_RE = re.compile(r"https?://\S+")
 MACHINE_TOKEN_RE = re.compile(
@@ -30,7 +35,9 @@ MACHINE_TOKEN_RE = re.compile(
     r")(?!\S)"
 )
 MODEL_TIERS = {"fast", "balanced", "deep"}
-SCHEMA_VERSIONS = {"1.0", "1.1"}
+SCHEMA_VERSIONS = {"1.0", "1.1", "1.2"}
+PROFILES = {"core", "adaptive", "governed"}
+PROFILE_RANK = {"core": 0, "adaptive": 1, "governed": 2}
 LANES = {"control", "execution", "evaluation", "improvement"}
 ACCESS = {"read-only", "workspace-write"}
 CLAUDE_READ_ONLY_TOOLS = {"Read", "Grep", "Glob"}
@@ -73,8 +80,181 @@ REQUIRED_CAPABILITIES = {
     "defect-counting",
     "improvement",
 }
+PROFILE_REQUIRED_CAPABILITIES = {
+    "core": REQUIRED_CAPABILITIES - {"improvement"},
+    "adaptive": REQUIRED_CAPABILITIES,
+    "governed": REQUIRED_CAPABILITIES,
+}
+PROFILE_FORBIDDEN_CAPABILITIES = {
+    "core": {"improvement"},
+    "adaptive": set(),
+    "governed": set(),
+}
+PROFILE_REQUIRED_SKILL_KINDS = {
+    "core": {"entry", "evaluation", "verification"},
+    "adaptive": {
+        "entry",
+        "evaluation",
+        "verification",
+        "harness-evaluation",
+        "improvement",
+    },
+    "governed": {
+        "entry",
+        "evaluation",
+        "verification",
+        "harness-evaluation",
+        "improvement",
+    },
+}
+PROFILE_FORBIDDEN_SKILL_KINDS = {
+    "core": {"harness-evaluation", "improvement"},
+    "adaptive": set(),
+    "governed": set(),
+}
+PROFILE_REQUIRED_EVALUATOR_SCOPES = {
+    "core": {"task"},
+    "adaptive": {"task", "harness"},
+    "governed": {"task", "harness"},
+}
+PROFILE_FORBIDDEN_EVALUATOR_SCOPES = {
+    "core": {"harness"},
+    "adaptive": set(),
+    "governed": set(),
+}
+PROFILE_REQUIRED_LOOP_KEYS = {
+    "core": {"execution", "evaluation", "fail_threshold"},
+    "adaptive": {
+        "execution",
+        "evaluation",
+        "improvement",
+        "improvement_owner",
+        "fail_threshold",
+    },
+    "governed": {
+        "execution",
+        "evaluation",
+        "improvement",
+        "improvement_owner",
+        "fail_threshold",
+    },
+}
+PROFILE_FORBIDDEN_LOOP_KEYS = {
+    "core": {"improvement", "improvement_owner", "retro_interval"},
+    "adaptive": {"retro_interval"},
+    "governed": {"retro_interval"},
+}
+CONSTRUCTION_MODES = {"create", "improve", "reconcile"}
+DECISION_SOURCES = {
+    "request",
+    "user-answer",
+    "repository-confirmed",
+    "default-delegated",
+    "approved-decision",
+}
+EXPLICIT_CONFIRMATION_SOURCES = {"request", "user-answer", "approved-decision"}
+REQUIRED_INTERVIEW_DECISIONS = {
+    "purpose",
+    "deliverable_type",
+    "task_evaluator",
+    "operation_mode",
+    "cost_sensitivity",
+    "report_language",
+    "terminology",
+    "runtime_targets",
+    "approval_gates",
+    "reporting",
+}
+ADAPTIVE_REASON_CODES = {
+    "durable-memory-needed",
+    "recurring-workflow",
+    "long-running-or-unattended",
+    "harness-effect-measurement",
+    "evidence-gated-improvement",
+}
+CORE_REASON_CODES = {"bounded-task-work"}
+GOVERNED_REASON_CODES = {
+    "audit-or-compliance",
+    "developer-understanding-evidence",
+    "learning-gate-requested",
+}
+LOWER_SCOPE_REASON_CODES = {
+    "capability-unused",
+    "maintenance-cost-exceeds-benefit",
+    "project-scope-reduced",
+}
+PROFILE_REASON_CODES = (
+    CORE_REASON_CODES
+    | ADAPTIVE_REASON_CODES
+    | GOVERNED_REASON_CODES
+    | LOWER_SCOPE_REASON_CODES
+)
+DOCUMENT_BUDGET_EXCEPTION_TYPES = {
+    "required-sequential-instruction",
+    "atomic-project-contract",
+    "higher-routing-overhead",
+}
+CORE_COMMON_FILES = {
+    "HARNESS.md",
+    "harness-spec.json",
+    "ENVIRONMENT.md",
+    "team/TEAM-ARCHITECTURE.md",
+    "loops/EXECUTION-LOOP.md",
+    "loops/EVAL-LOOP.md",
+    "recovery/RECOVERY-PLAYBOOK.md",
+    "recovery/CHECKPOINT.md",
+    "ledger/JOURNAL-FORMAT.md",
+    "ledger/DECISIONS.md",
+    "ledger/journal.jsonl",
+    "budget/CONTEXT-BUDGET.md",
+    "state/state.json",
+    "policies/reporting.json",
+    "reports/_templates/CHANGE-REPORT.md.tmpl",
+}
+ADAPTIVE_COMMON_FILES = {
+    "memory/INDEX.md",
+    "loops/IMPROVE-LOOP.md",
+    "loops/HARNESS-EVAL-LOOP.md",
+    "evaluation/EVALUATION-CONTRACT.md",
+    "evaluation/suites/targeted.json",
+    "triggers/check_self_evaluation.py",
+    "triggers/record_self_evaluation.py",
+    "state/self-evaluation.json",
+    "maintenance/COMPONENT-MUTATION-PROTOCOL.md",
+}
+LEARNING_ASSIST_FILES = {
+    "learning-assist/_templates/explanation.md.tmpl",
+    "learning-assist/_templates/quiz.json.tmpl",
+    "learning-assist/_templates/comprehension.json.tmpl",
+}
+GOVERNED_CONTROL_FILES = {
+    "policies/learning-gate.json",
+    "policies/LEARNING-GATE.md",
+    "learning/_templates/brief.md.tmpl",
+    "learning/_templates/diff-explanation.md.tmpl",
+    "learning/_templates/quiz.json.tmpl",
+    "learning/_templates/answers.json.tmpl",
+    "learning/_templates/verification.json.tmpl",
+    "triggers/verify_learning_gate.py",
+}
+PROFILE_REQUIRED_COMMON_FILES = {
+    "core": CORE_COMMON_FILES,
+    "adaptive": CORE_COMMON_FILES | ADAPTIVE_COMMON_FILES,
+    "governed": (
+        CORE_COMMON_FILES
+        | ADAPTIVE_COMMON_FILES
+        | LEARNING_ASSIST_FILES
+        | GOVERNED_CONTROL_FILES
+    ),
+}
+PROFILE_FORBIDDEN_COMMON_FILES = {
+    "core": ADAPTIVE_COMMON_FILES | LEARNING_ASSIST_FILES | GOVERNED_CONTROL_FILES,
+    "adaptive": LEARNING_ASSIST_FILES | GOVERNED_CONTROL_FILES,
+    "governed": set(),
+}
 TOP_LEVEL_KEYS = {
     "schema_version",
+    "profile",
     "harness",
     "runtime_targets",
     "limits",
@@ -155,12 +335,30 @@ def non_english_letters(text: str) -> str:
 
 
 class Validator:
-    def __init__(self, target: Path, spec_path: Path) -> None:
+    def __init__(
+        self,
+        target: Path,
+        spec_path: Path,
+        construction_mode: str | None = None,
+        delta_plan_path: Path | None = None,
+    ) -> None:
         self.target = target.resolve()
         self.spec_path = spec_path.resolve()
+        self.construction_mode = construction_mode
+        self.delta_plan_path = (
+            (
+                delta_plan_path
+                if delta_plan_path.is_absolute()
+                else self.target / delta_plan_path
+            ).resolve()
+            if delta_plan_path
+            else None
+        )
         self.errors: list[str] = []
+        self.receipt_mode = ""
         self.spec: dict = {}
         self.schema_version = ""
+        self.profile = ""
         self.namespace = ""
         self.harness_root = self.target / "harness"
         self.provider_contracts: dict[str, dict] = {}
@@ -172,6 +370,9 @@ class Validator:
         self.gate_ids: set[str] = set()
         self.provider_path_preflight_failed = False
         self.max_instruction_lines = 0
+        self.target_markdown_lines = 0
+        self.max_markdown_lines = 0
+        self.construction_receipt_path: Path | None = None
         self.memory_index_path: Path | None = None
         self.memory_max_document_lines = 0
         self.memory_max_summary_chars = 0
@@ -265,12 +466,14 @@ class Validator:
             return self.errors
         self.load_provider_contracts()
         self.validate_shape()
+        self.validate_construction_gate()
         self.preflight_provider_paths()
         if self.namespace:
             self.validate_common_files()
             if not self.provider_path_preflight_failed:
                 self.validate_adapters()
                 self.validate_placeholders()
+            self.validate_runtime_markdown_budgets()
         return self.errors
 
     def validate_provider_path_preflight(self) -> list[str]:
@@ -280,6 +483,7 @@ class Validator:
             return self.errors
         self.load_provider_contracts()
         self.validate_shape()
+        self.validate_construction_gate()
         self.preflight_provider_paths()
         return self.errors
 
@@ -293,27 +497,587 @@ class Validator:
                 if key in contract:
                     self.provider_path(runtime, key)
 
+    def validate_profile_header(self) -> None:
+        value = self.spec.get("profile")
+        if self.schema_version == "1.2":
+            if not isinstance(value, str) or value not in PROFILES:
+                self.error(f"profile must be one of {sorted(PROFILES)} for schema 1.2")
+                return
+            self.profile = value
+        elif "profile" in self.spec:
+            self.error("profile is only supported by schema_version '1.2'")
+
+    def validate_receipt_decision(
+        self, value: object, label: str, *, allow_null: bool = False
+    ) -> tuple[object, str]:
+        decision = self.object(value, label)
+        self.check_keys(decision, label, {"value", "source"}, {"value", "source"})
+        decision_value = decision.get("value")
+        if decision_value is None and not allow_null:
+            self.error(f"{label}.value must not be null")
+        source = decision.get("source")
+        if not isinstance(source, str) or source not in DECISION_SOURCES:
+            self.error(f"{label}.source must be one of {sorted(DECISION_SOURCES)}")
+            source = ""
+        elif self.receipt_mode == "create" and source == "approved-decision":
+            self.error(f"{label}.source must not be approved-decision in create mode")
+        return decision_value, source
+
+    def recommended_profile_for(
+        self, current: str | None, reason_codes: set[str]
+    ) -> str:
+        if reason_codes & GOVERNED_REASON_CODES:
+            return "governed"
+        if reason_codes & ADAPTIVE_REASON_CODES:
+            return "adaptive"
+        if reason_codes & LOWER_SCOPE_REASON_CODES and current in PROFILE_RANK:
+            target_rank = max(0, PROFILE_RANK[current] - 1)
+            return next(
+                profile
+                for profile, rank in PROFILE_RANK.items()
+                if rank == target_rank
+            )
+        return "core"
+
+    def validate_reporting_receipt(self, value: object) -> None:
+        label = "delta-plan.interview_receipt.decisions.reporting"
+        reporting = self.object(value, label)
+        reporting_keys = {"enabled", "reader_destination", "reader_target"}
+        self.check_keys(reporting, label, reporting_keys, reporting_keys)
+        enabled, _source = self.validate_receipt_decision(
+            reporting.get("enabled"), f"{label}.enabled"
+        )
+        if not isinstance(enabled, bool):
+            self.error(f"{label}.enabled.value must be a boolean")
+            enabled = False
+        elif enabled is not True:
+            self.error(
+                f"{label}.enabled.value must be true because reporting policy "
+                "is part of the core contract"
+            )
+        destination_value = reporting.get("reader_destination")
+        target_value = reporting.get("reader_target")
+        if enabled:
+            destination, _ = self.validate_receipt_decision(
+                destination_value, f"{label}.reader_destination"
+            )
+            target, target_source = self.validate_receipt_decision(
+                target_value, f"{label}.reader_target"
+            )
+            if (
+                not isinstance(destination, str)
+                or destination not in {"file", "notion", "slack"}
+            ):
+                self.error(
+                    f"{label}.reader_destination.value must be file, notion, or slack"
+                )
+            if not isinstance(target, str) or not target.strip():
+                self.error(f"{label}.reader_target.value must be a non-empty string")
+            if (
+                destination in {"notion", "slack"}
+                and target_source not in EXPLICIT_CONFIRMATION_SOURCES
+            ):
+                self.error(
+                    f"{label}.reader_target.source must record explicit user "
+                    "confirmation for notion or slack"
+                )
+            reporting_path = self.harness_root / "policies" / "reporting.json"
+            try:
+                reporting_policy = json.loads(
+                    reporting_path.read_text(encoding="utf-8")
+                )
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                self.error(
+                    "cannot verify receipt reporting parity against "
+                    f"policies/reporting.json: {exc}"
+                )
+            else:
+                if not isinstance(reporting_policy, dict):
+                    self.error(
+                        "cannot verify receipt reporting parity because "
+                        "policies/reporting.json is not an object"
+                    )
+                else:
+                    if destination != reporting_policy.get("reader_destination"):
+                        self.error(
+                            f"{label}.reader_destination.value must match "
+                            "policies/reporting.json"
+                        )
+                    if target != reporting_policy.get("reader_target"):
+                        self.error(
+                            f"{label}.reader_target.value must match "
+                            "policies/reporting.json"
+                        )
+        else:
+            if destination_value is not None or target_value is not None:
+                self.error(
+                    f"{label} must use null reader_destination and reader_target "
+                    "when reporting is disabled"
+                )
+
+    def validate_profile_downgrade_approval(
+        self,
+        approval_required: list[dict],
+        current: str | None,
+        selected: str,
+    ) -> None:
+        entries = [
+            entry
+            for entry in approval_required
+            if entry.get("id") == "profile-downgrade"
+        ]
+        is_downgrade = (
+            current in PROFILE_RANK
+            and selected in PROFILE_RANK
+            and PROFILE_RANK[selected] < PROFILE_RANK[current]
+        )
+        if not is_downgrade:
+            if entries:
+                self.error(
+                    "delta-plan approval_required.profile-downgrade is only valid "
+                    "for a profile downgrade"
+                )
+            return
+        if len(entries) != 1:
+            self.error(
+                "profile downgrade requires exactly one approved "
+                "approval_required entry with id 'profile-downgrade'"
+            )
+            return
+        entry = entries[0]
+        label = "delta-plan.approval_required.profile-downgrade"
+        keys = {
+            "id",
+            "status",
+            "from",
+            "to",
+            "remove_layers",
+            "remove_paths",
+            "retain_or_archive_paths",
+            "confirmation_source",
+        }
+        self.check_keys(entry, label, keys, keys)
+        if entry.get("status") != "approved":
+            self.error(f"{label}.status must be 'approved'")
+        if entry.get("from") != current or entry.get("to") != selected:
+            self.error(f"{label} from/to must match the selected profile transition")
+        remove_layers = self.string_list(
+            entry.get("remove_layers"), f"{label}.remove_layers"
+        )
+        expected_layers = {
+            profile
+            for profile, rank in PROFILE_RANK.items()
+            if PROFILE_RANK[selected] < rank <= PROFILE_RANK[current]
+        }
+        if set(remove_layers) != expected_layers or len(remove_layers) != len(
+            set(remove_layers)
+        ):
+            self.error(
+                f"{label}.remove_layers must exactly match "
+                f"{sorted(expected_layers)}"
+            )
+        remove_paths = self.string_list(
+            entry.get("remove_paths"), f"{label}.remove_paths"
+        )
+        if not remove_paths:
+            self.error(f"{label}.remove_paths must not be empty")
+        for path in remove_paths:
+            self.safe_relative(path, f"{label}.remove_paths")
+        retained = self.string_list(
+            entry.get("retain_or_archive_paths"),
+            f"{label}.retain_or_archive_paths",
+        )
+        for path in retained:
+            self.safe_relative(path, f"{label}.retain_or_archive_paths")
+        confirmation = entry.get("confirmation_source")
+        if (
+            not isinstance(confirmation, str)
+            or confirmation not in EXPLICIT_CONFIRMATION_SOURCES
+        ):
+            self.error(
+                f"{label}.confirmation_source must record explicit user confirmation"
+            )
+
+    def validate_delta_plan(self, path: Path, expected_mode: str | None) -> None:
+        label = "delta-plan"
+        if not path.is_relative_to(self.target):
+            self.error("harness.construction_receipt must stay within the target project")
+            return
+        if not path.is_file():
+            self.error(f"construction receipt is missing: {path}")
+            return
+        try:
+            plan = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            self.error(f"construction receipt is invalid: {exc}")
+            return
+        plan = self.object(plan, label)
+        plan_keys = {
+            "schema_version",
+            "change_id",
+            "mode",
+            "interview_receipt",
+            "deltas",
+            "conflicts",
+            "approval_required",
+        }
+        self.check_keys(plan, label, plan_keys, plan_keys)
+        if plan.get("schema_version") != "1.0":
+            self.error("delta-plan.schema_version must be '1.0'")
+        change_id = self.identifier(plan.get("change_id"), "delta-plan.change_id")
+        if change_id:
+            expected_path = (
+                self.harness_root
+                / "maintenance"
+                / "runs"
+                / change_id
+                / "delta-plan.json"
+            ).resolve()
+            if path != expected_path:
+                self.error(
+                    "harness.construction_receipt must use canonical path "
+                    f"{expected_path!s}"
+                )
+        mode = plan.get("mode")
+        if not isinstance(mode, str) or mode not in CONSTRUCTION_MODES:
+            self.error(f"delta-plan.mode must be one of {sorted(CONSTRUCTION_MODES)}")
+            self.receipt_mode = ""
+        else:
+            self.receipt_mode = mode
+        if expected_mode is not None and mode != expected_mode:
+            self.error(
+                "--construction-mode must match delta-plan.mode: "
+                f"expected {expected_mode!r}, got {mode!r}"
+            )
+
+        receipt = self.object(plan.get("interview_receipt"), "delta-plan.interview_receipt")
+        receipt_keys = {"status", "decisions", "profile"}
+        self.check_keys(
+            receipt,
+            "delta-plan.interview_receipt",
+            receipt_keys,
+            receipt_keys,
+        )
+        if receipt.get("status") != "complete":
+            self.error("delta-plan.interview_receipt.status must be 'complete'")
+        decisions = self.object(
+            receipt.get("decisions"), "delta-plan.interview_receipt.decisions"
+        )
+        self.check_keys(
+            decisions,
+            "delta-plan.interview_receipt.decisions",
+            REQUIRED_INTERVIEW_DECISIONS,
+            REQUIRED_INTERVIEW_DECISIONS,
+        )
+        decision_values: dict[str, object] = {}
+        decision_sources: dict[str, str] = {}
+        for name in sorted(REQUIRED_INTERVIEW_DECISIONS - {"reporting"}):
+            decision_values[name], decision_sources[name] = self.validate_receipt_decision(
+                decisions.get(name),
+                f"delta-plan.interview_receipt.decisions.{name}",
+            )
+        self.validate_reporting_receipt(decisions.get("reporting"))
+        for name in (
+            "purpose",
+            "deliverable_type",
+            "task_evaluator",
+            "operation_mode",
+            "cost_sensitivity",
+            "report_language",
+            "terminology",
+        ):
+            value = decision_values.get(name)
+            if not isinstance(value, str) or not value.strip():
+                self.error(
+                    f"delta-plan interview decision {name!r} must be a "
+                    "non-empty string"
+                )
+        receipt_runtime_targets = self.string_list(
+            decision_values.get("runtime_targets"),
+            "delta-plan.interview_receipt.decisions.runtime_targets.value",
+        )
+        if len(receipt_runtime_targets) != len(set(receipt_runtime_targets)):
+            self.error(
+                "delta-plan interview decision 'runtime_targets' contains duplicates"
+            )
+        if decision_sources.get("purpose") not in {"request", "user-answer"}:
+            self.error(
+                "delta-plan interview decision 'purpose' must come from request "
+                "or user-answer"
+            )
+
+        expected_decisions = {
+            "purpose": self.spec.get("harness", {}).get("purpose"),
+            "report_language": self.spec.get("communication", {}).get(
+                "report_language"
+            ),
+            "terminology": self.spec.get("communication", {}).get("terminology"),
+        }
+        for name, expected in expected_decisions.items():
+            if decision_values.get(name) != expected:
+                self.error(
+                    f"delta-plan interview decision {name!r} must match "
+                    "the canonical spec"
+                )
+        if receipt_runtime_targets != self.spec.get("runtime_targets"):
+            self.error(
+                "delta-plan interview decision 'runtime_targets' must match "
+                "the canonical spec"
+            )
+        task_evaluators = {
+            evaluator.get("id")
+            for evaluator in self.spec.get("evaluators", [])
+            if isinstance(evaluator, dict) and evaluator.get("scope") == "task"
+        }
+        if decision_values.get("task_evaluator") not in task_evaluators:
+            self.error(
+                "delta-plan interview decision 'task_evaluator' must reference "
+                "a scope=task evaluator"
+            )
+        entry_skill_id = self.spec.get("orchestration", {}).get("entry_skill")
+        entry_skill_evaluator = next(
+            (
+                skill.get("evaluator")
+                for skill in self.spec.get("skills", [])
+                if isinstance(skill, dict) and skill.get("id") == entry_skill_id
+            ),
+            None,
+        )
+        if decision_values.get("task_evaluator") != entry_skill_evaluator:
+            self.error(
+                "delta-plan interview decision 'task_evaluator' must match "
+                "the entry skill evaluator"
+            )
+        receipt_gate_ids = self.string_list(
+            decision_values.get("approval_gates"),
+            "delta-plan.interview_receipt.decisions.approval_gates.value",
+        )
+        if set(receipt_gate_ids) != self.gate_ids or len(receipt_gate_ids) != len(
+            set(receipt_gate_ids)
+        ):
+            self.error(
+                "delta-plan interview decision 'approval_gates' must exactly "
+                "match canonical approval gate IDs"
+            )
+
+        profile_receipt = self.object(
+            receipt.get("profile"), "delta-plan.interview_receipt.profile"
+        )
+        profile_keys = {
+            "current",
+            "recommended",
+            "selected",
+            "reason_codes",
+            "confirmation_source",
+            "override_reason",
+        }
+        self.check_keys(
+            profile_receipt,
+            "delta-plan.interview_receipt.profile",
+            profile_keys,
+            profile_keys,
+        )
+        current = profile_receipt.get("current")
+        if current is not None and (
+            not isinstance(current, str) or current not in PROFILES
+        ):
+            self.error("delta-plan profile.current must be null or a known profile")
+            current = None
+        if mode == "create" and current is not None:
+            self.error("delta-plan profile.current must be null in create mode")
+        recommended = profile_receipt.get("recommended")
+        selected = profile_receipt.get("selected")
+        if not isinstance(recommended, str) or recommended not in PROFILES:
+            self.error("delta-plan profile.recommended must be a known profile")
+        if not isinstance(selected, str) or selected not in PROFILES:
+            self.error("delta-plan profile.selected must be a known profile")
+            selected = ""
+        elif selected != self.profile:
+            self.error(
+                "delta-plan profile.selected must match canonical spec.profile: "
+                f"expected {self.profile!r}, got {selected!r}"
+            )
+        reason_codes = self.string_list(
+            profile_receipt.get("reason_codes"),
+            "delta-plan.interview_receipt.profile.reason_codes",
+        )
+        if len(reason_codes) != len(set(reason_codes)):
+            self.error("delta-plan profile.reason_codes contains duplicates")
+        unknown_reasons = set(reason_codes) - PROFILE_REASON_CODES
+        if unknown_reasons:
+            self.error(
+                f"delta-plan profile.reason_codes contains unknown values: "
+                f"{sorted(unknown_reasons)}"
+            )
+        expected_recommendation = self.recommended_profile_for(
+            current, set(reason_codes) - unknown_reasons
+        )
+        if (
+            isinstance(recommended, str)
+            and recommended in PROFILES
+            and recommended != expected_recommendation
+        ):
+            self.error(
+                "delta-plan profile.recommended does not match reason_codes: "
+                f"expected {expected_recommendation!r}, got {recommended!r}"
+            )
+        if recommended == "core" and not (set(reason_codes) & CORE_REASON_CODES):
+            self.error(
+                "delta-plan profile.reason_codes must include 'bounded-task-work' "
+                "when core is recommended"
+            )
+        operation_mode = decision_values.get("operation_mode")
+        if isinstance(operation_mode, str) and recommended == "core":
+            normalized_operation_mode = operation_mode.casefold().replace("_", "-")
+            if any(
+                marker in normalized_operation_mode
+                for marker in (
+                    "long-running",
+                    "long running",
+                    "autonomous",
+                    "unattended",
+                    "cron",
+                    "event",
+                )
+            ):
+                self.error(
+                    "long-running or unattended operation_mode cannot recommend core"
+                )
+        confirmation = profile_receipt.get("confirmation_source")
+        if (
+            not isinstance(confirmation, str)
+            or confirmation not in DECISION_SOURCES
+        ):
+            self.error(
+                "delta-plan profile.confirmation_source must be a known decision source"
+            )
+        if mode == "create" and confirmation not in {
+            "request",
+            "user-answer",
+            "default-delegated",
+        }:
+            self.error(
+                "delta-plan profile.confirmation_source in create mode must be "
+                "request, user-answer, or default-delegated"
+            )
+        if (
+            mode in {"improve", "reconcile"}
+            and current is None
+            and confirmation not in {"request", "user-answer"}
+        ):
+            self.error(
+                "a legacy profile migration without profile.current requires "
+                "request or user-answer confirmation"
+            )
+        if confirmation == "default-delegated" and selected != recommended:
+            self.error(
+                "default-delegated profile selection must match the recommendation"
+            )
+        override_reason = profile_receipt.get("override_reason")
+        if selected == recommended:
+            if override_reason is not None:
+                self.error(
+                    "delta-plan profile.override_reason must be null when selected "
+                    "matches recommended"
+                )
+        else:
+            if not isinstance(override_reason, str) or not override_reason.strip():
+                self.error(
+                    "delta-plan profile.override_reason must be a non-empty string "
+                    "when selected differs from recommended"
+                )
+            if (
+                not isinstance(confirmation, str)
+                or confirmation not in EXPLICIT_CONFIRMATION_SOURCES
+            ):
+                self.error(
+                    "a profile recommendation override requires explicit user confirmation"
+                )
+        if (
+            isinstance(current, str)
+            and current in PROFILES
+            and isinstance(selected, str)
+            and selected in PROFILES
+            and current != selected
+        ):
+            if (
+                not isinstance(confirmation, str)
+                or confirmation not in EXPLICIT_CONFIRMATION_SOURCES
+            ):
+                self.error("a profile transition requires explicit user confirmation")
+
+        for field in ("deltas", "conflicts"):
+            if not isinstance(plan.get(field), list):
+                self.error(f"delta-plan.{field} must be an array")
+        approval_required = self.list_of_objects(
+            plan.get("approval_required"), "delta-plan.approval_required"
+        )
+        self.validate_profile_downgrade_approval(
+            approval_required, current, selected
+        )
+
+    def validate_construction_gate(self) -> None:
+        has_mode = self.construction_mode is not None
+        has_cli_plan = self.delta_plan_path is not None
+        if has_mode != has_cli_plan:
+            self.error(
+                "--construction-mode and --delta-plan must be supplied together"
+            )
+            return
+        if has_mode and (
+            not isinstance(self.construction_mode, str)
+            or self.construction_mode not in CONSTRUCTION_MODES
+        ):
+            self.error(
+                f"--construction-mode must be one of {sorted(CONSTRUCTION_MODES)}"
+            )
+        if self.schema_version != "1.2":
+            if has_mode or has_cli_plan:
+                self.error(
+                    "construction receipt validation is only supported for schema 1.2"
+                )
+            return
+        if self.construction_receipt_path is None:
+            return
+        if has_cli_plan and self.delta_plan_path != self.construction_receipt_path:
+            self.error(
+                "--delta-plan must match harness.construction_receipt exactly"
+            )
+        self.validate_delta_plan(
+            self.construction_receipt_path,
+            self.construction_mode if has_mode else None,
+        )
+
     def validate_shape(self) -> None:
         version = self.spec.get("schema_version")
         if not isinstance(version, str) or version not in SCHEMA_VERSIONS:
             self.error(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
         else:
             self.schema_version = version
+        self.validate_profile_header()
         required_top_level = TOP_LEVEL_KEYS - {
             "self_evaluation",
             "memory",
             "communication",
+            "profile",
         }
         if self.schema_version == "1.1":
             required_top_level.update({"self_evaluation", "memory"})
+        elif self.schema_version == "1.2":
+            required_top_level.update({"profile", "communication"})
+            if self.profile in {"adaptive", "governed"}:
+                required_top_level.update({"self_evaluation", "memory"})
         self.check_keys(self.spec, "spec", required_top_level, TOP_LEVEL_KEYS)
 
         harness = self.object(self.spec.get("harness"), "harness")
+        harness_keys = {"id", "purpose", "root"}
+        if self.schema_version == "1.2":
+            harness_keys.add("construction_receipt")
         self.check_keys(
             harness,
             "harness",
-            {"id", "purpose", "root"},
-            {"id", "purpose", "root"},
+            harness_keys,
+            harness_keys,
         )
         self.namespace = self.identifier(harness.get("id"), "harness.id")
         purpose = harness.get("purpose")
@@ -324,6 +1088,14 @@ class Validator:
             self.harness_root = (self.target / root).resolve()
             if not self.harness_root.is_relative_to(self.target):
                 self.error("harness.root escapes the target project")
+        if self.schema_version == "1.2":
+            receipt = harness.get("construction_receipt")
+            if self.safe_relative(receipt, "harness.construction_receipt"):
+                resolved_receipt = (self.target / receipt).resolve()
+                if not resolved_receipt.is_relative_to(self.target):
+                    self.error("harness.construction_receipt escapes the target project")
+                else:
+                    self.construction_receipt_path = resolved_receipt
 
         runtimes = self.string_list(self.spec.get("runtime_targets"), "runtime_targets")
         self.runtime_targets = set(runtimes)
@@ -336,11 +1108,26 @@ class Validator:
             self.error("runtime_targets contains duplicates")
 
         limits = self.object(self.spec.get("limits"), "limits")
+        limit_keys = {
+            "max_parallelism",
+            "max_delegation_depth",
+            "max_instruction_lines",
+        }
+        required_limit_keys = {"max_parallelism", "max_delegation_depth"}
+        if self.schema_version == "1.2":
+            limit_keys.update({"target_markdown_lines", "max_markdown_lines"})
+            required_limit_keys.update(
+                {
+                    "max_instruction_lines",
+                    "target_markdown_lines",
+                    "max_markdown_lines",
+                }
+            )
         self.check_keys(
             limits,
             "limits",
-            {"max_parallelism", "max_delegation_depth"},
-            {"max_parallelism", "max_delegation_depth", "max_instruction_lines"},
+            required_limit_keys,
+            limit_keys,
         )
         for key in ("max_parallelism", "max_delegation_depth"):
             value = limits.get(key)
@@ -356,6 +1143,38 @@ class Validator:
                 self.error("limits.max_instruction_lines must be a positive integer")
             else:
                 self.max_instruction_lines = instruction_lines
+        if self.schema_version == "1.2":
+            target_lines = limits.get("target_markdown_lines")
+            max_lines = limits.get("max_markdown_lines")
+            if (
+                not isinstance(target_lines, int)
+                or isinstance(target_lines, bool)
+                or not 1 <= target_lines <= 50
+            ):
+                self.error(
+                    "limits.target_markdown_lines must be an integer between 1 and 50"
+                )
+            else:
+                self.target_markdown_lines = target_lines
+            if (
+                not isinstance(max_lines, int)
+                or isinstance(max_lines, bool)
+                or not 1 <= max_lines <= 100
+            ):
+                self.error(
+                    "limits.max_markdown_lines must be an integer between 1 and 100"
+                )
+            else:
+                self.max_markdown_lines = max_lines
+            if (
+                self.target_markdown_lines > 0
+                and self.max_markdown_lines > 0
+                and self.target_markdown_lines > self.max_markdown_lines
+            ):
+                self.error(
+                    "limits.target_markdown_lines must not exceed "
+                    "limits.max_markdown_lines"
+                )
 
         communication_value = self.spec.get("communication")
         if communication_value is not None:
@@ -407,7 +1226,10 @@ class Validator:
         if len(agents) < 2:
             self.error("agents must contain at least two roles")
         if len(skills) < 3:
-            self.error("skills must contain entry, evaluation, and improvement skills")
+            if self.schema_version == "1.2":
+                self.error("skills must contain at least three workflow skills")
+            else:
+                self.error("skills must contain entry, evaluation, and improvement skills")
         if not evaluators:
             self.error("evaluators must contain at least one evaluator")
 
@@ -458,6 +1280,8 @@ class Validator:
             lane = agent.get("lane")
             if lane not in LANES:
                 self.error(f"{label}.lane must be one of {sorted(LANES)}")
+            elif self.profile == "core" and lane == "improvement":
+                self.error(f"{label}.lane is forbidden by profile 'core': improvement")
             tier = agent.get("model_tier")
             if tier not in MODEL_TIERS:
                 self.error(f"{label}.model_tier must be fast, balanced, or deep")
@@ -482,9 +1306,23 @@ class Validator:
             description = agent.get("description")
             if not isinstance(description, str) or not description.strip():
                 self.error(f"{label}.description must be a non-empty string")
-        missing_capabilities = REQUIRED_CAPABILITIES - capabilities
+        required_capabilities = (
+            PROFILE_REQUIRED_CAPABILITIES.get(self.profile, set())
+            if self.schema_version == "1.2"
+            else REQUIRED_CAPABILITIES
+        )
+        missing_capabilities = required_capabilities - capabilities
         if missing_capabilities:
             self.error(f"agent capability backbone is incomplete: {sorted(missing_capabilities)}")
+        if self.schema_version == "1.2" and self.profile:
+            forbidden_capabilities = (
+                PROFILE_FORBIDDEN_CAPABILITIES[self.profile] & capabilities
+            )
+            if forbidden_capabilities:
+                self.error(
+                    f"profile {self.profile!r} forbids agent capabilities: "
+                    f"{sorted(forbidden_capabilities)}"
+                )
 
         skill_kinds: set[str] = set()
         harness_root_value = harness.get("root")
@@ -504,7 +1342,7 @@ class Validator:
                 "evaluator",
             }
             required_skill_keys = skill_keys - {"evaluator"}
-            if self.schema_version == "1.1":
+            if self.schema_version in {"1.1", "1.2"}:
                 required_skill_keys.add("evaluator")
             self.check_keys(skill, label, required_skill_keys, skill_keys)
             kind = skill.get("kind")
@@ -545,12 +1383,26 @@ class Validator:
                         self.error(
                             f"{label}.evaluator must have {expected_scope} scope"
                         )
-        required_skill_kinds = {"entry", "evaluation", "improvement"}
-        if self.schema_version == "1.1":
-            required_skill_kinds.update({"harness-evaluation", "verification"})
+        if self.schema_version == "1.2":
+            required_skill_kinds = PROFILE_REQUIRED_SKILL_KINDS.get(
+                self.profile, set()
+            )
+        else:
+            required_skill_kinds = {"entry", "evaluation", "improvement"}
+            if self.schema_version == "1.1":
+                required_skill_kinds.update({"harness-evaluation", "verification"})
         for required_kind in required_skill_kinds:
             if required_kind not in skill_kinds:
                 self.error(f"skills is missing kind: {required_kind}")
+        if self.schema_version == "1.2" and self.profile:
+            forbidden_skill_kinds = (
+                PROFILE_FORBIDDEN_SKILL_KINDS[self.profile] & skill_kinds
+            )
+            if forbidden_skill_kinds:
+                self.error(
+                    f"profile {self.profile!r} forbids skill kinds: "
+                    f"{sorted(forbidden_skill_kinds)}"
+                )
 
         orchestration = self.object(self.spec.get("orchestration"), "orchestration")
         self.check_keys(
@@ -608,7 +1460,7 @@ class Validator:
         for index, evaluator in enumerate(evaluators):
             label = f"evaluators[{index}]"
             required_evaluator_keys = evaluator_keys - {"scope"}
-            if self.schema_version == "1.1":
+            if self.schema_version in {"1.1", "1.2"}:
                 required_evaluator_keys.add("scope")
             self.check_keys(
                 evaluator,
@@ -644,9 +1496,25 @@ class Validator:
                 if not isinstance(value, str) or not value.strip():
                     self.error(f"{label}.{field} must be a non-empty string")
         if self.schema_version == "1.1":
-            for required_scope in {"task", "harness"}:
-                if required_scope not in evaluator_scopes:
-                    self.error(f"evaluators is missing scope: {required_scope}")
+            required_evaluator_scopes = {"task", "harness"}
+        elif self.schema_version == "1.2":
+            required_evaluator_scopes = PROFILE_REQUIRED_EVALUATOR_SCOPES.get(
+                self.profile, set()
+            )
+        else:
+            required_evaluator_scopes = set()
+        for required_scope in required_evaluator_scopes:
+            if required_scope not in evaluator_scopes:
+                self.error(f"evaluators is missing scope: {required_scope}")
+        if self.schema_version == "1.2" and self.profile:
+            forbidden_evaluator_scopes = (
+                PROFILE_FORBIDDEN_EVALUATOR_SCOPES[self.profile] & evaluator_scopes
+            )
+            if forbidden_evaluator_scopes:
+                self.error(
+                    f"profile {self.profile!r} forbids evaluator scopes: "
+                    f"{sorted(forbidden_evaluator_scopes)}"
+                )
 
         for index, gate in enumerate(approval_gates):
             label = f"approval_gates[{index}]"
@@ -663,6 +1531,8 @@ class Validator:
                     self.error(f"{label}.{field} must be a non-empty string")
 
         memory_value = self.spec.get("memory")
+        if self.profile == "core" and memory_value is not None:
+            self.error("profile 'core' forbids memory")
         if memory_value is not None:
             memory = self.object(memory_value, "memory")
             self.check_keys(
@@ -708,17 +1578,33 @@ class Validator:
             "fail_threshold",
             "retro_interval",
         }
-        required_loop_keys = loop_keys - {"retro_interval"}
-        if self.schema_version == "1.0":
-            required_loop_keys.add("retro_interval")
+        if self.schema_version == "1.2":
+            required_loop_keys = PROFILE_REQUIRED_LOOP_KEYS.get(self.profile, set())
+        else:
+            required_loop_keys = loop_keys - {"retro_interval"}
+            if self.schema_version == "1.0":
+                required_loop_keys.add("retro_interval")
         self.check_keys(loops, "loops", required_loop_keys, loop_keys)
-        improvement_owner = loops.get("improvement_owner")
-        if improvement_owner not in self.agent_ids:
-            self.error("loops.improvement_owner references unknown agent")
-        elif "improvement" not in agent_by_id[improvement_owner].get("capabilities", []):
-            self.error("loops.improvement_owner lacks improvement capability")
+        if self.schema_version == "1.2" and self.profile:
+            forbidden_loop_keys = PROFILE_FORBIDDEN_LOOP_KEYS[self.profile] & set(
+                loops
+            )
+            if forbidden_loop_keys:
+                self.error(
+                    f"profile {self.profile!r} forbids loop keys: "
+                    f"{sorted(forbidden_loop_keys)}"
+                )
+        if "improvement_owner" in loops:
+            improvement_owner = loops.get("improvement_owner")
+            if improvement_owner not in self.agent_ids:
+                self.error("loops.improvement_owner references unknown agent")
+            elif "improvement" not in agent_by_id[improvement_owner].get(
+                "capabilities", []
+            ):
+                self.error("loops.improvement_owner lacks improvement capability")
         for field in ("execution", "evaluation", "improvement"):
-            self.safe_relative(loops.get(field), f"loops.{field}")
+            if field in loops:
+                self.safe_relative(loops.get(field), f"loops.{field}")
         fail_threshold = loops.get("fail_threshold")
         if (
             not isinstance(fail_threshold, int)
@@ -735,7 +1621,13 @@ class Validator:
             ):
                 self.error("loops.retro_interval must be a positive integer")
 
-        if self.schema_version == "1.1" or "self_evaluation" in self.spec:
+        if self.profile == "core" and "self_evaluation" in self.spec:
+            self.error("profile 'core' forbids self_evaluation")
+        if (
+            self.schema_version == "1.1"
+            or self.profile in {"adaptive", "governed"}
+            or "self_evaluation" in self.spec
+        ):
             self.validate_self_evaluation()
 
     def validate_self_evaluation(self) -> None:
@@ -792,7 +1684,11 @@ class Validator:
             if evaluators[evaluator_id].get("type") != "experiment":
                 self.error("self_evaluation.evaluator must have experiment type")
 
-        if self.schema_version == "1.1" and isinstance(evaluator_id, str):
+        if (
+            self.schema_version in {"1.1", "1.2"}
+            and self.profile != "core"
+            and isinstance(evaluator_id, str)
+        ):
             for index, skill in enumerate(self.spec.get("skills", [])):
                 if not isinstance(skill, dict) or skill.get("kind") not in HARNESS_SKILL_KINDS:
                     continue
@@ -919,8 +1815,10 @@ class Validator:
         if visited != len(self.agent_ids):
             self.error("orchestration.handoffs must be acyclic; improvement feedback belongs in loops")
 
-    def validate_common_files(self) -> None:
-        required = [
+    def required_common_files(self) -> set[str]:
+        if self.schema_version == "1.2" and self.profile:
+            return set(PROFILE_REQUIRED_COMMON_FILES[self.profile])
+        required = {
             "HARNESS.md",
             "harness-spec.json",
             "ENVIRONMENT.md",
@@ -935,23 +1833,33 @@ class Validator:
             "ledger/journal.jsonl",
             "budget/CONTEXT-BUDGET.md",
             "state/state.json",
-        ]
+        }
         if self.schema_version == "1.1" or "memory" in self.spec:
-            required.append("memory/INDEX.md")
+            required.add("memory/INDEX.md")
         if self.schema_version == "1.1" or "self_evaluation" in self.spec:
-            required.extend(
-                [
+            required.update(
+                {
                     "loops/HARNESS-EVAL-LOOP.md",
                     "evaluation/EVALUATION-CONTRACT.md",
                     "evaluation/suites/targeted.json",
                     "triggers/check_self_evaluation.py",
                     "triggers/record_self_evaluation.py",
                     "state/self-evaluation.json",
-                ]
+                }
             )
-        for relative in required:
+        return required
+
+    def validate_common_files(self) -> None:
+        for relative in sorted(self.required_common_files()):
             if not (self.harness_root / relative).is_file():
                 self.error(f"missing common harness file: {relative}")
+        if self.schema_version == "1.2" and self.profile:
+            for relative in sorted(PROFILE_FORBIDDEN_COMMON_FILES[self.profile]):
+                if (self.harness_root / relative).exists():
+                    self.error(
+                        f"profile {self.profile!r} forbids active common harness file: "
+                        f"{relative}"
+                    )
         common_agents = self.harness_root / "team" / "agents"
         actual = {path.stem for path in common_agents.glob("*.md")} if common_agents.is_dir() else set()
         if actual != self.agent_ids:
@@ -1047,11 +1955,13 @@ class Validator:
         if journal.is_file() and not journal.read_text(encoding="utf-8").strip():
             self.error("ledger/journal.jsonl must contain an initial event")
         self.validate_reporting_policy()
+        if self.profile == "governed":
+            self.validate_learning_gate_policy()
         if self.memory_index_path is not None and self.memory_index_path.is_file():
             self.validate_memory_index(self.memory_index_path)
         if self.requires_english_artifacts():
             self.validate_english_artifact_markdown()
-        if self.schema_version == "1.1" or "self_evaluation" in self.spec:
+        if "self_evaluation" in self.spec:
             self.validate_targeted_suite()
             self.validate_self_evaluation_state()
 
@@ -1105,6 +2015,36 @@ class Validator:
         if policy.get("style") != "plain-language-first":
             self.error(
                 "policies/reporting.json.style must be 'plain-language-first'"
+            )
+
+    def validate_learning_gate_policy(self) -> None:
+        path = self.harness_root / "policies" / "learning-gate.json"
+        if not path.is_file():
+            return
+        try:
+            policy = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            self.error(f"policies/learning-gate.json is invalid: {exc}")
+            return
+        policy = self.object(policy, "policies/learning-gate.json")
+        if policy.get("schema_version") != "1.0":
+            self.error("policies/learning-gate.json.schema_version must be '1.0'")
+        if not isinstance(policy.get("enabled"), bool):
+            self.error("policies/learning-gate.json.enabled must be a boolean")
+        control = self.object(
+            policy.get("control"), "policies/learning-gate.json.control"
+        )
+        if control.get("owner") != "user":
+            self.error("policies/learning-gate.json.control.owner must be 'user'")
+        if control.get("agents_may_change_enabled") is not False:
+            self.error(
+                "policies/learning-gate.json.control.agents_may_change_enabled "
+                "must be false"
+            )
+        if control.get("activation_requires_explicit_user_instruction") is not True:
+            self.error(
+                "policies/learning-gate.json.control."
+                "activation_requires_explicit_user_instruction must be true"
             )
 
     def requires_english_artifacts(self) -> bool:
@@ -1202,6 +2142,199 @@ class Validator:
                         "communication.artifact_language is 'en': "
                         f"{relative}:{line_number} contains {letters!r}"
                     )
+
+    def document_exception_position(
+        self, lines: list[str], *, managed_block: bool
+    ) -> int | None:
+        start = 1 if managed_block and lines else 0
+        first = next(
+            (index for index in range(start, len(lines)) if lines[index].strip()),
+            None,
+        )
+        if first is None:
+            return None
+        if not managed_block and lines[first].strip() == "---":
+            closing = next(
+                (
+                    index
+                    for index in range(first + 1, len(lines))
+                    if lines[index].strip() == "---"
+                ),
+                None,
+            )
+            if closing is not None:
+                return next(
+                    (
+                        index
+                        for index in range(closing + 1, len(lines))
+                        if lines[index].strip()
+                    ),
+                    None,
+                )
+        return first
+
+    def validate_document_budget_exception(
+        self, lines: list[str], label: str, *, managed_block: bool
+    ) -> None:
+        marker_indexes = [
+            index
+            for index, line in enumerate(lines)
+            if "document-budget exception:" in line
+        ]
+        if len(marker_indexes) != 1:
+            self.error(
+                f"runtime-facing Markdown over its target requires exactly one "
+                f"document-budget exception: {label}"
+            )
+            return
+        marker_index = marker_indexes[0]
+        marker = lines[marker_index]
+        match = DOCUMENT_BUDGET_EXCEPTION_RE.fullmatch(marker)
+        if match is None:
+            self.error(
+                "document-budget exception must use exact syntax "
+                "'<!-- document-budget exception: <type> | <reason> -->': "
+                f"{label}"
+            )
+            return
+        exception_type = match.group("type")
+        if exception_type not in DOCUMENT_BUDGET_EXCEPTION_TYPES:
+            self.error(
+                f"document-budget exception type is invalid in {label}: "
+                f"{exception_type!r}"
+            )
+        reason = match.group("reason").strip()
+        normalized_reason = reason.casefold()
+        if (
+            not reason
+            or reason != match.group("reason")
+            or any(token in reason for token in ("{{", "}}"))
+            or normalized_reason
+            in {"reason", "<reason>", "todo", "tbd", "placeholder"}
+        ):
+            self.error(
+                f"document-budget exception reason must be concrete in {label}"
+            )
+        expected_index = self.document_exception_position(
+            lines, managed_block=managed_block
+        )
+        if marker_index != expected_index:
+            location = (
+                "immediately after the managed-block start marker"
+                if managed_block
+                else "at the first nonblank line after optional YAML frontmatter"
+            )
+            self.error(
+                f"document-budget exception must appear {location}: {label}"
+            )
+
+    def validate_runtime_markdown_lines(
+        self, lines: list[str], label: str, *, managed_block: bool = False
+    ) -> None:
+        if self.target_markdown_lines < 1 or self.max_markdown_lines < 1:
+            return
+        line_count = len(lines)
+        if line_count > self.max_markdown_lines:
+            self.error(
+                "runtime-facing Markdown exceeds limits.max_markdown_lines "
+                f"({line_count} > {self.max_markdown_lines}): {label}"
+            )
+            return
+        has_marker = any("document-budget exception:" in line for line in lines)
+        if line_count <= self.target_markdown_lines:
+            if has_marker:
+                self.error(
+                    "document-budget exception is stale at or below "
+                    f"limits.target_markdown_lines: {label}"
+                )
+            return
+        if line_count > self.target_markdown_lines:
+            self.validate_document_budget_exception(
+                lines, label, managed_block=managed_block
+            )
+
+    def canonical_runtime_markdown_paths(self) -> set[Path]:
+        paths: set[Path] = set()
+        for relative in ("HARNESS.md", "ENVIRONMENT.md"):
+            path = self.harness_root / relative
+            if path.is_file():
+                paths.add(path)
+        for relative in (
+            "team",
+            "skills",
+            "loops",
+            "policies",
+            "memory",
+            "recovery",
+            "budget",
+        ):
+            root = self.harness_root / relative
+            if root.is_dir():
+                paths.update(path for path in root.rglob("*.md") if path.is_file())
+        for relative in ("evaluation", "maintenance"):
+            root = self.harness_root / relative
+            if root.is_dir():
+                paths.update(path for path in root.glob("*.md") if path.is_file())
+        journal_format = self.harness_root / "ledger" / "JOURNAL-FORMAT.md"
+        if journal_format.is_file():
+            paths.add(journal_format)
+        return paths
+
+    def managed_root_guidance_lines(self, runtime: str) -> tuple[list[str], str] | None:
+        path = self.provider_path(runtime, "root_guidance")
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            return None
+        start_marker = f"<!-- harness-factory:start {self.namespace} -->"
+        end_marker = f"<!-- harness-factory:end {self.namespace} -->"
+        starts = [index for index, line in enumerate(lines) if line == start_marker]
+        ends = [index for index, line in enumerate(lines) if line == end_marker]
+        if len(starts) != 1 or len(ends) != 1 or ends[0] <= starts[0]:
+            self.error(
+                f"{path.name} must contain one ordered managed block for "
+                f"{self.namespace!r}"
+            )
+            return None
+        label = path.relative_to(self.target).as_posix()
+        return lines[starts[0] : ends[0] + 1], label
+
+    def validate_runtime_markdown_budgets(self) -> None:
+        if self.schema_version != "1.2":
+            return
+        for path in sorted(self.canonical_runtime_markdown_paths()):
+            label = path.relative_to(self.target).as_posix()
+            try:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except (OSError, UnicodeDecodeError) as exc:
+                self.error(f"cannot inspect runtime-facing Markdown {label}: {exc}")
+                continue
+            self.validate_runtime_markdown_lines(lines, label)
+        if self.provider_path_preflight_failed:
+            return
+        for runtime in sorted(self.runtime_targets):
+            contract = self.provider_contracts.get(runtime, {})
+            if contract.get("agent_extension") == ".md":
+                agent_root = self.provider_path(runtime, "agent_root")
+                for role in sorted(self.agent_ids):
+                    path = agent_root / f"{self.namespace}-{role}.md"
+                    if not path.is_file():
+                        continue
+                    label = path.relative_to(self.target).as_posix()
+                    try:
+                        lines = path.read_text(encoding="utf-8").splitlines()
+                    except (OSError, UnicodeDecodeError) as exc:
+                        self.error(
+                            f"cannot inspect runtime-facing Markdown {label}: {exc}"
+                        )
+                        continue
+                    self.validate_runtime_markdown_lines(lines, label)
+            managed = self.managed_root_guidance_lines(runtime)
+            if managed is not None:
+                lines, label = managed
+                self.validate_runtime_markdown_lines(
+                    lines, label, managed_block=True
+                )
 
     def validate_memory_index(self, path: Path) -> None:
         text = path.read_text(encoding="utf-8")
@@ -2197,6 +3330,19 @@ def main() -> int:
         action="store_true",
         help="validate spec and resolved provider paths without reading adapters",
     )
+    parser.add_argument(
+        "--construction-mode",
+        choices=sorted(CONSTRUCTION_MODES),
+        help="construction mode; must be paired with --delta-plan",
+    )
+    parser.add_argument(
+        "--delta-plan",
+        type=Path,
+        help=(
+            "construction receipt path relative to target or absolute; must be paired "
+            "with --construction-mode"
+        ),
+    )
     args = parser.parse_args()
     target = args.target.expanduser().resolve()
     spec_path = (
@@ -2204,7 +3350,12 @@ def main() -> int:
         if args.spec
         else target / "harness" / "harness-spec.json"
     )
-    validator = Validator(target, spec_path)
+    validator = Validator(
+        target,
+        spec_path,
+        construction_mode=args.construction_mode,
+        delta_plan_path=args.delta_plan,
+    )
     errors = (
         validator.validate_provider_path_preflight()
         if args.provider_path_preflight

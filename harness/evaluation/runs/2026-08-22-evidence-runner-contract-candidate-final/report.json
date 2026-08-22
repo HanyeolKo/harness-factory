@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "run_id": "2026-08-22-evidence-runner-contract-candidate-final",
+  "scope": "generated-harness-artifacts-only",
+  "decision": "full",
+  "verdict": "improved",
+  "structural_verdict": "pass",
+  "operational_verdict": "pass-scoped",
+  "harness_attributed_improvement": true,
+  "attribution_confidence": "high",
+  "improvements": [
+    {
+      "key": "harness:evidence-owner-contract",
+      "summary": "Request, execution and persistence, validation, and verdict ownership are now distinct and executable without giving write tools to read-only agents."
+    },
+    {
+      "key": "harness:evidence-integrity-contract",
+      "summary": "Completed and approval-blocked evidence now carry deterministic request and artifact hashes with an explicit validation result."
+    },
+    {
+      "key": "harness:provider-parity-non-regression",
+      "summary": "Claude, Codex, and Gemini wrapper descriptions are synchronized while permissions, agent count, and handoff count remain unchanged."
+    }
+  ],
+  "evidence": [
+    "trigger.json",
+    "comparison.json",
+    "effect-completed/execution-request.json",
+    "effect-completed/manifest.json",
+    "effect-completed/hash-verification.json",
+    "effect-completed/validation-result.json",
+    "effect-blocked/execution-request.json",
+    "effect-blocked/manifest.json",
+    "effect-blocked/hash-verification.json",
+    "effect-blocked/validation-result.json",
+    "../2026-08-22-evidence-runner-contract-candidate/structural-checks.txt",
+    "../../../../maintenance/runs/2026-08-22-evidence-runner-contract/verification.json"
+  ],
+  "checks_not_run": [
+    "Native Claude end-to-end request-execution-validation probe",
+    "Native Gemini end-to-end request-execution-validation probe",
+    "Windows symlink escape fixtures requiring SeCreateSymbolicLinkPrivilege",
+    "Raw token, wall-clock, and monetary cost telemetry"
+  ],
+  "next_handoff": "factory-router"
+}

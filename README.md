@@ -68,11 +68,23 @@ Then ask Gemini to use the skill:
 Use the build-harness skill to create a Claude, Codex, and Gemini harness in D:\workspace\step_fps.
 ```
 
-Unless you request a smaller set, `build-harness` creates adapters for all three runtimes. It inspects the project first and only asks about goals, approval gates, completion criteria, reporting preferences, or reader destination settings that cannot be inferred safely.
+By default, `build-harness` creates an adapter only for the runtime invoking it. It records answers already present in the request, then confirms the remaining construction decisions and the lowest sufficient profile before writing files. Additional runtimes are installed only when requested or confirmed.
+
+## Purpose-sized profiles
+
+Schema 1.2 installs only the capabilities justified by the intended work:
+
+| Profile | Use when | Installed scope |
+|---|---|---|
+| `core` | Bounded, attended project work | execution, task evidence, verdict, structural verification, short reporting |
+| `adaptive` | Recurring or long-running work needs durable memory or measured harness improvement | `core` plus memory, event-driven harness evaluation, and evidence-gated improvement |
+| `governed` | Audit, compliance, or developer-understanding controls are required | `adaptive` plus Learning Assist and the user-controlled Learning Gate |
+
+The constructor proposes the lowest sufficient profile and records the recommendation and user confirmation in the construction delta plan. A harness may recommend moving to `adaptive` or `governed` when later work crosses its current boundary, and may recommend reducing scope when those needs retire. It never changes profile or removes profile-owned evidence automatically. A downgrade requires an exact preserve/archive/remove plan and explicit user approval.
 
 ## Language and reading-cost contract
 
-Harness internals use concise English by default. Skills, agent instructions, memory entries, loop contracts, and other runtime-facing documents should state each rule once and use progressive disclosure: read the index first, then load only the references required for the current task. Generated harnesses do not duplicate internal content in multiple languages.
+Harness internals use concise English by default. Runtime-facing Markdown targets 50 lines and has a hard maximum of 100 lines; a 51–100-line document needs a declared structural exception. Skills, agent instructions, memory entries, loop contracts, and other runtime-facing documents state each rule once and use progressive disclosure: read the index first, then load only the references required for the current task. Generated harnesses do not duplicate internal content in multiple languages.
 
 New harnesses record language choices in `harness/harness-spec.json`:
 
@@ -96,13 +108,13 @@ New harness setup asks where reader-facing change and learning documents should 
 
 Notion and Slack targets must come from the user; agents do not guess them. Git remains the canonical evidence source even when a reader copy is published externally.
 
-Learning Assist is non-blocking when used on its own. Ask for a deeper explanation or comprehension check and it expands only the relevant actual diff/source. Explanations use a plain-language-first order: concrete behavior, reason, execution flow, relevant code, then a technical term only when that term helps future maintenance. Quiz questions test the implementation mental model rather than vocabulary recall. A wrong answer gets a directional hint, then a concrete scenario or counterexample, and only after the final failed attempt is recorded does the concept get explained directly.
+The governed profile installs Learning Assist as a durable layer, and it is non-blocking when used on its own. Lower profiles may still provide an ordinary one-off explanation without installing its templates. When invoked, it expands only the relevant actual diff/source. Explanations use a plain-language-first order: concrete behavior, reason, execution flow, relevant code, then a technical term only when that term helps future maintenance. Quiz questions test the implementation mental model rather than vocabulary recall. A wrong answer gets a directional hint, then a concrete scenario or counterexample, and only after the final failed attempt is recorded does the concept get explained directly.
 
 When localized reporting is selected, explanatory prose uses natural wording in the report language. Identifiers, paths, commands, and configuration keys remain exact, but ordinary explanations do not keep surrounding English process jargon by default. If an exact technical term helps source reading, explain the behavior first and introduce the term once in backticks or parentheses.
 
 ## Optional learning gate
 
-Every new harness still installs a Learning Gate as a project-owned policy, and it still starts with `enabled: false`.
+The `governed` profile installs a Learning Gate as a project-owned policy, and it starts with `enabled: false`. `core` and `adaptive` omit the gate until the user confirms a governed-profile transition.
 
 - Only an explicit user instruction may change `enabled`; agents may recommend a state but cannot toggle it.
 - Disabled means no gate-specific learning work, review block, pull request block, or merge block.
@@ -112,7 +124,7 @@ Every new harness still installs a Learning Gate as a project-owned policy, and 
 - Passing evidence remains bound to the project-owned committed source snapshot, quiz/answer hashes, and `verification.json`; external reader copies never replace this Git evidence.
 - Existing harnesses preserve the user's current on/off value during improve or reconcile operations.
 
-The policies live at `harness/policies/reporting.json` and `harness/policies/learning-gate.json`. See [Learning Assist](docs/LEARNING-ASSIST.md), [Reporting Contract](docs/REPORTING-CONTRACT.md), and [Learning Gate](docs/LEARNING-GATE.md).
+Reporting configuration lives at `harness/policies/reporting.json`; the governed-only gate lives at `harness/policies/learning-gate.json`. See [Learning Assist](docs/LEARNING-ASSIST.md), [Reporting Contract](docs/REPORTING-CONTRACT.md), and [Learning Gate](docs/LEARNING-GATE.md).
 
 ## Seven focused skills
 
@@ -140,7 +152,7 @@ The source of truth is `harness/harness-spec.json` together with the common file
 
 ## Evaluation without constant LLM calls
 
-Task completion and harness-effect evaluation are separate. Every task uses its linked task evaluator, while a read-only deterministic checker decides whether the harness itself needs more evaluation:
+Task completion and harness-effect evaluation are separate. Every task uses its linked task evaluator. In adaptive and governed harnesses, a read-only deterministic checker decides whether the harness itself needs more evaluation; core stops after task and structural evaluation:
 
 ```text
 task boundary
@@ -160,17 +172,19 @@ Learning Gate verification is separate from this harness-effect loop. It verifie
 
 ## Generated layout
 
+The tree below is the governed superset. Core omits memory, harness-effect, improvement, and learning-control paths; adaptive adds the first three but omits governed learning-control paths.
+
 ```text
 <target>/
 ├── harness/                              # Runtime-neutral source of truth
-│   ├── harness-spec.json                 # Schema 1.1
+│   ├── harness-spec.json                 # Schema 1.2 + core|adaptive|governed
 │   ├── HARNESS.md
 │   ├── team/agents/<role-id>.md
 │   ├── skills/<skill-id>/SKILL.md
 │   ├── policies/
 │   │   ├── reporting.json                # file|notion|slack reader destination
-│   │   ├── learning-gate.json            # Installed with enabled=false
-│   │   └── LEARNING-GATE.md
+│   │   ├── learning-gate.json            # governed only; enabled=false initially
+│   │   └── LEARNING-GATE.md               # governed only
 │   ├── reports/
 │   │   └── <change-id>/CHANGE-REPORT.md
 │   ├── learning-assist/
@@ -248,4 +262,4 @@ python scripts\skill_smoke_build_harness.py
 python scripts\validate_runtime_neutral.py <target-project>
 ```
 
-These checks cover the plugin 0.2.1 manifests, all seven skills, Claude/Codex/Gemini adapters, schema 1.1, projection parity, the deterministic trigger policy, the Learning Assist/reporting contract, and the Learning Gate's disabled/enabled integrity contract. The final command validates a generated harness in a real target project.
+These checks cover the plugin 0.3.0 manifests, all seven skills, selected-runtime adapters, schema 1.0/1.1 compatibility, schema 1.2 profiles, interview receipts, Markdown budgets, projection parity, deterministic triggers, reporting, and governed Learning Gate integrity. The final command validates a generated harness in a real target project.

@@ -1,0 +1,16 @@
+{
+  "unit_id": "2026-08-22-evidence-runner-contract-probe-blocked",
+  "evaluator": "factory-contract-tests",
+  "command": "& 'C:\\Users\\hanyu\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' scripts/validate_runtime_neutral.py .",
+  "request_hash": "ebe05ad22ba6265bad3f56bfd0ca759e2d31466f84308e8229d1f8e2a35a1c4e",
+  "approval_gate_status": "blocked:publish-or-release",
+  "stdout_path": "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate/probe-blocked/stdout.raw",
+  "stderr_path": "harness/evaluation/runs/2026-08-22-evidence-runner-contract-candidate/probe-blocked/stderr.raw",
+  "exit_code": null,
+  "artifact_hash": "400401c60ff1c5b73dda556bcaabcb5d95a23f2fd5e172d03733d7667d9e49a4",
+  "checks_not_run": [
+    "command not started: approval gate publish-or-release is unresolved"
+  ],
+  "status": "blocked",
+  "next_role": "evidence-runner"
+}

@@ -1,6 +1,6 @@
 ---
 name: build-agent
-description: Add or update one project-specific runtime-neutral harness agent, then synchronize the common role and Claude, Codex, and Gemini wrappers atomically. Use for roles, permissions, capabilities, or handoffs in an existing harness.
+description: Add or update one project-specific runtime-neutral harness agent, then synchronize the common role and all selected-provider wrappers atomically. Use for roles, permissions, capabilities, or handoffs in an existing harness.
 ---
 
 # build-agent
@@ -9,7 +9,7 @@ Change one agent role in an installed harness. If `harness/harness-spec.json` is
 
 ## Procedure
 
-1. Resolve `FACTORY_ROOT`, then read the runtime contract, target spec, report settings, and only relevant indexed memory.
+1. Resolve `FACTORY_ROOT`, then read the runtime contract, target spec/profile, report settings, and only relevant indexed memory when installed. If the requested role needs a capability outside the current profile, recommend the lowest sufficient profile and route the confirmed topology change to `build-harness reconcile`; do not install that layer here.
 2. Inventory the domain, agents, handoffs, evaluators, gates, ownership, and preservation baseline. Prefer extending a matching role over duplication.
 3. Define a lower-kebab-case ID, lane, capabilities, domains, access, `fast|balanced|deep` tier, input/output, and handoff.
 4. Add or reuse approval gates for broader write access, destructive work, or external effects.

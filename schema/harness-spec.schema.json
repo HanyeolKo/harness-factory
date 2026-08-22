@@ -18,7 +18,8 @@
     "loops"
   ],
   "properties": {
-    "schema_version": {"enum": ["1.0", "1.1"]},
+    "schema_version": {"enum": ["1.0", "1.1", "1.2"]},
+    "profile": {"enum": ["core", "adaptive", "governed"]},
     "harness": {
       "type": "object",
       "additionalProperties": false,
@@ -26,7 +27,8 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "purpose": {"type": "string", "minLength": 1},
-        "root": {"$ref": "#/$defs/relativePath"}
+        "root": {"$ref": "#/$defs/relativePath"},
+        "construction_receipt": {"$ref": "#/$defs/relativePath"}
       }
     },
     "runtime_targets": {
@@ -42,7 +44,9 @@
       "properties": {
         "max_parallelism": {"type": "integer", "minimum": 1},
         "max_delegation_depth": {"type": "integer", "minimum": 1},
-        "max_instruction_lines": {"type": "integer", "minimum": 1}
+        "max_instruction_lines": {"type": "integer", "minimum": 1},
+        "target_markdown_lines": {"type": "integer", "minimum": 1, "maximum": 50, "default": 50},
+        "max_markdown_lines": {"type": "integer", "minimum": 1, "maximum": 100, "default": 100}
       }
     },
     "communication": {
@@ -179,7 +183,7 @@
     "loops": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["execution", "evaluation", "improvement", "improvement_owner", "fail_threshold"],
+      "required": ["execution", "evaluation", "fail_threshold"],
       "properties": {
         "execution": {"$ref": "#/$defs/relativePath"},
         "evaluation": {"$ref": "#/$defs/relativePath"},
@@ -228,8 +232,19 @@
     {
       "if": {"properties": {"schema_version": {"const": "1.1"}}},
       "then": {
+        "not": {"required": ["profile"]},
         "required": ["memory", "self_evaluation"],
         "properties": {
+          "harness": {"not": {"required": ["construction_receipt"]}},
+          "limits": {
+            "not": {
+              "anyOf": [
+                {"required": ["target_markdown_lines"]},
+                {"required": ["max_markdown_lines"]}
+              ]
+            }
+          },
+          "loops": {"required": ["improvement", "improvement_owner"]},
           "skills": {"items": {"required": ["evaluator"]}},
           "evaluators": {"items": {"required": ["scope"]}}
         }
@@ -238,8 +253,136 @@
     {
       "if": {"properties": {"schema_version": {"const": "1.0"}}},
       "then": {
+        "not": {"required": ["profile"]},
         "properties": {
-          "loops": {"required": ["retro_interval"]}
+          "harness": {"not": {"required": ["construction_receipt"]}},
+          "limits": {
+            "not": {
+              "anyOf": [
+                {"required": ["target_markdown_lines"]},
+                {"required": ["max_markdown_lines"]}
+              ]
+            }
+          },
+          "loops": {"required": ["improvement", "improvement_owner", "retro_interval"]}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"schema_version": {"const": "1.2"}}},
+      "then": {
+        "required": ["profile", "communication"],
+        "properties": {
+          "harness": {"required": ["construction_receipt"]},
+          "limits": {
+            "required": [
+              "max_instruction_lines",
+              "target_markdown_lines",
+              "max_markdown_lines"
+            ]
+          },
+          "skills": {"items": {"required": ["evaluator"]}},
+          "evaluators": {"items": {"required": ["scope"]}}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {"const": "1.2"},
+          "profile": {"const": "core"}
+        },
+        "required": ["schema_version", "profile"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {"required": ["memory"]},
+            {"required": ["self_evaluation"]}
+          ]
+        },
+        "properties": {
+          "agents": {
+            "allOf": [
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "routing"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "execution"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "verification"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "verdict"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "defect-counting"}}}, "required": ["capabilities"]}}
+            ],
+            "items": {
+              "properties": {
+                "lane": {"not": {"const": "improvement"}},
+                "capabilities": {"not": {"contains": {"const": "improvement"}}}
+              }
+            }
+          },
+          "loops": {
+            "not": {
+              "anyOf": [
+                {"required": ["improvement"]},
+                {"required": ["improvement_owner"]},
+                {"required": ["retro_interval"]}
+              ]
+            }
+          },
+          "skills": {
+            "allOf": [
+              {"contains": {"properties": {"kind": {"const": "entry"}}, "required": ["kind"]}},
+              {"contains": {"properties": {"kind": {"const": "evaluation"}}, "required": ["kind"]}},
+              {"contains": {"properties": {"kind": {"const": "verification"}}, "required": ["kind"]}},
+              {"not": {"contains": {"properties": {"kind": {"enum": ["harness-evaluation", "improvement"]}}, "required": ["kind"]}}}
+            ]
+          },
+          "evaluators": {
+            "allOf": [
+              {"contains": {"properties": {"scope": {"const": "task"}}, "required": ["scope"]}},
+              {"not": {"contains": {"properties": {"scope": {"const": "harness"}}, "required": ["scope"]}}}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {"const": "1.2"},
+          "profile": {"enum": ["adaptive", "governed"]}
+        },
+        "required": ["schema_version", "profile"]
+      },
+      "then": {
+        "required": ["memory", "self_evaluation"],
+        "properties": {
+          "agents": {
+            "allOf": [
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "routing"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "execution"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "verification"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "verdict"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "defect-counting"}}}, "required": ["capabilities"]}},
+              {"contains": {"properties": {"capabilities": {"contains": {"const": "improvement"}}}, "required": ["capabilities"]}}
+            ]
+          },
+          "loops": {
+            "required": ["improvement", "improvement_owner"],
+            "not": {"required": ["retro_interval"]}
+          },
+          "skills": {
+            "allOf": [
+              {"contains": {"properties": {"kind": {"const": "entry"}}, "required": ["kind"]}},
+              {"contains": {"properties": {"kind": {"const": "evaluation"}}, "required": ["kind"]}},
+              {"contains": {"properties": {"kind": {"const": "verification"}}, "required": ["kind"]}},
+              {"contains": {"properties": {"kind": {"const": "harness-evaluation"}}, "required": ["kind"]}},
+              {"contains": {"properties": {"kind": {"const": "improvement"}}, "required": ["kind"]}}
+            ]
+          },
+          "evaluators": {
+            "allOf": [
+              {"contains": {"properties": {"scope": {"const": "task"}}, "required": ["scope"]}},
+              {"contains": {"properties": {"scope": {"const": "harness"}}, "required": ["scope"]}}
+            ]
+          }
         }
       }
     }

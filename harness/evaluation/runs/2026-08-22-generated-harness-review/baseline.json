@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "snapshot": "pre-improvement-control",
+  "structural_checks": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 2,
+    "skip_reason": "Windows symlink privilege WinError 1314"
+  },
+  "operational_metrics": {
+    "provider_command_capability": {
+      "claude": false,
+      "codex": true,
+      "gemini": false,
+      "supported_count": 1,
+      "selected_count": 3
+    },
+    "provider_evidence_persistence_capability": {
+      "claude": false,
+      "codex": false,
+      "gemini": false,
+      "supported_count": 0,
+      "selected_count": 3
+    },
+    "role_specific_contract_count": 0,
+    "agent_count": 6,
+    "completed_work_units": 2,
+    "telemetry_samples": 0,
+    "failure_signal_schema_matches_checker": false,
+    "harness_effect_command_executable": false,
+    "declared_read_only_fast_paths": 0,
+    "normal_success_handoffs": 3,
+    "failure_path_handoffs": 4
+  },
+  "score": {
+    "dimensions": 11,
+    "points": 20,
+    "maximum": 44,
+    "average_out_of_4": 1.8
+  }
+}

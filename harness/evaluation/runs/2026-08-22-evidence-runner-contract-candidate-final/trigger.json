@@ -1,0 +1,17 @@
+{
+  "acknowledgement": {
+    "coldstart_fail": false,
+    "fail_counts": {}
+  },
+  "current_adapter_hash": "446f8d4ffbf2f986dcb713aa6568949352b0c6002510de99b019f82d0d82d44c",
+  "current_canonical_hash": "f5961132abdb7433e876a188650a91ddd230fb563126dd0e1e539d418e2d291b",
+  "decision": "full",
+  "deferred_reasons": [],
+  "mandatory": true,
+  "reasons": [
+    "adapter-change",
+    "agent-change",
+    "canonical-contract-change",
+    "evaluator-change"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "harness-factory",
-  "version": "0.2.1",
-  "description": "Build and evolve runtime-neutral agent harnesses with conditional evaluation.",
+  "version": "0.3.0",
+  "description": "Build purpose-sized runtime-neutral agent harnesses with optional adaptive governance.",
   "contextFileName": "GEMINI.md"
 }

@@ -1,0 +1,15 @@
+{
+  "request_hash": {
+    "algorithm": "sha256(sorted compact UTF-8 execution_request JSON)",
+    "expected": "0ee38d21660b488f9c194a8289235090f4c3697808e658b4d790bcdc4a87fade",
+    "computed": "0ee38d21660b488f9c194a8289235090f4c3697808e658b4d790bcdc4a87fade",
+    "match": true
+  },
+  "artifact_hash": {
+    "algorithm": "sha256(stdout + NUL stderr NUL + stderr + NUL exit-code NUL + ASCII exit code + LF)",
+    "expected": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+    "computed": "3a81bad07f6e2af09ea6f93fdf701e357543c5876d419c40fa1813eaf98e1f36",
+    "match": true
+  },
+  "verified": true
+}

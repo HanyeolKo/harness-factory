@@ -1,0 +1,5 @@
+{
+  "request_hash": {"expected": "2b45ea243ec0584089e5823685ffca00217a12edafc2e8341bd94819b71fb046", "computed": "2b45ea243ec0584089e5823685ffca00217a12edafc2e8341bd94819b71fb046", "match": true},
+  "artifact_hash": {"exit_encoding": "null\n", "expected": "400401c60ff1c5b73dda556bcaabcb5d95a23f2fd5e172d03733d7667d9e49a4", "computed": "400401c60ff1c5b73dda556bcaabcb5d95a23f2fd5e172d03733d7667d9e49a4", "match": true},
+  "verified": true
+}

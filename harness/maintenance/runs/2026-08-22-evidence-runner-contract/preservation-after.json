@@ -1,0 +1,44 @@
+{
+  "change_id": "2026-08-22-evidence-runner-contract",
+  "mode": "improve",
+  "learning_gate_enabled": false,
+  "reporting_policy": {
+    "reader_destination": "file",
+    "reader_target": "harness/reports"
+  },
+  "sha256": {
+    "harness/harness-spec.json": "9cb30478516d74f29dd03cf2f2e66a1a7d82fcf10cf55c97c6e57e83a4f5383b",
+    "harness/team/agents/evidence-runner.md": "7b82f92cc3320bdbfe6e8ed991c295f6e7554530541c7f4e4f3b507059fdf436",
+    "harness/team/TEAM-ARCHITECTURE.md": "c6b664030a5ba1f4b44fcf277765daa0ad6005a9556a5074fcfdd6245f4f87aa",
+    "harness/evaluation/EVALUATION-CONTRACT.md": "e34e575feb68a7f1c06243d149f2253bf7e2070fe853fb36abc72784604da1ba",
+    "harness/evaluation/EVIDENCE-CONTRACT.md": "243a7438081912ac7dc45d169cc2441c4712ae1d9aa1bc096b1f6e6f69da49f7",
+    "harness/loops/EVAL-LOOP.md": "abbfb5acac8434264d17217c28e607a0fb2c7a623507fb2a46ef6d4f599527b1",
+    "harness/state/state.json": "841e652568956ed1874bebf86fce1d95cbdeaf9c7450eb873b4798a42532c5a2",
+    "harness/state/self-evaluation.json": "b925c53008f1aceb3607dddd948a7f349c426471ca52fe0a182859c79c47b55d",
+    "harness/ledger/journal.jsonl": "84b22633560f483bf59a60bbad2583e7fb3f21abf2cbb45762a3c2cf997b9b75",
+    "harness/ledger/DECISIONS.md": "a8482abe42c137295022ec29495f53df50aa6cda2bb3608d468b9452a2691980",
+    "harness/policies/reporting.json": "4fe8c868542d53fc610917169e3981ed9be5d6816c6ac45dcad040cfe0c5192b",
+    "harness/policies/learning-gate.json": "7c997e7018e8e2701476fca3bcd1ef1aa1e0865ae97b1306116311100acf48e0",
+    ".claude/agents/harness-factory-dev-evidence-runner.md": "e05ce737df4b714d12c1c02fb2b89ffa1da51538a59f0236d4e9ee03d0cb3c06",
+    ".codex/agents/harness-factory-dev-evidence-runner.toml": "8c1e544aec8a8383c80b2c41c18569e7b666d1b916cdb79ef98353367a506479",
+    ".gemini/agents/harness-factory-dev-evidence-runner.md": "19e4b3fe3926d6238ac2ef06d9f1bf461676bdb1c00e2824c1862d816d0cb59c",
+    "CLAUDE.md": "f8db4760212f33c05614df3596147cea12113f24ac14c3d38d929a048aec66d0",
+    "AGENTS.md": "6acabf84c84bc75e517d797d1d82acd0963c6a71fd7366b50367cf49ed1600dc",
+    "GEMINI.md": "77f605fc042884415c7aa2bfb069457bcdcfc131625b40ebd1e6a64accf51346",
+    "harness/reports/2026-08-22-evidence-runner-contract/LEARNING-ASSIST.md": "8894b60a52725f917d72ed5436241337b184e0bb28c43abb1ab5185f83229594",
+    "harness/reports/2026-08-22-evidence-runner-contract/CHANGE-REPORT.md": "366f06ab9ef9195885818583c33a719a0d643e88bfeeb8d1ef918a0bb5cfe589"
+  },
+  "comparison": {
+    "harness_spec": "modified: evidence-runner description and evidence handoff artifacts",
+    "evidence_runner_access": "preserved read-only",
+    "agent_count": "preserved: 6",
+    "handoff_count": "preserved: 4",
+    "workspace_write_agent_count": "preserved: 2",
+    "provider_wrappers": "description synchronized; tools and access preserved",
+    "root_guidance_and_skills": "unchanged",
+    "reporting_policy": "unchanged",
+    "learning_gate_policy": "unchanged",
+    "state_and_ledger_history": "preserved and appended",
+    "rejected_probe_evidence": "retained"
+  }
+}

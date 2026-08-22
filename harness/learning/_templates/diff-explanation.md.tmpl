@@ -1,0 +1,33 @@
+# Diff Explanation — <change-id>
+
+Write this artifact in the configured report language. Keep code tokens, identifiers, paths, commands, table names, and conventional technical terms exact.
+
+## What changed
+
+Start with a short description of the behavior that is different after this change. A developer should understand the result before reading implementation details.
+
+## Why it changed
+
+Explain the concrete problem this change solves and why the chosen behavior fixes it.
+
+## How the flow works now
+
+Describe the important control or data flow in execution order. Prefer a short sequence such as `request -> service -> query -> response` before introducing architecture terms.
+
+## Important files
+
+For each meaningful file, state what changed and what responsibility that file has. Skip generated files and boilerplate unless they matter to understanding.
+
+## Failure and edge cases
+
+Describe realistic failure paths or boundary cases and how the implementation handles them. Do not invent risks that are not supported by the diff.
+
+## Technical concepts worth knowing
+
+Include only concepts that materially help the developer read or maintain this change. Explain the behavior first, then name the technical term. Do not test vocabulary for its own sake.
+
+## Validation
+
+List the exact tests, commands, logs, or observations that were actually used. Do not claim checks that were not run.
+
+<!-- Readability rule: concrete behavior -> reason -> technical term. Prefer natural teammate-to-teammate development language. Avoid translation-like wording, dense abstract nouns, and a file-by-file restatement of the full diff. -->

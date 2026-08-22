@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "current_unit": "2026-08-22-evidence-runner-contract",
+  "units_since_full": 0,
+  "last_full_at": "2026-08-22T03:58:38Z",
+  "cooldown_remaining_units": 2,
+  "pending_events": [],
+  "baseline": {
+    "success_rate": null,
+    "cost_per_unit": null
+  },
+  "recent": {
+    "samples": 0,
+    "success_rate": null,
+    "cost_per_unit": null
+  },
+  "rolling": {
+    "window_units": 10,
+    "passed": 0,
+    "failed": 0,
+    "retries": 0,
+    "operation_cost": 0,
+    "evaluation_cost": 0
+  },
+  "hashes": {
+    "canonical": "f5961132abdb7433e876a188650a91ddd230fb563126dd0e1e539d418e2d291b",
+    "adapters": "446f8d4ffbf2f986dcb713aa6568949352b0c6002510de99b019f82d0d82d44c"
+  },
+  "acknowledged": {
+    "coldstart_fail": false,
+    "fail_counts": {}
+  },
+  "last_decision": {
+    "decision": "full",
+    "reasons": [
+      "adapter-change",
+      "agent-change",
+      "canonical-contract-change",
+      "evaluator-change"
+    ],
+    "verdict": "improved"
+  }
+}

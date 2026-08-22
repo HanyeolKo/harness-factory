@@ -2,55 +2,34 @@
 
 ## Statement
 
-Every runtime-facing instruction and memory document consumes reading budget. New harnesses therefore use concise English canonical prose, explicit line and summary limits, and index-first progressive disclosure. Do not store bilingual copies of internal content.
+Every runtime-facing Markdown file consumes reading budget. Schema 1.2 harnesses target 50 lines and never exceed 100 lines per generated Markdown file. Use concise English canonical prose, one source of truth, and index-first progressive disclosure instead of bilingual or repeated copies.
 
-## Default budgets for new harnesses
+## Default budgets
 
-| Content | Field | Default |
+| Content | Field | Schema 1.2 default |
 |---|---|---|
-| Canonical skill instructions | `limits.max_instruction_lines` | 120 lines |
-| Memory documents and `memory/INDEX.md` | `memory.max_document_lines` | 80 lines |
+| Any generated Markdown | `limits.target_markdown_lines` | 50 lines |
+| Any generated Markdown hard limit | `limits.max_markdown_lines` | 100 lines |
+| Canonical skill instructions | `limits.max_instruction_lines` | 100 lines |
+| Memory documents | `memory.max_document_lines` | 80 lines |
 | Memory index summary | `memory.max_summary_chars` | 160 characters |
 
-These fields are optional in existing schema 1.0 and 1.1 specs for backward compatibility. Missing fields do not invalidate or auto-translate project-owned content. New harnesses include them, and migrations add them only as an explicit, preservation-aware delta.
+The 50-line value is the normal design target, not permission to remove required semantics. Split before 100 lines. Existing schema 1.0/1.1 fields and legacy exception markers remain compatible; migrations add limits only through an explicit preservation-aware delta.
 
 ## Rules
 
-1. **Split before exceeding a limit** — Keep required procedure in the canonical file and move optional detail, examples, and variants into references loaded only when relevant.
-2. **Index every document set** — An index row records routing metadata, not a second copy of the document. Read the index first, then selected documents.
-3. **Use `HARNESS.md` as the top index** — Every generated document or sub-index appears in its file map.
-4. **Use one durable-memory index** — `memory/INDEX.md` uses `ID | Path | Summary | Read when | Source | Last verified | Status`. Current state and events remain in `state/state.json` and `ledger/journal.jsonl` rather than memory.
-5. **Update lifecycle atomically** — Create, move, rename, supersede, archive, and index updates occur in one transaction. Active paths exist; IDs and paths are unique.
-6. **Preserve before deleting** — Prefer `superseded` or `archived`. Do not overwrite, rename, move, or delete user-owned or unknown-origin memory without explicit approval.
-7. **Keep presentation separate** — `communication.report_language` and `communication.terminology` change user-facing narrative only. They do not create translated canonical copies and are excluded from the effect hash.
+1. Keep required procedure in the canonical file and move optional detail, examples, and variants into a directly linked reference.
+2. Use `HARNESS.md` as the top index. Read an index first, then only the documents required for the current action.
+3. Keep one `memory/INDEX.md` with `ID | Path | Summary | Read when | Source | Last verified | Status`. Do not duplicate state or events from `state/state.json` and `ledger/journal.jsonl`.
+4. Create, move, supersede, archive, and index-update a document set in one transaction. Active paths exist; IDs and paths are unique.
+5. Prefer `superseded` or `archived`. Never delete, move, or overwrite user-owned, unknown-origin, or evidence files without exact-path approval.
+6. Keep report language and terminology separate from canonical prose. Do not create translated canonical copies or include presentation-only fields in the harness-effect hash.
+7. Count lines after placeholder substitution. A template that is short but renders beyond the configured hard limit fails.
 
-## Budget exceptions
+A schema 1.2 Markdown file with 51–100 lines requires exactly one `<!-- document-budget exception: <type> | <reason> -->` marker at the first nonblank line, or immediately after YAML frontmatter. A file with 101 or more lines always fails.
 
-Keep a document whole only when splitting would reduce correctness or cost more than it saves:
+## Exceptions and migration
 
-| Exception | Examples | Reason |
-|---|---|---|
-| Required sequential instruction | A procedure that must be followed without a file boundary | Splitting risks skipped steps |
-| Atomic project contract | Schema, API contract, evaluation rubric, domain glossary | Partial reading risks a wrong verdict |
-| Higher routing overhead | A boundary-sized file with dense cross-references | Extra index reads cost more than they save |
+Schema 1.2 constructors split generated Markdown rather than creating a new over-100-line exception. Validators may recognize legacy `instruction-budget exception` and `reading-budget exception` markers for schema 1.0/1.1 compatibility, but new schema 1.2 output does not rely on them.
 
-Mark an instruction exception at the top of the file:
-
-```text
-<!-- instruction-budget exception: <type> — <reason> -->
-```
-
-Mark a memory exception at the top of the file:
-
-```text
-<!-- reading-budget exception: <type> — <reason> -->
-```
-
-Record the exception in the relevant index. An over-budget file without the correct marker fails deterministic validation. The validator may continue to recognize legacy exception markers for compatibility; all new writes use the English markers above. A budget failure can create an evaluation signal, but improvement still requires attribution.
-
-## Constructor requirements
-
-- Apply these budgets to generated output after placeholder substitution, not only to templates.
-- Store discovery material as an index and concise summaries; reference large source material at its existing path.
-- When reconciling a legacy harness without an index, inventory memory in place before adding `memory/INDEX.md`. Do not move files merely to satisfy the new layout.
-- The goal is smaller reading units, not deletion of useful evidence or context.
+When reconciling a legacy harness, inventory documents in place before adding an index. Preserve useful evidence and context; reduce runtime reading by routing, not by silent deletion.
