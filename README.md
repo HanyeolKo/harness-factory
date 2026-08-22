@@ -110,6 +110,8 @@ Notion and Slack targets must come from the user; agents do not guess them. Git 
 
 The governed profile installs Learning Assist as a durable layer, and it is non-blocking when used on its own. Lower profiles may still provide an ordinary one-off explanation without installing its templates. When invoked, it expands only the relevant actual diff/source. Explanations use a plain-language-first order: concrete behavior, reason, execution flow, relevant code, then a technical term only when that term helps future maintenance. Quiz questions test the implementation mental model rather than vocabulary recall. A wrong answer gets a directional hint, then a concrete scenario or counterexample, and only after the final failed attempt is recorded does the concept get explained directly.
 
+When localized reporting is selected, explanatory prose uses natural wording in the report language. Identifiers, paths, commands, and configuration keys remain exact, but ordinary explanations do not keep surrounding English process jargon by default. If an exact technical term helps source reading, explain the behavior first and introduce the term once in backticks or parentheses.
+
 ## Optional learning gate
 
 The `governed` profile installs a Learning Gate as a project-owned policy, and it starts with `enabled: false`. `core` and `adaptive` omit the gate until the user confirms a governed-profile transition.

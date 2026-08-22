@@ -38,6 +38,9 @@ The gate must not create a second, denser explanation vocabulary. Its `diff-expl
 8. Avoid literal translation-like nouns and unnecessary abstraction.
 9. Keep code tokens, identifiers, commands, API names, table names, and conventional technical terms exact.
 10. Do not restate the full diff.
+11. Apply the configured terminology mode. In `localized` mode, write natural report-language prose first and show an exact technical token only when the reader must recognize it in source or configuration.
+12. Preserve machine tokens, not surrounding jargon. Do not mix untranslated process nouns into every sentence merely to sound precise.
+13. When an exact term is useful, explain the behavior first, then introduce the term once in backticks or parentheses.
 
 Preferred order:
 
@@ -50,6 +53,13 @@ Avoid:
 ```text
 abstract term -> another abstract term -> force the reader to infer the code behavior
 ```
+
+Before publishing, run a reader wording check:
+
+- one main idea per sentence;
+- no more than three new concepts in one explanation round;
+- familiar report-language wording before optional exact terminology;
+- no unexplained mixed-language nouns outside identifiers, paths, commands, keys, and other machine tokens.
 
 ## Comprehension check
 

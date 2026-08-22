@@ -26,7 +26,7 @@ Create or reconcile a harness inside the target project. The project owns every 
 2. Prefer the runtime's structured input mechanism with bounded options and a free-text correction; use plain text only when structured input is unavailable.
 3. Purpose has no default. Obtain it from the request or an explicit user confirmation of a stated hypothesis.
 4. Silence is not delegation. Apply a default only after explicit delegation and record its source as `default-delegated`.
-5. Resolve purpose, deliverable type, task evaluator, operation mode, cost sensitivity, `artifact_language`, `report_language`, `terminology`, runtime targets, approval gates, and reporting destination/target. Canonical artifacts use English; an external target must come from the user.
+5. Resolve purpose, deliverable type, task evaluator, operation mode, cost sensitivity, `artifact_language`, `report_language`, `terminology`, runtime targets, approval gates, and reporting destination/target. Canonical artifacts use English; an external target must come from the user. In `localized` mode, use natural report-language prose, preserve machine tokens rather than surrounding jargon, and introduce an exact technical term once only when it helps source reading.
 6. Recommend the lowest sufficient profile, state what it installs and omits, and require confirmation. `core` installs task execution/evaluation/verification and short reporting; `adaptive` adds durable memory, harness-effect evaluation, and evidence-gated improvement; `governed` adds installed Learning Assist, the Learning Gate, and audit/education controls. Reporting destination alone does not raise the profile.
 7. Record all values and sources in `harness/maintenance/runs/<change-id>/delta-plan.json.interview_receipt`. In `create`, do not enter Phase 2 or write managed harness artifacts until the receipt is `complete` and profile confirmation is recorded.
 8. A profile may be recommended but never changed automatically. The canonical current value is `harness-spec.json.profile`; `harness.construction_receipt` points to its delta-plan history. Do not install a second profile policy source.
@@ -54,7 +54,7 @@ Preserve existing IDs, state, append-only ledger, evaluation runs, gates, evalua
 
 ## Delivery
 
-Report mode, receipt sources, confirmed profile and reasons, installed and omitted capabilities, preservation, changed files, providers, governed layers, checks, and residual failures using configured report language and terminology. Keep machine tokens exact. Do not commit automatically.
+Report mode, receipt sources, confirmed profile and reasons, installed and omitted capabilities, preservation, changed files, providers, governed layers, checks, and residual failures using configured report language and terminology. For governed Learning Assist output, run the reader wording check before publishing. Keep machine tokens exact. Do not commit automatically.
 
 ## Invariants
 
